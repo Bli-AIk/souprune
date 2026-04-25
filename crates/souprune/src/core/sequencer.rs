@@ -58,7 +58,7 @@ pub struct SequencerUpdate;
 /// Sequence configuration asset loaded from `.sequence.ron` files.
 /// Contains the chapter sequence and optional rules file path.
 ///
-/// 从 `.sequence.ron` 文件加载的序列配置资产。
+/// 从 `.sequence.ron` 文件加载的序列配置资源。
 /// 包含章节序列和可选的规则文件路径。
 #[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
 pub struct SequenceAsset {
@@ -101,7 +101,7 @@ pub fn runtime_chapters_from_schema(
     ron::from_str(&serialized).map_err(|e| format!("failed to deserialize runtime chapters: {e}"))
 }
 
-/// 初始化 Sequencer 所需的资源和资产类型。
+/// 初始化 Sequencer 所需的资源和资源类型。
 ///
 /// 编辑器和游戏均可调用此函数完成资源初始化。
 pub fn init_sequencer(app: &mut App) {

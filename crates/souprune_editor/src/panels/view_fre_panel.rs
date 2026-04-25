@@ -13,7 +13,7 @@ use souprune_schema::view::DataRequirement;
 /// View FRE 编辑器状态。
 #[derive(Resource, Default)]
 pub struct ViewFreState {
-    /// 已加载的 FRE 资产，按路径索引。
+    /// 已加载的 FRE 资源，按路径索引。
     pub loaded_fre: HashMap<String, GameFreAsset>,
     /// 模拟 Fact 值（用于预览 visible_when）。
     pub simulated_facts: HashMap<String, SimFactValue>,

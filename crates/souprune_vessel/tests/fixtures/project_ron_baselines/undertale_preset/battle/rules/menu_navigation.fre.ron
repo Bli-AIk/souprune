@@ -1,0 +1,130 @@
+#![enable(implicit_some)]
+// Battle Menu Navigation Rules — directional input handling
+// 战斗菜单导航规则 — 方向键输入处理
+
+(
+    scope: View,
+
+    enums: {
+        "depth": ["main", "submenu", "options"],
+        "menu_context": ["fight", "act", "item", "mercy"],
+    },
+
+    rules: [
+        // === Main menu (depth: main) — horizontal navigation ===
+
+        (event: ActionEvent(action: "Left", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'main'", "$button_selection > 0"],
+         actions: [SetLocalFact("button_selection", Expr("$button_selection - 1")), PlaySound("choice")]),
+
+        (event: ActionEvent(action: "Left", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'main'", "$button_selection == 0"],
+         actions: [SetLocalFact("button_selection", Int(3)), PlaySound("choice")]),
+
+        (event: ActionEvent(action: "Right", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'main'", "$button_selection < 3"],
+         actions: [SetLocalFact("button_selection", Expr("$button_selection + 1")), PlaySound("choice")]),
+
+        (event: ActionEvent(action: "Right", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'main'", "$button_selection == 3"],
+         actions: [SetLocalFact("button_selection", Int(0)), PlaySound("choice")]),
+
+        // === Submenu (depth: submenu) — enemy list navigation (non-ITEM) ===
+
+        (event: ActionEvent(action: "Up", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'submenu'", "$menu_context != 'item'", "$enemy_selection > 0", "$enemy_selection > $enemy_view_offset"],
+         actions: [SetLocalFact("enemy_selection", Expr("$enemy_selection - 1")), PlaySound("choice")]),
+
+        (event: ActionEvent(action: "Up", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'submenu'", "$menu_context != 'item'", "$enemy_selection > 0", "$enemy_selection <= $enemy_view_offset"],
+         actions: [SetLocalFact("enemy_selection", Expr("$enemy_selection - 1")), SetLocalFact("enemy_view_offset", Expr("$enemy_view_offset - 1")), PlaySound("choice")]),
+
+        (event: ActionEvent(action: "Down", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'submenu'", "$menu_context != 'item'", "$enemy_selection < $enemy_names - 1", "$enemy_selection < $enemy_view_offset + $enemy_display_limit - 1"],
+         actions: [SetLocalFact("enemy_selection", Expr("$enemy_selection + 1")), PlaySound("choice")]),
+
+        (event: ActionEvent(action: "Down", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'submenu'", "$menu_context != 'item'", "$enemy_selection < $enemy_names - 1", "$enemy_selection >= $enemy_view_offset + $enemy_display_limit - 1"],
+         actions: [SetLocalFact("enemy_selection", Expr("$enemy_selection + 1")), SetLocalFact("enemy_view_offset", Expr("$enemy_view_offset + 1")), PlaySound("choice")]),
+
+        // === Submenu (depth: submenu) — item 2×2 grid navigation with pagination (ITEM mode) ===
+
+        // LEFT: right column → left column (simple)
+        (event: ActionEvent(action: "Left", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'submenu'", "$menu_context == 'item'", "$item_selection % 2 == 1"],
+         actions: [SetLocalFact("item_selection", Expr("$item_selection - 1")), PlaySound("choice")]),
+
+        // LEFT: left column, page 1 → page 0 right column same row
+        (event: ActionEvent(action: "Left", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'submenu'", "$menu_context == 'item'", "$item_selection % 2 == 0", "$item_selection >= 4"],
+         actions: [SetLocalFact("item_selection", Expr("$item_selection - 3")), PlaySound("choice")]),
+
+        // LEFT: left column, page 0, wrap to page 1 right column (if exists)
+        (event: ActionEvent(action: "Left", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'submenu'", "$menu_context == 'item'", "$item_selection % 2 == 0", "$item_selection < 4", "$item_selection + 5 < $item_count"],
+         actions: [SetLocalFact("item_selection", Expr("$item_selection + 5")), PlaySound("choice")]),
+
+        // LEFT: left column, page 0, no page 1 target, fallback to current page right column
+        (event: ActionEvent(action: "Left", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'submenu'", "$menu_context == 'item'", "$item_selection % 2 == 0", "$item_selection < 4", "$item_selection + 5 >= $item_count", "$item_selection + 1 < $item_count"],
+         actions: [SetLocalFact("item_selection", Expr("$item_selection + 1")), PlaySound("choice")]),
+
+        // RIGHT: left column → right column (if right column item exists)
+        (event: ActionEvent(action: "Right", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'submenu'", "$menu_context == 'item'", "$item_selection % 2 == 0", "$item_selection + 1 < $item_count"],
+         actions: [SetLocalFact("item_selection", Expr("$item_selection + 1")), PlaySound("choice")]),
+
+        // RIGHT: right column, page 0 → page 1 left column same row (if exists)
+        (event: ActionEvent(action: "Right", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'submenu'", "$menu_context == 'item'", "$item_selection % 2 == 1", "$item_selection < 4", "$item_selection + 3 < $item_count"],
+         actions: [SetLocalFact("item_selection", Expr("$item_selection + 3")), PlaySound("choice")]),
+
+        // RIGHT: right column, page 1 → wrap to page 0 left column same row
+        (event: ActionEvent(action: "Right", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'submenu'", "$menu_context == 'item'", "$item_selection % 2 == 1", "$item_selection >= 4"],
+         actions: [SetLocalFact("item_selection", Expr("$item_selection - 5")), PlaySound("choice")]),
+
+        // RIGHT: right column, page 0, no page 1 → wrap to current page left column
+        (event: ActionEvent(action: "Right", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'submenu'", "$menu_context == 'item'", "$item_selection % 2 == 1", "$item_selection < 4", "$item_selection + 3 >= $item_count"],
+         actions: [SetLocalFact("item_selection", Expr("$item_selection - 1")), PlaySound("choice")]),
+
+        // UP: move up one row within same page (row 1 → row 0)
+        (event: ActionEvent(action: "Up", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'submenu'", "$menu_context == 'item'", "$item_selection % 4 >= 2"],
+         actions: [SetLocalFact("item_selection", Expr("$item_selection - 2")), PlaySound("choice")]),
+
+        // DOWN: move down one row within same page (row 0 → row 1, if target exists)
+        (event: ActionEvent(action: "Down", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'submenu'", "$menu_context == 'item'", "$item_selection % 4 < 2", "$item_selection + 2 < $item_count"],
+         actions: [SetLocalFact("item_selection", Expr("$item_selection + 2")), PlaySound("choice")]),
+
+        // === ACT options (depth: options) — 2-column grid navigation ===
+
+        (event: ActionEvent(action: "Left", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'options'", "$menu_context == 'act'", "$act_selection % 2 == 1"],
+         actions: [SetLocalFact("act_selection", Expr("$act_selection - 1")), PlaySound("choice")]),
+
+        (event: ActionEvent(action: "Right", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'options'", "$menu_context == 'act'", "$act_selection % 2 == 0", "$act_selection + 1 < $act_count"],
+         actions: [SetLocalFact("act_selection", Expr("$act_selection + 1")), PlaySound("choice")]),
+
+        (event: ActionEvent(action: "Up", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'options'", "$menu_context == 'act'", "$act_selection >= 2"],
+         actions: [SetLocalFact("act_selection", Expr("$act_selection - 2")), PlaySound("choice")]),
+
+        (event: ActionEvent(action: "Down", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'options'", "$menu_context == 'act'", "$act_selection + 2 < $act_count"],
+         actions: [SetLocalFact("act_selection", Expr("$act_selection + 2")), PlaySound("choice")]),
+
+        // === MERCY options (depth: options) — single column navigation ===
+
+        (event: ActionEvent(action: "Up", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'options'", "$menu_context == 'mercy'", "$mercy_selection > 0"],
+         actions: [SetLocalFact("mercy_selection", Expr("$mercy_selection - 1")), PlaySound("choice")]),
+
+        (event: ActionEvent(action: "Down", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 'options'", "$menu_context == 'mercy'", "$mercy_selection < $mercy_count - 1"],
+         actions: [SetLocalFact("mercy_selection", Expr("$mercy_selection + 1")), PlaySound("choice")]),
+    ],
+)

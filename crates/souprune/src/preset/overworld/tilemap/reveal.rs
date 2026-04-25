@@ -302,7 +302,7 @@ impl Material2d for BlackWhiteMaterial {
         //
         // TODO: 重构为更通用的着色器系统，允许用户通过 RON 配置指定着色器路径。
         // 此硬编码路径应替换为类似 DynamicMaterial2d 的 material.shader 字段的数据驱动方式。
-        "shaders/black_white_tile.wgsl".into()
+        "assets/shaders/black_white_tile.wgsl".into()
     }
 
     fn alpha_mode(&self) -> AlphaMode2d {
@@ -324,7 +324,7 @@ impl MaterialTilemap for BlackWhiteTilemapMaterial {
         // user-configurable shader paths through RON configuration.
         //
         // TODO: 重构为更通用的着色器系统，允许用户通过 RON 配置指定着色器路径。
-        "shaders/black_white_tilemap.wgsl".into()
+        "assets/shaders/black_white_tilemap.wgsl".into()
     }
 }
 

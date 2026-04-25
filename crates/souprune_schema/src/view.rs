@@ -6,26 +6,131 @@
 //! `.view.ron` 和 `.sdf.ron` 文件的 View Layout Schema 类型。
 //! 对应 souprune 的 view_schema.rs 类型，无 Bevy 依赖。
 
-use crate::val::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use crate::val::Val;
+pub use crate::val::{expression, static_float};
+
+mod material;
+mod sdf;
+
+pub use material::*;
+pub use sdf::*;
 
 // ============================================================================
 // Serializable Helper Types (mirrors serde_types.rs)
 // ============================================================================
 
+/// Floating-point value or a dynamic expression string.
+///
+/// 浮点值或动态表达式字符串。
 pub type FloatOrExpr = Val<f32>;
+
+/// Three-dimensional vector with dynamic channel values.
+///
+/// 使用动态通道值的三维向量。
 pub type SerializableVec3 = (Val<f32>, Val<f32>, Val<f32>);
+
+/// Two-dimensional vector with dynamic channel values.
+///
+/// 使用动态通道值的二维向量。
 pub type SerializableVec2 = (Val<f32>, Val<f32>);
+
+/// RGBA color with dynamic channel values (0.0–1.0).
+///
+/// 使用动态通道值的 RGBA 颜色 (0.0–1.0)。
 pub type SerializableColor = (Val<f32>, Val<f32>, Val<f32>, Val<f32>);
+
+/// Alias for `SerializableColor` used for dynamic color properties.
+///
+/// 用于动态颜色属性的 `SerializableColor` 别名。
 pub type DynamicColor = SerializableColor;
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+/// Two-dimensional vector with static floating-point channels.
+///
+/// 使用静态浮点通道的二维向量。
+pub fn vector2(x: f32, y: f32) -> SerializableVec2 {
+    (static_float(x), static_float(y))
+}
+
+/// Two-dimensional vector with explicit value channels.
+///
+/// 使用显式值通道的二维向量。
+pub fn vector2_value(x: Val<f32>, y: Val<f32>) -> SerializableVec2 {
+    (x, y)
+}
+
+/// Three-dimensional vector with static floating-point channels.
+///
+/// 使用静态浮点通道的三维向量。
+pub fn vector3(x: f32, y: f32, z: f32) -> SerializableVec3 {
+    (static_float(x), static_float(y), static_float(z))
+}
+
+/// Three-dimensional vector with explicit value channels.
+///
+/// 使用显式值通道的三维向量。
+pub fn vector3_value(x: Val<f32>, y: Val<f32>, z: Val<f32>) -> SerializableVec3 {
+    (x, y, z)
+}
+
+/// RGBA color with static floating-point channels.
+///
+/// 使用静态浮点通道的 RGBA 颜色。
+pub fn color(red: f32, green: f32, blue: f32, alpha: f32) -> SerializableColor {
+    (
+        static_float(red),
+        static_float(green),
+        static_float(blue),
+        static_float(alpha),
+    )
+}
+
+/// RGBA color with explicit value channels.
+///
+/// 使用显式值通道的 RGBA 颜色。
+pub fn color_value(
+    red: Val<f32>,
+    green: Val<f32>,
+    blue: Val<f32>,
+    alpha: Val<f32>,
+) -> SerializableColor {
+    (red, green, blue, alpha)
+}
+
+/// Opaque white color.
+///
+/// 不透明白色。
+pub fn white() -> SerializableColor {
+    color(1.0, 1.0, 1.0, 1.0)
+}
+
+/// Opaque red color.
+///
+/// 不透明红色。
+pub fn red() -> SerializableColor {
+    color(1.0, 0.0, 0.0, 1.0)
+}
+
+/// Serializable transform components for view entities.
+///
+/// 视图实体的可序列化变换组件。
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct SerializableTransform {
+    /// Translation offset (X, Y, Z).
+    ///
+    /// 位移偏移 (X, Y, Z)。
     #[serde(default)]
     pub translation: Option<SerializableVec3>,
+    /// Rotation angle in degrees or expression.
+    ///
+    /// 旋转角度（度）或表达式。
     #[serde(default)]
-    pub rotation: Option<f32>,
+    pub rotation: Option<FloatOrExpr>,
+    /// Scale factor (X, Y, Z).
+    ///
+    /// 缩放因子 (X, Y, Z)。
     #[serde(default)]
     pub scale: Option<SerializableVec3>,
 }
@@ -107,6 +212,16 @@ pub enum TextAnchorDef {
 #[serde(transparent)]
 pub struct Visual(pub String);
 
+/// Coordinate system preset for view layouts.
+///
+/// 视图布局的坐标系预设。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, Default, PartialEq, Eq)]
+pub enum CoordinateSystem {
+    #[default]
+    Standard,
+    YDown,
+}
+
 // ============================================================================
 // ViewLayout (top-level asset, mirrors ViewLayoutAsset)
 // ============================================================================
@@ -114,18 +229,39 @@ pub struct Visual(pub String);
 /// View Layout — the top-level schema for `.view.ron` files.
 ///
 /// 视图布局——`.view.ron` 文件的顶层 Schema。
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ViewLayout {
+    /// Root nodes of the UI tree.
+    ///
+    /// UI 树的根节点。
     pub roots: Vec<ViewNodeDef>,
 
+    /// External data dependencies (e.g., locale files, interfaces).
+    ///
+    /// 外部数据依赖（如语言文件、接口）。
     #[serde(default)]
     pub requires: Vec<DataRequirement>,
 
-    #[serde(default)]
+    /// Initial state of FRE facts.
+    ///
+    /// FRE facts 的初始状态。
+    #[serde(
+        default,
+        serialize_with = "crate::ordered_map::serialize_optional_ordered_map"
+    )]
     pub facts: Option<HashMap<String, InitialFactValue>>,
 
+    /// Whether the layout should be rendered in world space.
+    ///
+    /// 布局是否应在世界空间中渲染。
     #[serde(default)]
     pub world_space: bool,
+
+    /// Coordinate system used for absolute positioning.
+    ///
+    /// 用于绝对定位的坐标系。
+    #[serde(default)]
+    pub coordinate_system: CoordinateSystem,
 }
 
 pub type ViewLayoutAsset = ViewLayout;
@@ -155,32 +291,73 @@ pub enum InitialFactValue {
 // ViewNodeDef
 // ============================================================================
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+/// Node definition in the UI tree.
+///
+/// UI 树中的节点定义。
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ViewNodeDef {
+    /// Unique name of the node (used for identification and animation).
+    ///
+    /// 节点的唯一名称（用于标识和动画）。
     pub name: String,
+    /// Metadata tags for categorization.
+    ///
+    /// 用于分类的元数据标签。
     #[serde(default)]
     pub tags: Vec<String>,
+    /// Flexbox-based layout and styling.
+    ///
+    /// 基于 Flexbox 的布局与样式。
     #[serde(default)]
     pub style: StyleDef,
+    /// Conditional visibility based on a FRE expression.
+    ///
+    /// 基于 FRE 表达式的条件可见性。
     #[serde(default)]
     pub visible_when: Option<String>,
+    /// Solid background color.
+    ///
+    /// 纯色背景。
     #[serde(default)]
     pub background_color: Option<SerializableColor>,
+    /// Solid border color.
+    ///
+    /// 纯色边框颜色。
     #[serde(default)]
     pub border_color: Option<SerializableColor>,
+    /// Static image content.
+    ///
+    /// 静态图片内容。
     #[serde(default)]
     pub image: Option<ImageDef>,
+    /// Single sprite visual.
+    ///
+    /// 单个 Sprite 视觉资源。
     #[serde(default)]
     pub sprite: Option<SpriteDef>,
+    /// Multi-state sprite configuration.
+    ///
+    /// 多状态 Sprite 配置。
     #[serde(default)]
     pub state_sprite: Option<StateSpriteConfig>,
+    /// Text elements associated with this node.
+    ///
+    /// 与此节点关联的文本元素。
     #[serde(default)]
     pub texts: Vec<TextDef>,
+    /// Game-specific "view box" logic (Undertale/Deltarune style boxes).
+    ///
+    /// 游戏特定的 "view box" 逻辑（Undertale/Deltarune 风格的边框）。
     #[serde(default)]
-    #[serde(alias = "view_box", alias = "ui_box_logic")]
     pub view_box: Option<ViewBoxLogicDef>,
+    /// Child nodes.
+    ///
+    /// 子节点。
     #[serde(default)]
     pub children: Vec<ViewNodeDef>,
+    /// Dynamic repetition logic (e.g., list rendering).
+    ///
+    /// 动态重复逻辑（如列表渲染）。
     #[serde(default)]
     pub repeat: Option<RepeatDef>,
 }
@@ -189,38 +366,71 @@ pub struct ViewNodeDef {
 // Child types
 // ============================================================================
 
+/// Flexbox-based layout style.
+///
+/// 基于 Flexbox 的布局样式。
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct StyleDef {
+    /// Node width.
+    ///
+    /// 节点宽度。
     #[serde(default)]
     pub width: Option<SerializableVal>,
+    /// Node height.
+    ///
+    /// 节点高度。
     #[serde(default)]
     pub height: Option<SerializableVal>,
+    /// Left offset (for absolute or relative positioning).
+    ///
+    /// 左侧偏移（用于绝对或相对定位）。
     #[serde(default)]
     pub left: Option<SerializableVal>,
+    /// Right offset.
+    ///
+    /// 右侧偏移。
     #[serde(default)]
     pub right: Option<SerializableVal>,
+    /// Top offset.
+    ///
+    /// 顶部偏移。
     #[serde(default)]
     pub top: Option<SerializableVal>,
+    /// Bottom offset.
+    ///
+    /// 底部偏移。
     #[serde(default)]
     pub bottom: Option<SerializableVal>,
+    /// Positioning strategy (Relative or Absolute).
+    ///
+    /// 定位策略（相对或绝对）。
     #[serde(default)]
     pub position_type: Option<SerializablePositionType>,
+    /// Layout direction for children.
+    ///
+    /// 子节点的布局方向。
     #[serde(default)]
     pub flex_direction: Option<UiFlexDirection>,
+    /// Alignment along the main axis.
+    ///
+    /// 主轴方向的对齐方式。
     #[serde(default)]
     pub justify_content: Option<SerializableJustifyContent>,
+    /// Alignment along the cross axis.
+    ///
+    /// 交叉轴方向的对齐方式。
     #[serde(default)]
     pub align_items: Option<SerializableAlignItems>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ImageDef {
     pub path: String,
     #[serde(default)]
     pub color: Option<SerializableColor>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct SpriteDef {
     pub visual: Visual,
     #[serde(default)]
@@ -243,35 +453,106 @@ pub struct SpriteDef {
     pub material: Option<MaterialDef>,
 }
 
+/// Text element definition.
+///
+/// 文本元素定义。
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TextDef {
+    /// Unique identifier for the text element.
+    ///
+    /// 文本元素的唯一标识符。
     pub id: String,
+    /// Initial string content.
+    ///
+    /// 初始字符串内容。
     #[serde(default)]
     pub content: Option<String>,
+    /// Font identifier.
+    ///
+    /// 字体标识符。
     pub font: ViewFontDef,
+    /// Text alignment within its bounding box.
+    ///
+    /// 文本在其包围框内的对齐方式。
     #[serde(default)]
     pub align: Option<TextAlignDef>,
+    /// Anchor point for the text's coordinate system.
+    ///
+    /// 文本坐标系的锚点。
     #[serde(default)]
     pub anchor: Option<TextAnchorDef>,
+    /// Scale factor in world units.
+    ///
+    /// 世界单位下的缩放比例。
     pub world_scale: SerializableVec2,
+    /// Base color.
+    ///
+    /// 基础颜色。
     pub color: SerializableColor,
+    /// Transform components.
+    ///
+    /// 变换组件。
     pub transform: SerializableTransform,
+    /// Line height override.
+    ///
+    /// 行高覆盖。
     #[serde(default)]
     pub line_height: Option<f32>,
+    /// Character spacing offset.
+    ///
+    /// 字符间距偏移。
     #[serde(default)]
     pub char_spacing: Option<f32>,
+    /// Word spacing offset.
+    ///
+    /// 单词间距偏移。
     #[serde(default)]
     pub word_spacing: Option<f32>,
+    /// Alternative style applied when a condition is met.
+    ///
+    /// 当满足条件时应用的备选样式。
     #[serde(default)]
     pub conditional_style: Option<ConditionalStyleDef>,
+    /// Conditional visibility.
+    ///
+    /// 条件可见性。
     #[serde(default)]
     pub visible_when: Option<String>,
+}
+
+impl Default for TextDef {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            content: None,
+            font: String::new(),
+            align: None,
+            anchor: None,
+            world_scale: vector2(1.0, 1.0),
+            color: white(),
+            transform: SerializableTransform::default(),
+            line_height: None,
+            char_spacing: None,
+            word_spacing: None,
+            conditional_style: None,
+            visible_when: None,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConditionalStyleDef {
     pub condition: String,
     pub color: SerializableColor,
+}
+
+impl Default for ConditionalStyleDef {
+    fn default() -> Self {
+        Self {
+            condition: String::new(),
+            color: white(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -289,7 +570,21 @@ pub struct ViewBoxLogicDef {
     pub fill_color: Option<SerializableColor>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+impl Default for ViewBoxLogicDef {
+    fn default() -> Self {
+        Self {
+            width: 0.0,
+            height: 0.0,
+            border_width: 0.0,
+            offset: vector3(0.0, 0.0, 0.0),
+            fill_shader: None,
+            structure_file: None,
+            fill_color: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct RepeatDef {
     pub source: String,
     #[serde(default)]
@@ -304,10 +599,10 @@ pub struct RepeatDef {
 // State Sprite Configuration
 // ============================================================================
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct StateSpriteConfig {
     pub default: String,
-    #[serde(default)]
+    #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub variants: HashMap<String, String>,
     #[serde(default)]
     pub rules: Vec<StateRuleDef>,
@@ -326,119 +621,6 @@ pub struct StateRuleDef {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum StateTriggerDef {
     InteractiveLayerSelected { layer_id: String, index: usize },
-}
-
-// ============================================================================
-// Material Configuration
-// ============================================================================
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct MaterialDef {
-    pub shader: String,
-    #[serde(default)]
-    pub params: HashMap<String, MaterialParamValue>,
-    #[serde(default)]
-    pub animations: Option<MaterialAnimationsDef>,
-    #[serde(default)]
-    pub texture: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum MaterialParamValue {
-    Static(f32),
-    Expr(String),
-}
-
-impl Default for MaterialParamValue {
-    fn default() -> Self {
-        Self::Static(0.0)
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct MaterialAnimationsDef {
-    #[serde(default)]
-    pub lag: Option<LagAnimationDef>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct LagAnimationDef {
-    pub source: String,
-    pub target: String,
-    #[serde(default = "default_lag_delay")]
-    pub delay: f32,
-    #[serde(default = "default_lag_duration")]
-    pub duration: f32,
-    #[serde(default)]
-    pub easing: EasingDef,
-}
-
-fn default_lag_delay() -> f32 {
-    0.2
-}
-
-fn default_lag_duration() -> f32 {
-    0.4
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
-pub enum EasingDef {
-    #[default]
-    Linear,
-    InQuad,
-    OutQuad,
-    InOutQuad,
-    InCubic,
-    OutCubic,
-    InOutCubic,
-    InCirc,
-    OutCirc,
-    InOutCirc,
-}
-
-// ============================================================================
-// SDF Structure Asset
-// ============================================================================
-
-/// SDF structure layout for `.sdf.ron` files.
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct SdfStructure {
-    pub layer_count: usize,
-    pub root: SdfLayerDef,
-}
-
-pub type SdfStructureAsset = SdfStructure;
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct SdfLayerDef {
-    pub name: String,
-    pub sdf_type: SdfShapeKind,
-    #[serde(default)]
-    pub color_source: SdfColorSource,
-    #[serde(default = "default_z_offset")]
-    pub z_offset: f32,
-    #[serde(default)]
-    pub is_filler: bool,
-    #[serde(default)]
-    pub children: Vec<SdfLayerDef>,
-}
-
-fn default_z_offset() -> f32 {
-    0.1
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum SdfShapeKind {
-    Outer,
-    Inner,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub enum SdfColorSource {
-    #[default]
-    FillColor,
-    White,
-    Custom(SerializableColor),
 }
 
 // ============================================================================

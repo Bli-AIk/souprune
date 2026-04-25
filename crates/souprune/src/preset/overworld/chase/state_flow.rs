@@ -7,11 +7,11 @@
 //! ## 模块概述
 //!
 //! Manages the chase-mode state machine hooks in the overworld. It detects entry and
-//! exit from the configured chase sub-state, loads the chase configuration from `states.ron`, and
+//! exit from the configured chase sub-state, loads the chase configuration from `flow.ron`, and
 //! advances the transition timer that the visual layer consumes.
 //!
 //! 负责大地图追逐模式的状态流转钩子。它会检测何时进入或退出配置好的 chase 子状态，
-//! 从 `states.ron` 里加载追逐配置，并推进供视觉层消费的过渡计时器。
+//! 从 `flow.ron` 里加载追逐配置，并推进供视觉层消费的过渡计时器。
 
 use super::*;
 
@@ -108,7 +108,7 @@ pub(super) fn load_chase_config_system(
     for (state_name, state_def) in state_config.iter() {
         if state_def.chase_config.is_some() {
             chase_state_name.0 = Some(state_name.clone());
-            info!("Chase: Found chase state '{}' in states.ron", state_name);
+            info!("Chase: Found chase state '{}' in flow.ron", state_name);
 
             if let Some(path) = &state_def.chase_config
                 && let Some(config) = ChaseConfig::load_from_path(Some(path.as_str()))
@@ -121,7 +121,7 @@ pub(super) fn load_chase_config_system(
         }
     }
 
-    info!("Chase: Disabled - no chase state config found in states.ron");
+    info!("Chase: Disabled - no chase state config found in flow.ron");
     commands.insert_resource(ChaseConfig::default());
     chase_enabled.0 = false;
 }

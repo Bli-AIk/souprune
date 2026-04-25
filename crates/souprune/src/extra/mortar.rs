@@ -64,7 +64,8 @@ fn load_locale_mortar_system(
     asset_server: Res<AssetServer>,
     locale: Res<CurrentLocale>,
 ) {
-    let path = format!("shared/locales/{}", locale.0);
+    let config = crate::config::load_config();
+    let path = format!("{}/{}", config.game.locales_directory, locale.0);
     info!("Loading locales from: {}", path);
     let handle = asset_server.load_folder(path);
     commands.insert_resource(LocalesFolderHandle(handle));
@@ -101,6 +102,8 @@ fn read_locale_constants_system(
     asset_server: Res<AssetServer>,
     locale: Res<CurrentLocale>,
 ) {
+    let config = crate::config::load_config();
+
     let Some(folder_handle) = folder_handle else {
         return;
     };
@@ -130,7 +133,7 @@ fn read_locale_constants_system(
             };
             // Normalize path to forward slashes for cross-platform consistency
             let full_path = path.path().to_string_lossy().replace('\\', "/");
-            let prefix = format!("shared/locales/{}/", locale.0);
+            let prefix = format!("{}/{}/", config.game.locales_directory, locale.0);
 
             let namespace = if let Some(remaining) = full_path.strip_prefix(&prefix) {
                 std::path::Path::new(remaining)

@@ -1,6 +1,6 @@
 //! # Asset Browser Panel
 //!
-//! # 资产浏览器面板
+//! # 资源浏览器面板
 //!
 //! ## Module Overview
 //!
@@ -9,7 +9,7 @@
 //! Asset browser panel for the editor.
 //! Displays project file tree with support for file filtering, opening, creating, and cross-referencing.
 //!
-//! 编辑器的资产浏览器面板。
+//! 编辑器的资源浏览器面板。
 //! 显示项目文件树，支持文件过滤、打开、新建和交叉引用。
 
 use std::collections::HashSet;
@@ -90,7 +90,7 @@ impl AssetFileType {
             Self::Rule
         } else if name.ends_with(".performance.ron") {
             Self::Performance
-        } else if name == "states.ron"
+        } else if name == "flow.ron"
             || name == "mod.toml"
             || name.ends_with(".toml")
             || name == "config.ron"
@@ -153,7 +153,7 @@ impl FileNode {
     }
 }
 
-/// 资产浏览器面板状态。
+/// 资源浏览器面板状态。
 #[derive(Resource)]
 pub struct AssetBrowserState {
     /// 项目根目录的文件树。
@@ -195,7 +195,7 @@ pub struct NewFileDialog {
     pub file_type: AssetFileType,
 }
 
-/// 资产浏览器面板。
+/// 资源浏览器面板。
 pub struct AssetBrowserPanel {
     cached_title: String,
 }

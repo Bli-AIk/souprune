@@ -1,9 +1,9 @@
 //! # character.rs
 //!
-//! CharacterAsset and AnimationConfigAsset schema types for `.character.ron` files.
+//! CharacterAsset and AnimationConfigAsset schema types for character-related RON files.
 //! Mirrors `souprune::core::character_asset` without Bevy dependency.
 //!
-//! `.character.ron` 文件的角色资产 Schema 类型。
+//! 角色相关 RON 文件的 Schema 类型。
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -108,7 +108,7 @@ pub enum StateAnimationMapping {
     Single(AnimationEntry),
 }
 
-/// Animation configuration asset — another form of `.character.ron` schema.
+/// Animation configuration asset — top-level `.animation_config.ron` schema.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnimationConfigAsset {
     pub sprite_source: String,
@@ -116,5 +116,6 @@ pub struct AnimationConfigAsset {
     pub default_frame_duration: f32,
     #[serde(default = "default_looping")]
     pub default_looping: bool,
+    #[serde(serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub states: HashMap<String, StateAnimationMapping>,
 }

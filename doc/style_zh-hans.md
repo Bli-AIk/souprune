@@ -16,7 +16,7 @@
 | 函数与方法                   | `snake_case`                 | `evaluate_conditions`, `get_by_str` |
 | 常量与静态变量                 | `SCREAMING_SNAKE_CASE`       | `MAX_ENEMIES`, `DEFAULT_SPEED`      |
 | Feature flags           | `lowercase`                  | `debug`, `unsafe_gpu`               |
-| 资产目录                    | `lowercase_with_underscores` | `battle_sprites/`                   |
+| 资源目录                    | `lowercase_with_underscores` | `battle_sprites/`                   |
 | ECS 组件与资源               | `UpperCamelCase`             | `PlayerHealth`, `EnumRegistry`      |
 
 以 [Rust API Guidelines — Naming](https://rust-lang.github.io/api-guidelines/naming.html) 作为基线参考。
@@ -201,7 +201,7 @@ src/core/view/            // 子模块目录
 
 ### 3.7 Schema 唯一真源
 
-同一种资产格式必须且只能有**一套权威 schema 类型**。
+同一种资源格式必须且只能有**一套权威 schema 类型**。
 
 - 先选定一套 schema，然后把它当成唯一真源
 - 不要让运行时、lint 和编辑器各自维护同一种格式的不同版本
@@ -221,7 +221,7 @@ SoupRune 处于活跃开发阶段，**不以向后兼容为优先目标**。
 - 既然允许删旧设计，就应该真的去删，而不是一直背着它们前进
 - 临时兼容代码一旦加进来，就必须同时写明它什么时候会被删掉
 - 迁移完成后应尽快删除旧路径；不要让两套系统半死不活地长期并存
-- 如果资产或规则已经迁到新格式，就应在同一阶段把旧字段名、旧事件名和旧桥接系统一起删掉
+- 如果资源或规则已经迁到新格式，就应在同一阶段把旧字段名、旧事件名和旧桥接系统一起删掉
 - “以后再清理” 不能作为保留死抽象或并行系统的理由
 
 ### 3.10 Bevy 插件应该长什么样
@@ -230,7 +230,7 @@ SoupRune 处于活跃开发阶段，**不以向后兼容为优先目标**。
 
 如果一个模块叫 Bevy 插件，那它读起来就应该像某个子系统的入口，而不是另一个超大杂物间。
 
-- 插件文件应该主要做装配：注册插件、资源、资产、调度和状态钩子，然后就收手
+- 插件文件应该主要做装配：注册插件、资源、资源、调度和状态钩子，然后就收手
 - 不要让 `Plugin::build` 悄悄长成真正的业务逻辑区、解析逻辑区或运行时分支区
 - 在库 crate 里，优先暴露一个有名字的 `Plugin` struct，而不是只有 `plugin(app)` 这种自由函数。这样以后要加配置时，不会把调用方一起拖下水
 - 第三方 Bevy crate 的配置，应该跟使用它的那个子系统放在一起，而不是散落在远处的全局启动代码里

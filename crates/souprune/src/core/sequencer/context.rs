@@ -86,7 +86,7 @@ pub struct ChapterFinished;
 
 /// Resource holding the current sequence flow asset handle.
 ///
-/// 持有当前序列流程资产句柄的资源。
+/// 持有当前序列流程资源句柄的资源。
 #[derive(Resource)]
 pub struct CurrentSequenceFlow(pub Handle<SequenceAsset>);
 

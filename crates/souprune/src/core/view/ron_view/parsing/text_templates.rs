@@ -15,6 +15,7 @@
 
 use super::super::evaluation::preprocess_fact_expressions;
 use super::PlayerDataView;
+use crate::core::text_escape::decode_text_escapes;
 use crate::core::view::expr_eval::create_eval_callback;
 use bevy::prelude::{debug, warn};
 use std::collections::BTreeMap;
@@ -71,7 +72,7 @@ fn evaluate_lambda_expression(expr: &str, player_data: &PlayerDataView) -> Optio
             if let Some(idx_var) = index_var {
                 line = line.replace(&format!("{{{}}}", idx_var), &i.to_string());
             }
-            line.replace("\\n", "\n")
+            line
         })
         .collect();
 
@@ -314,7 +315,7 @@ pub fn resolve_text_content(
         }
     }
 
-    result
+    decode_text_escapes(&result).into_owned()
 }
 
 /// Resolve `{{data:path}}` template expressions using FRE facts.
@@ -370,4 +371,23 @@ pub fn resolve_data_path(
 
     debug!("[resolve_data_path] unknown path: {path} (fact key: {fact_key})");
     format!("<unknown:{path}>")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_text_content;
+    use crate::core::view::ron_view::parsing::PlayerDataView;
+    use crate::extra::mortar::MortarStringTable;
+    use bevy_fact_rule_event::LayeredFactDatabase;
+
+    #[test]
+    fn resolves_plain_escaped_newlines_into_real_newlines() {
+        let db = LayeredFactDatabase::new();
+        let player_data = PlayerDataView::new(&db);
+        let mortar_strings = MortarStringTable::default();
+
+        let resolved = resolve_text_content(r#"line1\nline2"#, &mortar_strings, &player_data);
+
+        assert_eq!(resolved, "line1\nline2");
+    }
 }

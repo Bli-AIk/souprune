@@ -7,7 +7,7 @@
 //! perform so loaders, editors, and runtime executors can all speak the same
 //! serialized language.
 //!
-//! 这些枚举属于序列资产 schema，而不是运行时执行状态。它们描述的是章节希望
+//! 这些枚举属于序列资源 schema，而不是运行时执行状态。它们描述的是章节希望
 //! 进行的声明式操作，使加载器、编辑器和运行时执行器都能围绕同一种序列化语言工作。
 
 use bevy::prelude::*;

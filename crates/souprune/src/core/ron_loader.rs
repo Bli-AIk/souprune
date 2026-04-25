@@ -1,15 +1,15 @@
 //! Provides the generic RON asset loader used by Souprune runtime asset types.
 //!
-//! 提供 Souprune 运行时各类 RON 资产共用的通用加载器。
+//! 提供 Souprune 运行时各类 RON 资源共用的通用加载器。
 //!
 //! Allows asset modules to declare their schema type once and reuse the same
 //! loader implementation for `.ron`-backed assets. It is
 //! infrastructure rather than gameplay logic: read bytes, deserialize RON, and
 //! hand Bevy a strongly typed asset.
 //!
-//! 让各个资产模块只声明自己的 schema 类型，并复用同一份 `.ron`
-//! 资产加载实现。它属于基础设施而不是玩法逻辑：读取字节、反序列化 RON，
-//! 再把强类型资产交给 Bevy。
+//! 让各个资源模块只声明自己的 schema 类型，并复用同一份 `.ron`
+//! 资源加载实现。它属于基础设施而不是玩法逻辑：读取字节、反序列化 RON，
+//! 再把强类型资源交给 Bevy。
 
 use bevy::asset::io::Reader;
 use bevy::asset::{Asset, AssetLoader, LoadContext};
@@ -21,7 +21,7 @@ use std::marker::PhantomData;
 
 /// A generic asset loader for RON files.
 ///
-/// 泛型 RON 文件资产加载器。
+/// 泛型 RON 文件资源加载器。
 pub struct RonAssetLoader<A: TypePath> {
     extensions: &'static [&'static str],
     _marker: PhantomData<A>,

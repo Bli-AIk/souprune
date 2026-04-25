@@ -85,7 +85,7 @@ pub struct DynamicMaterialUniform {
 /// Unlike standard `Material2d`, this asset stores the shader handle directly,
 /// allowing different instances to use different shaders.
 ///
-/// 与标准 `Material2d` 不同，此资产直接存储着色器句柄，
+/// 与标准 `Material2d` 不同，此资源直接存储着色器句柄，
 /// 允许不同实例使用不同的着色器。
 #[derive(Asset, AsBindGroup, TypePath, Debug, Clone)]
 #[uniform(0, DynamicMaterialUniform)]
@@ -173,7 +173,7 @@ pub struct MaterialAssetIdDebug {
 // ============================================================================
 
 /// Pipeline key that includes shader asset ID for specialization.
-/// 包含着色器资产 ID 的管道键，用于特化。
+/// 包含着色器资源 ID 的管道键，用于特化。
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DynamicMaterial2dKey {
     /// Base mesh pipeline key (MSAA, HDR, etc.).
@@ -181,7 +181,7 @@ pub struct DynamicMaterial2dKey {
     pub mesh_key: Mesh2dPipelineKey,
 
     /// Shader asset ID - different shaders produce different pipelines.
-    /// 着色器资产 ID - 不同的着色器产生不同的管道。
+    /// 着色器资源 ID - 不同的着色器产生不同的管道。
     pub shader_id: AssetId<Shader>,
 }
 
@@ -267,7 +267,7 @@ pub struct DynamicMaterial2dPipeline {
     /// Cached shader handles for pipeline specialization.
     /// Key is shader asset ID, value is the handle.
     /// 用于管道特化的缓存着色器句柄。
-    /// 键是着色器资产 ID，值是句柄。
+    /// 键是着色器资源 ID，值是句柄。
     pub shader_cache: HashMap<AssetId<Shader>, Handle<Shader>>,
 }
 

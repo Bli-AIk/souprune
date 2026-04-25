@@ -32,7 +32,7 @@ use souprune::core::view::SpawnViewRequest;
 use souprune::extra::multi_source::MultiSourceAssetReader;
 
 const OUTPUT_DIR: &str = "generated/mad_dummy_compare";
-const VIEW_PATH: &str = "states/battle/view/mad_dummy.view.ron";
+const VIEW_PATH: &str = "battle/view/mad_dummy.view.ron";
 const REFERENCE_FRAME: &str = "dev/mad_dummy_reference/frames/frame_000.png";
 
 /// Frames to wait for the view to load and settle before auto-capture.

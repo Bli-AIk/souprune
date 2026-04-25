@@ -241,7 +241,8 @@ pub fn handle_pending_dialogue_start_system(
 
     let has_mortar = mortar_path.is_some() && mortar_node.is_some();
     if let (Some(path), Some(node)) = (mortar_path.clone(), mortar_node.clone()) {
-        let localized_path = format!("shared/locales/{}/{}", locale.0, path);
+        let config = crate::config::load_config();
+        let localized_path = format!("{}/{}/{}", config.game.locales_directory, locale.0, path);
 
         info!(
             "handle_pending_dialogue_start_system: starting Mortar dialogue '{}' node '{}'",

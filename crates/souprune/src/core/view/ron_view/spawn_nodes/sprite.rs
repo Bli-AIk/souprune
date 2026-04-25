@@ -11,7 +11,7 @@
 //! material node, and builds the corresponding entity bundle.
 //!
 //! 负责 RON View 节点生成里与精灵有关的分支。它会判断一个精灵应该按协议纹理、
-//! 解析后的游戏资产，还是着色器材质节点来处理，并生成对应的实体组合。
+//! 解析后的游戏资源，还是着色器材质节点来处理，并生成对应的实体组合。
 
 use super::super::parsing::preprocess_sprite_def_for_repeat;
 use super::super::resources::RonDrivenView;

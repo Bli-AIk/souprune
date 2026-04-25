@@ -79,7 +79,7 @@ impl SubEditor for RonSourceEditor {
     fn file_extensions(&self) -> &[&str] {
         match self.editor_id.as_str() {
             "performance_editor" => &["performance.ron"],
-            "state_editor" => &["states.ron"],
+            "state_editor" => &["flow.ron"],
             _ => &["ron"],
         }
     }

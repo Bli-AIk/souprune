@@ -21,6 +21,7 @@ use bevy_workbench::prelude::*;
 use debug::RuleTriggerHistory;
 use souprune::editor_api::game_action::{GameRule, GameRuleRegistry};
 use souprune::editor_api::{app, debug, state_config};
+use std::cmp::Reverse;
 use std::collections::VecDeque;
 
 use crate::i18n::{t, t_args};
@@ -345,7 +346,7 @@ fn render_rules(ui: &mut egui::Ui, world: &mut World) {
                 .default_open(true)
                 .show(ui, |ui| {
                     let mut rules: Vec<_> = registry.global_iter().collect();
-                    rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+                    rules.sort_by_key(|rule| Reverse(rule.priority));
                     render_rule_list(ui, world, &rules, trigger_history, current_time);
                 });
         }
@@ -360,7 +361,7 @@ fn render_rules(ui: &mut egui::Ui, world: &mut World) {
                 .default_open(true)
                 .show(ui, |ui| {
                     let mut rules: Vec<_> = registry.local_iter().collect();
-                    rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+                    rules.sort_by_key(|rule| Reverse(rule.priority));
                     render_rule_list(ui, world, &rules, trigger_history, current_time);
                 });
         }

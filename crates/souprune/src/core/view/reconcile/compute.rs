@@ -4,7 +4,7 @@
 //!
 //! Pure function for computing desired view state from asset and facts.
 //!
-//! 从资产和事实计算期望视图状态的纯函数。
+//! 从资源和事实计算期望视图状态的纯函数。
 
 use super::resolve::{
     process_visible_when_for_repeat, resolve_material, resolve_sprite, resolve_texts,
@@ -73,7 +73,7 @@ impl<'a> ResolveContext<'a> {
 /// Compute the desired view state from asset and facts.
 /// This is a pure function with no side effects.
 ///
-/// 从资产和事实计算期望的视图状态。
+/// 从资源和事实计算期望的视图状态。
 /// 这是一个无副作用的纯函数。
 ///
 /// # Arguments

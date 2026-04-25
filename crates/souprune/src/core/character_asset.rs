@@ -1,6 +1,6 @@
 //! Character asset definitions for data-driven character configuration.
 //!
-//! 数据驱动角色配置的资产定义。
+//! 数据驱动角色配置的资源定义。
 
 use bevy::asset::Asset;
 use bevy::prelude::*;
@@ -16,7 +16,7 @@ use std::ops::{Deref, DerefMut};
 /// Character asset runtime wrapper.
 ///
 /// `.character.ron` 的权威结构在 `souprune_schema::character`。
-/// 这里仅保留 Bevy 资产包装和运行时辅助方法。
+/// 这里仅保留 Bevy 资源包装和运行时辅助方法。
 #[derive(Asset, TypePath, Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct CharacterAsset(pub SchemaCharacterAsset);
@@ -47,7 +47,7 @@ impl CharacterAsset {
 
 /// Animation configuration asset runtime wrapper.
 ///
-/// `.character.ron` 的实际字段由共享 schema crate 维护。
+/// `.animation_config.ron` 的实际字段由共享 schema crate 维护。
 #[derive(Asset, TypePath, Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct AnimationConfigAsset(pub SchemaAnimationConfigAsset);
@@ -118,7 +118,7 @@ mod tests {
             collider_size: (x: 12.0, y: 20.0),
             collider_offset: (x: 1.0, y: -2.0),
             base_speed: 96.0,
-            animation_config: "characters/hero_anim.character.ron",
+            animation_config: "characters/hero_anim.animation_config.ron",
             interaction_script: Some("scripts/hero_interact.mortar"),
         )"#;
 
@@ -127,7 +127,10 @@ mod tests {
         assert_eq!(asset.name, "hero");
         assert_eq!(asset.collider_size_vec2(), Vec2::new(12.0, 20.0));
         assert_eq!(asset.collider_offset_vec2(), Vec2::new(1.0, -2.0));
-        assert_eq!(asset.animation_config, "characters/hero_anim.character.ron");
+        assert_eq!(
+            asset.animation_config,
+            "characters/hero_anim.animation_config.ron"
+        );
     }
 
     #[test]

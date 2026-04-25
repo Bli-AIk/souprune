@@ -11,7 +11,7 @@
 //! timeline hit into concrete bullets with the right behaviors and container relationship.
 //!
 //! 负责沿着作者编排好的时间轴推进弹幕演出。它会计算每个事件的绝对触发时间，解析
-//! 图案生成出的发射点，并把每一次时间轴命中转换成真正带有行为和容器关系的子弹实体。
+//! 图案生成出的生成点，并把每一次时间轴命中转换成真正带有行为和容器关系的子弹实体。
 
 use super::*;
 use bevy_rand::prelude::GlobalRng;
