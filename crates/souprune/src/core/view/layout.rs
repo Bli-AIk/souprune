@@ -14,9 +14,11 @@
 //! 本模块组织了视图 Schema 定义和 Serde 辅助类型。
 //! 它对应 `layout/` 目录。
 
+pub mod coordinate_space;
 pub mod serde_types;
 pub mod view_schema;
 
+pub use coordinate_space::*;
 pub use serde_types::*;
 pub use view_schema::*;
 
@@ -54,6 +56,7 @@ mod tests {
                 name: "HudRoot".to_string(),
                 tags: vec!["hud".to_string()],
                 style: souprune_schema::view::StyleDef::default(),
+                transform: None,
                 visible_when: Some("$show_hud".to_string()),
                 background_color: Some((
                     Val::Static(0.1),
@@ -110,6 +113,7 @@ mod tests {
             )])),
             world_space: true,
             coordinate_system: souprune_schema::view::CoordinateSystem::Standard,
+            coordinate_space: None,
         };
 
         let runtime = runtime_view_layout_from_schema(&schema).expect("conversion should succeed");

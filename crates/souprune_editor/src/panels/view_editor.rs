@@ -360,6 +360,7 @@ fn new_empty_node(name: &str) -> ViewNodeDef {
         name: name.to_string(),
         tags: Vec::new(),
         style: Default::default(),
+        transform: None,
         visible_when: None,
         background_color: None,
         border_color: None,
