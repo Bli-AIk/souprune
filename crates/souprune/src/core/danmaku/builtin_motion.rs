@@ -317,7 +317,8 @@ fn apply_easing(ease: Easing, t: f32) -> f32 {
             } else if t >= 1.0 {
                 1.0
             } else {
-                -(10.0_f32).powf(10.0 * t - 10.0) * ((10.0 * t - 10.75) * std::f32::consts::TAU / 3.0).sin()
+                -(10.0_f32).powf(10.0 * t - 10.0)
+                    * ((10.0 * t - 10.75) * std::f32::consts::TAU / 3.0).sin()
             }
         }
         Easing::OutElastic => {
@@ -326,7 +327,8 @@ fn apply_easing(ease: Easing, t: f32) -> f32 {
             } else if t >= 1.0 {
                 1.0
             } else {
-                (10.0_f32).powf(-10.0 * t) * ((10.0 * t - 0.75) * std::f32::consts::TAU / 3.0).sin() + 1.0
+                (10.0_f32).powf(-10.0 * t) * ((10.0 * t - 0.75) * std::f32::consts::TAU / 3.0).sin()
+                    + 1.0
             }
         }
         Easing::InOutElastic => {
@@ -560,7 +562,10 @@ mod tests {
             let v0 = apply_easing(e, 0.0);
             let v1 = apply_easing(e, 1.0);
             assert!(v0.abs() < 0.001, "{e:?} at t=0 expected 0, got {v0}");
-            assert!((v1 - 1.0).abs() < 0.001, "{e:?} at t=1 expected 1, got {v1}");
+            assert!(
+                (v1 - 1.0).abs() < 0.001,
+                "{e:?} at t=1 expected 1, got {v1}"
+            );
         }
     }
 
