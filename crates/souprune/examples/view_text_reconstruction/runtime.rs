@@ -1147,11 +1147,9 @@ fn apply_text_input(
             (Key::Backspace, _) => {
                 changed |= state.current_text.pop().is_some();
             }
-            (_, Some(inserted_text)) => {
-                if inserted_text.chars().all(is_printable_char) {
-                    state.current_text.push_str(inserted_text);
-                    changed = true;
-                }
+            (_, Some(inserted_text)) if inserted_text.chars().all(is_printable_char) => {
+                state.current_text.push_str(inserted_text);
+                changed = true;
             }
             _ => {}
         }

@@ -1,0 +1,97 @@
+#![enable(implicit_some)]
+// Touch overlay layout configuration
+// 触控覆盖层布局配置
+//
+// Textures from: https://greatdocbrown.itch.io/gamepad-ui
+// Xbox gamepad assets in: assets/textures/common/touch/xbox/
+
+(
+    opacity: 0.9,
+    scale: 1.0,
+
+    // ── Controller / D-Pad (bottom-left) ──
+    // 24px source × 15 = 360px (pixel-perfect integer scale)
+    controller: (
+        anchor: BottomLeft,
+        offset_x: 16.0,
+        offset_y: 16.0,
+        size: 360.0,
+        base_texture: "assets/textures/common/touch/xbox/controller.png",
+        overlays: {
+            "Up": "assets/textures/common/touch/xbox/controller_up.png",
+            "Down": "assets/textures/common/touch/xbox/controller_down.png",
+            "Left": "assets/textures/common/touch/xbox/controller_left.png",
+            "Right": "assets/textures/common/touch/xbox/controller_right.png",
+        },
+    ),
+
+    // ── ABXY Action Buttons (bottom-right, Xbox diamond layout) ──
+    // 16px source × 8 = 128px (pixel-perfect integer scale)
+    //
+    //     Y (top)
+    //  X (left)  B (right)
+    //     A (bottom)
+    //
+    buttons: [
+        // A = Confirm (South / bottom)
+        (
+            action: "Confirm",
+            anchor: BottomRight,
+            offset_x: 112.0,
+            offset_y: 20.0,
+            width: 128.0,
+            height: 128.0,
+            frames: [
+            "assets/textures/common/touch/xbox/a_0.png",
+            "assets/textures/common/touch/xbox/a_1.png",
+            "assets/textures/common/touch/xbox/a_2.png",
+            "assets/textures/common/touch/xbox/a_3.png",
+            ],
+        ),
+        // B = Cancel (East / right)
+        (
+            action: "Cancel",
+            anchor: BottomRight,
+            offset_x: 20.0,
+            offset_y: 112.0,
+            width: 128.0,
+            height: 128.0,
+            frames: [
+            "assets/textures/common/touch/xbox/b_0.png",
+            "assets/textures/common/touch/xbox/b_1.png",
+            "assets/textures/common/touch/xbox/b_2.png",
+            "assets/textures/common/touch/xbox/b_3.png",
+            ],
+        ),
+        // X = Menu (West / left)
+        (
+            action: "Menu",
+            anchor: BottomRight,
+            offset_x: 204.0,
+            offset_y: 112.0,
+            width: 128.0,
+            height: 128.0,
+            frames: [
+            "assets/textures/common/touch/xbox/x_0.png",
+            "assets/textures/common/touch/xbox/x_1.png",
+            "assets/textures/common/touch/xbox/x_2.png",
+            "assets/textures/common/touch/xbox/x_3.png",
+            ],
+        ),
+        // Y = (North / top) — no action bound
+        (
+            action: "",
+            anchor: BottomRight,
+            offset_x: 112.0,
+            offset_y: 204.0,
+            width: 128.0,
+            height: 128.0,
+            frames: [
+            "assets/textures/common/touch/xbox/y_0.png",
+            "assets/textures/common/touch/xbox/y_1.png",
+            "assets/textures/common/touch/xbox/y_2.png",
+            "assets/textures/common/touch/xbox/y_3.png",
+            ],
+        ),
+    ],
+)

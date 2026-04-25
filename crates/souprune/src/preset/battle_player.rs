@@ -134,7 +134,7 @@ mod tests {
             speed: 150.0,
             focus_speed_ratio: 0.5,
             invincibility: (
-                damage_sound: Some("audios/sfx/hurtsound.wav"),
+                damage_sound: Some("assets/audios/sfx/hurtsound.wav"),
             ),
         )"#;
 
@@ -156,7 +156,7 @@ mod tests {
         let srgba = invincibility.normal_color.to_srgba();
         assert_eq!(
             invincibility.damage_sound.as_deref(),
-            Some("audios/sfx/hurtsound.wav")
+            Some("assets/audios/sfx/hurtsound.wav")
         );
         assert!((srgba.red - 1.0).abs() < f32::EPSILON);
         assert!((srgba.alpha - 1.0).abs() < f32::EPSILON);

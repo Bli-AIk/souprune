@@ -91,7 +91,7 @@ pub fn ui_animation_init_system(
 /// Creates DynamicMaterial2d assets and attaches Mesh2d and MeshDynamicMaterial2d components.
 ///
 /// ShaderMaterial 实体的设置系统。
-/// 创建 DynamicMaterial2d 资产并附加 Mesh2d 和 MeshDynamicMaterial2d 组件。
+/// 创建 DynamicMaterial2d 资源并附加 Mesh2d 和 MeshDynamicMaterial2d 组件。
 pub fn setup_shader_materials_system(
     mut commands: Commands,
     procedural_textures: Option<Res<super::super::procedural_textures::ProceduralTextures>>,

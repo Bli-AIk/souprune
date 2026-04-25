@@ -60,15 +60,15 @@ pub fn spawn_shader_material_entity(
     }
 
     // Load shader
-    // The shader path should be relative to the project root (e.g., "shared/shaders/hp_bar.wgsl")
+    // The shader path should be relative to the project root (e.g., "assets/shaders/hp_bar.wgsl")
     // because MultiSourceAssetReader already has projects/{mod_name}/ as a root.
-    // 着色器路径应该相对于项目根目录（如 "shared/shaders/hp_bar.wgsl"），
+    // 着色器路径应该相对于项目根目录（如 "assets/shaders/hp_bar.wgsl"），
     // 因为 MultiSourceAssetReader 已经将 projects/{mod_name}/ 设为根目录。
     let shader_path = if material_def.shader.starts_with("mod://") {
         // mod:// paths are expanded relative to the project root
         material_def.shader.replacen("mod://", "", 1)
     } else {
-        // Direct paths like "shared/shaders/..." are used as-is
+        // Direct paths like "assets/shaders/..." are used as-is
         material_def.shader.clone()
     };
     let shader_handle = ctx.asset_server.load(&shader_path);

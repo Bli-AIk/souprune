@@ -60,9 +60,17 @@ pub enum Direction {
 // ============================================================================
 
 /// Run action configuration.
+///
+/// 跑动动作配置。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RunConfig {
+    /// Identifier for the input action that triggers running.
+    ///
+    /// 触发跑动的输入动作标识符。
     pub action: String,
+    /// Movement speed multiplier when running.
+    ///
+    /// 跑动时的移动速度倍率。
     #[serde(default = "default_run_speed_multiplier")]
     pub speed_multiplier: f32,
 }
@@ -92,17 +100,37 @@ impl Default for OverworldInvincibilityConfig {
 }
 
 /// Player behavior file — top-level `player_behavior.ron` schema.
+///
+/// 玩家行为文件 — `player_behavior.ron` 的顶层 Schema。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PlayerBehaviorFile {
+    /// Path to the `.character.ron` file for the player.
+    ///
+    /// 玩家的 `.character.ron` 文件路径。
     pub character_asset: String,
+    /// Initial spawn position in world coordinates.
+    ///
+    /// 初始生成的世界坐标位置。
     #[serde(default)]
     pub spawn_position: Vec2Config,
+    /// Initial direction the player is facing.
+    ///
+    /// 玩家初始面向的方向。
     #[serde(default)]
     pub initial_facing: Direction,
+    /// Initial animation state (e.g., "Idle").
+    ///
+    /// 初始动画状态（如 "Idle"）。
     #[serde(default = "default_initial_state")]
     pub initial_state: String,
+    /// Running configuration.
+    ///
+    /// 跑动配置。
     #[serde(default)]
     pub run: Option<RunConfig>,
+    /// Invincibility effect settings for overworld.
+    ///
+    /// Overworld 中的无敌效果设置。
     #[serde(default)]
     pub invincibility: Option<OverworldInvincibilityConfig>,
 }

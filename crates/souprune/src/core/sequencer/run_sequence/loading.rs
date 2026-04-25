@@ -91,7 +91,7 @@ pub fn process_run_sequence_system(
 /// System to check RunSequence asset loading completion.
 /// When loaded, spawns the chapters from the sequence and injects parameters.
 ///
-/// 检查 RunSequence 资产加载完成的系统。
+/// 检查 RunSequence 资源加载完成的系统。
 /// 加载完成后，生成序列中的章节并注入参数。
 pub fn complete_run_sequence_system(
     mut commands: Commands,

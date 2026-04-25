@@ -7,7 +7,7 @@
 //! support, and the system sets that keep views spawning, evaluating, and
 //! updating while the game is running.
 //!
-//! Souprune 的 RON 驱动 UI 运行时的插件入口。它负责安装资产、
+//! Souprune 的 RON 驱动 UI 运行时的插件入口。它负责安装资源、
 //! 消息、生命周期跟踪、对账流程、材质支持，以及一整套让 View 在游戏运行中
 //! 能够生成、求值和更新的系统。
 
@@ -44,7 +44,7 @@ use crate::core::ron_loader::RonAssetLoader;
 
 /// Asset loader for ViewLayoutAsset that applies coordinate system preprocessing.
 ///
-/// ViewLayoutAsset 的资产加载器，加载后自动应用坐标系预处理。
+/// ViewLayoutAsset 的资源加载器，加载后自动应用坐标系预处理。
 struct ViewLayoutAssetLoader;
 
 impl bevy::reflect::TypePath for ViewLayoutAssetLoader {

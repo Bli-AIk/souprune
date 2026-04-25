@@ -295,7 +295,7 @@ impl ChaseConfig {
 #[derive(Resource, Default)]
 pub struct ChaseEnabled(pub bool);
 
-/// Resource to track the chase state name (configured in states.ron).
+/// Resource to track the chase state name (configured in flow.ron).
 /// This allows the chase system to work with any state name that has chase_config.
 #[derive(Resource, Default)]
 pub struct ChaseStateName(pub Option<String>);

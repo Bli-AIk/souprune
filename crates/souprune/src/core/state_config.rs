@@ -16,7 +16,7 @@ use std::collections::HashMap;
 
 /// State configuration asset loaded from RON files.
 ///
-/// 从 RON 文件加载的状态配置资产。
+/// 从 RON 文件加载的状态配置资源。
 #[derive(Asset, TypePath, Debug, Deserialize, Clone)]
 #[serde(transparent)]
 pub struct StateConfig(pub SchemaStateConfig);
@@ -149,7 +149,7 @@ impl Plugin for StateConfigPlugin {
         let schedule = crate::game_schedule(app);
         app.init_asset::<StateConfig>()
             .register_asset_loader(crate::core::ron_loader::RonAssetLoader::<StateConfig>::new(
-                &["states.ron"],
+                &["flow.ron"],
             ))
             .init_resource::<LoadedStateConfig>()
             .init_resource::<StateConfigHandle>()
@@ -167,12 +167,12 @@ fn load_state_config_system(
     asset_server: Res<AssetServer>,
     config: Res<crate::config::SoupruneConfig>,
 ) {
-    // Read states_config path from project configuration
-    // 从项目配置中读取 states_config 路径
-    let config_path = if config.game.states_config.is_empty() {
-        "config/states.ron".to_string()
+    // Read flow_config_path from project configuration
+    // 从项目配置中读取 flow_config_path 路径
+    let config_path = if config.game.flow_config_path.is_empty() {
+        "app/flow.ron".to_string()
     } else {
-        config.game.states_config.clone()
+        config.game.flow_config_path.clone()
     };
 
     info!("Loading state configuration from: {}", config_path);
@@ -227,7 +227,7 @@ mod tests {
         let ron = r#"(
             states: {
                 "Menu": (
-                    ui_interactive: true,
+                    view_interactive: true,
                     player_movable: false,
                     player_can_interact: Some(true),
                     camera_follow_player: false,

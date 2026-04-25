@@ -29,6 +29,12 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/bevy_bitmap_text/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/bevy_bitmap_text/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/souprune/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/souprune_vessel/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/souprune_vessel/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/vessel/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/vessel/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/souprune_vessel_macros/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/projects/example_mod/content/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/crates/bevy_ecs_typewriter/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/crates/bevy_mortar_bond/target" />
@@ -53,6 +59,7 @@
       <excludeFolder url="file://$MODULE_DIR$/projects/example_battle_mod/code/mod_example/.cargo" />
       <excludeFolder url="file://$MODULE_DIR$/projects/example_battle_mod/code/mod_example/target" />
       <excludeFolder url="file://$MODULE_DIR$/crates/souprune_mod_test/target" />
+      <excludeFolder url="file://$MODULE_DIR$/projects/example_mod/content/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

@@ -56,7 +56,7 @@ pub enum CoordinateSystem {
 /// View Layout Asset - represents a complete view layout configuration.
 /// Loaded from `.view.ron` files.
 ///
-/// 视图布局资产 - 表示完整的视图布局配置。
+/// 视图布局资源 - 表示完整的视图布局配置。
 /// 从 `.view.ron` 文件加载。
 #[derive(Asset, TypePath, Debug, Deserialize, Serialize, Clone)]
 pub struct ViewLayoutAsset {
@@ -185,7 +185,6 @@ pub struct ViewNodeDef {
     #[serde(default)]
     pub texts: Vec<TextDef>,
     #[serde(default)]
-    #[serde(alias = "view_box", alias = "ui_box_logic")]
     pub view_box: Option<ViewBoxLogicDef>,
     #[serde(default)]
     #[allow(dead_code)]
@@ -574,7 +573,7 @@ pub enum StateTriggerDef {
 /// Example in RON:
 /// ```ron
 /// material: (
-///     shader: "shared/shaders/hp_bar_sprite.wgsl",
+///     shader: "assets/shaders/hp_bar_sprite.wgsl",
 ///     params: {
 ///         "hp_ratio": Expr("$player_hp / $player_hp_max"),
 ///         "lag_ratio": Static(1.0),
@@ -595,11 +594,11 @@ pub enum StateTriggerDef {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MaterialDef {
     /// Shader resource path.
-    /// Can be project-relative (e.g., "shared/shaders/health_bar.wgsl")
+    /// Can be project-relative (e.g., "assets/shaders/health_bar.wgsl")
     /// or mod-relative (e.g., "mod://my_mod/shaders/effect.wgsl").
     ///
     /// 着色器资源路径。
-    /// 可以是项目相对路径（如 "shared/shaders/health_bar.wgsl"）
+    /// 可以是项目相对路径（如 "assets/shaders/health_bar.wgsl"）
     /// 或 mod 相对路径（如 "mod://my_mod/shaders/effect.wgsl"）。
     pub shader: String,
 

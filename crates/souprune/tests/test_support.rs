@@ -1,6 +1,6 @@
 //! Shared helpers for RON asset tests.
 //!
-//! RON 资产测试的共享辅助方法。
+//! RON 资源测试的共享辅助方法。
 #![allow(dead_code)]
 
 use once_cell::sync::Lazy;

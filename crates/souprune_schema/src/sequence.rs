@@ -1,432 +1,45 @@
-//! # sequence.rs
+//! # Sequence Schema
 //!
 //! SequenceAsset schema types for `.sequence.ron` files.
 //! Mirrors `souprune::core::sequencer::chapter_schema` without Bevy dependency.
 //!
-//! `.sequence.ron` 文件的序列资产 Schema 类型。
+//! # 序列 Schema
+//!
+//! `.sequence.ron` 文件的序列资源 Schema 类型。
 
-use crate::val::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-// ============================================================================
-// Top-level Asset
-// ============================================================================
+mod chapter;
+mod types;
+
+pub use chapter::*;
+pub use types::*;
 
 /// Sequence configuration asset — top-level `.sequence.ron` schema.
+///
+/// 序列配置资源 — `.sequence.ron` 的顶层 Schema。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SequenceAsset {
+    /// Identifier for the execution mode.
+    ///
+    /// 执行模式的标识符。
     #[serde(default)]
     pub mode: Option<String>,
+    /// Path to a `.fre.ron` file containing local rules for this sequence.
+    ///
+    /// 包含此序列本地规则的 `.fre.ron` 文件路径。
     #[serde(default)]
     pub rules_file: Option<String>,
-    #[serde(default)]
+    /// Exit mappings (e.g., `"success": "next_level"`).
+    ///
+    /// 退出映射（如 `"success": "next_level"）。
+    #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub exits: HashMap<String, String>,
+    /// List of chapters making up the sequence.
+    ///
+    /// 构成序列的章节列表。
     pub chapters: Vec<Chapter>,
-}
-
-// ============================================================================
-// Chapter Enum
-// ============================================================================
-
-/// Chapter — minimal unit of a linear sequence.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum Chapter {
-    SpawnView {
-        view_layout: String,
-        #[serde(default)]
-        bindings: HashMap<String, DataBinding>,
-    },
-    AwaitFact {
-        condition: String,
-        #[serde(default = "default_true")]
-        local: bool,
-    },
-    SetViewFact {
-        key: String,
-        value: FactValueMatch,
-    },
-    DanmakuPerformance {
-        performance: String,
-        #[serde(default)]
-        translation: Option<(f32, f32)>,
-    },
-    AlightMotionPerformance {
-        amproj_path: String,
-        #[serde(default)]
-        alight_motion_config: Option<String>,
-        #[serde(default = "default_true")]
-        wait_for_completion: bool,
-    },
-    SetViewElement {
-        selector: ElementSelector,
-        target: TweenTarget,
-        #[serde(default)]
-        duration: Option<f32>,
-        #[serde(default)]
-        easing: EaseKindRepr,
-        #[serde(default)]
-        wait_for_completion: bool,
-    },
-    Wait(f32),
-    Sequence(Vec<Chapter>),
-    Parallel(Vec<Chapter>),
-    SetPlayer(PlayerAction),
-    SetUI(UIAction),
-    ModifyViewElement {
-        selector: ElementSelector,
-        modification: ElementModification,
-    },
-    SetCamera(CameraAction),
-    Conditional {
-        condition: FactCondition,
-        then_branch: Box<Chapter>,
-        #[serde(default)]
-        else_branch: Option<Box<Chapter>>,
-    },
-    FactSwitch {
-        fact_key: String,
-        cases: Vec<(FactValueMatch, Chapter)>,
-        #[serde(default)]
-        default: Option<Box<Chapter>>,
-    },
-    EmitFactEvent {
-        event_id: String,
-        #[serde(default)]
-        data: HashMap<String, String>,
-    },
-    ModifyFact {
-        modifications: Vec<FactModificationDef>,
-    },
-    LoadFre {
-        files: Vec<String>,
-        #[serde(default)]
-        aggregate: HashMap<String, AggregateRule>,
-    },
-    LoadEnemies {
-        enemies: Vec<String>,
-    },
-    RunSequence {
-        #[serde(default)]
-        path: Option<String>,
-        #[serde(default)]
-        path_fact: Option<String>,
-        #[serde(default)]
-        params: HashMap<String, FactValueMatch>,
-    },
-    LoadMap {
-        path: String,
-        #[serde(default = "default_true")]
-        generate_collision: bool,
-        #[serde(default = "default_true")]
-        process_objects: bool,
-    },
-    SetBgm {
-        path: Option<String>,
-        #[serde(default)]
-        fade_in: Option<f32>,
-    },
-    SplitBattleBox {
-        source: String,
-        result: (String, String),
-        axis: SplitAxis,
-        #[serde(default)]
-        position: f32,
-        #[serde(default)]
-        gap: f32,
-        #[serde(default)]
-        gap_policy: GapPolicy,
-        #[serde(default)]
-        duration: f32,
-        #[serde(default)]
-        easing: EaseKindRepr,
-    },
-    MergeBattleBoxes {
-        sources: (String, String),
-        result: String,
-        #[serde(default)]
-        gap_policy: GapPolicy,
-        #[serde(default)]
-        duration: f32,
-        #[serde(default)]
-        easing: EaseKindRepr,
-    },
-    /// Spawn a headless entity with a WASM behavior attached.
-    SpawnBehavior {
-        behavior_id: String,
-        #[serde(default)]
-        context: Option<String>,
-    },
-    /// Repeat a sequence of chapters until a `Break` is encountered.
-    Loop {
-        body: Vec<Chapter>,
-        #[serde(default)]
-        max_iterations: Option<u32>,
-    },
-    /// Exit the innermost `Loop`.
-    Break,
-    /// Randomly select one or more chapters from a candidate list and execute them.
-    RandomPick {
-        candidates: Vec<Chapter>,
-        #[serde(default = "default_one")]
-        count: usize,
-        #[serde(default)]
-        allow_repeat: bool,
-    },
-    /// Select the next turn for an enemy from a named `turn_group`.
-    PickEnemyTurn {
-        #[serde(default)]
-        enemy_id: Option<String>,
-        #[serde(default)]
-        enemy_id_fact: Option<String>,
-        #[serde(default)]
-        group: Option<String>,
-        #[serde(default)]
-        group_fact: Option<String>,
-    },
-    Log {
-        text: String,
-        #[serde(default)]
-        level: LogLevel,
-    },
-    Custom {
-        action_type: String,
-        #[serde(default)]
-        params: HashMap<String, String>,
-    },
-}
-
-// ============================================================================
-// Supporting Types
-// ============================================================================
-
-/// Fact condition for conditional chapters.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum FactCondition {
-    Equals { key: String, value: FactValueMatch },
-    GreaterThan { key: String, value: i64 },
-    LessThan { key: String, value: i64 },
-    GreaterOrEqual { key: String, value: i64 },
-    LessOrEqual { key: String, value: i64 },
-    Exists(String),
-    NotExists(String),
-    IsTrue(String),
-    IsFalse(String),
-    And(Vec<FactCondition>),
-    Or(Vec<FactCondition>),
-    Not(Box<FactCondition>),
-    Always,
-}
-
-/// Fact value for matching in conditions and switches.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum FactValueMatch {
-    Int(i64),
-    Float(f64),
-    Bool(bool),
-    String(String),
-    Expr(String),
-}
-
-/// Fact modification for ModifyFact chapter.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum FactModificationDef {
-    Set { key: String, value: FactValueMatch },
-    Increment { key: String, amount: i64 },
-    Remove(String),
-    Toggle(String),
-}
-
-/// Aggregation rule for LoadFre chapter.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum AggregateRule {
-    Collect(String),
-    CollectKeys(String),
-}
-
-/// Data binding for SpawnView's requires interfaces.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum DataBinding {
-    File(String),
-    Files(Vec<String>),
-    LocalLayer,
-    Expr(String),
-}
-
-/// Axis along which to split a battle box.
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
-pub enum SplitAxis {
-    Vertical,
-    #[default]
-    Horizontal,
-}
-
-/// Policy for how gap affects split/merge geometry.
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
-pub enum GapPolicy {
-    #[default]
-    Expands,
-    Includes,
-}
-
-/// Log level for Log chapter.
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
-pub enum LogLevel {
-    #[default]
-    Info,
-    Debug,
-    Warn,
-    Error,
-}
-
-/// Camera action.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum CameraAction {
-    SetPosition((f32, f32)),
-    SetZoom(f32),
-    Shake { duration: f32, intensity: f32 },
-    FollowPlayer(bool),
-}
-
-/// UI action.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum UIAction {
-    LoadLayout(String),
-    Show(String),
-    Hide(String),
-    SetText { id: String, content: String },
-    SetVariable { name: String, value: String },
-    PlayAnimation { id: String, clip: String },
-}
-
-/// Player action.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum PlayerAction {
-    SetMode(Vec<String>),
-    Spawn {
-        config_path: String,
-        #[serde(default)]
-        position: Option<(f32, f32)>,
-    },
-    Teleport((f32, f32)),
-    SetActive(bool),
-    Despawn,
-}
-
-/// Element selector.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum ElementSelector {
-    FullName(String),
-    LocalName(String),
-    Tag(String),
-}
-
-/// Element modification.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum ElementModification {
-    SetTexture(String),
-    SetPosition(Val<f32>, Val<f32>, Val<f32>),
-    SetScale(Val<f32>, Val<f32>, Val<f32>),
-    SetColor(Val<f32>, Val<f32>, Val<f32>, Val<f32>),
-    SetVisibility(Val<bool>),
-    SetBoxSize(Val<f32>, Val<f32>),
-    Undo,
-    Redo,
-    Reset,
-}
-
-/// Easing function representation (PascalCase, matches bevy_tween EaseKind).
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, Default, PartialEq, Eq)]
-#[serde(rename_all = "PascalCase")]
-pub enum EaseKindRepr {
-    #[default]
-    Linear,
-    #[serde(alias = "InQuad")]
-    QuadIn,
-    #[serde(alias = "OutQuad")]
-    QuadOut,
-    #[serde(alias = "InOutQuad")]
-    QuadInOut,
-    #[serde(alias = "InCubic")]
-    CubicIn,
-    #[serde(alias = "OutCubic")]
-    CubicOut,
-    #[serde(alias = "InOutCubic")]
-    CubicInOut,
-    #[serde(alias = "InSine")]
-    SineIn,
-    #[serde(alias = "OutSine")]
-    SineOut,
-    #[serde(alias = "InOutSine")]
-    SineInOut,
-    #[serde(alias = "InCirc")]
-    CircularIn,
-    #[serde(alias = "OutCirc")]
-    CircularOut,
-    #[serde(alias = "InOutCirc")]
-    CircularInOut,
-    ExpoIn,
-    ExpoOut,
-    ExpoInOut,
-    ElasticIn,
-    ElasticOut,
-    ElasticInOut,
-    BounceIn,
-    BounceOut,
-    BounceInOut,
-    BackIn,
-    BackOut,
-    BackInOut,
-}
-
-/// Tween target property to animate (sequence context).
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum TweenTarget {
-    Position {
-        #[serde(default)]
-        from: Option<Vec3Tuple>,
-        to: Vec3Tuple,
-    },
-    Scale {
-        #[serde(default)]
-        from: Option<Vec3Tuple>,
-        to: Vec3Tuple,
-    },
-    Color {
-        #[serde(default)]
-        from: Option<ColorTuple>,
-        to: ColorTuple,
-    },
-    BoxSize {
-        #[serde(default)]
-        from: Option<Vec2Tuple>,
-        to: Vec2Tuple,
-    },
-    Rotation {
-        #[serde(default)]
-        from: Option<Val<f32>>,
-        to: Val<f32>,
-    },
-    Alpha {
-        #[serde(default)]
-        from: Option<Val<f32>>,
-        to: Val<f32>,
-    },
-    /// Set the ViewBox anchor for size-aware positioning.
-    /// `(0, -1)` = bottom fixed, `(0, 1)` = top fixed, `(0, 0)` = centered (default).
-    Anchor(f32, f32),
-}
-
-// ============================================================================
-// Default helpers
-// ============================================================================
-
-fn default_true() -> bool {
-    true
-}
-
-fn default_one() -> usize {
-    1
 }
 
 #[cfg(test)]
@@ -434,7 +47,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_split_battle_box_with_legacy_easing_alias() {
+    fn rejects_split_battle_box_with_legacy_easing_alias() {
         let ron = r#"SplitBattleBox(
             source: "main",
             result: ("left", "right"),
@@ -446,13 +59,11 @@ mod tests {
             easing: OutCubic,
         )"#;
 
-        let chapter: Chapter = ron::from_str(ron).expect("legacy easing alias should parse");
-        match chapter {
-            Chapter::SplitBattleBox { easing, .. } => {
-                assert_eq!(easing, EaseKindRepr::CubicOut);
-            }
-            other => panic!("unexpected chapter parsed: {other:?}"),
-        }
+        let error = ron::from_str::<Chapter>(ron).expect_err("legacy easing alias should fail");
+        assert!(
+            error.to_string().contains("OutCubic"),
+            "error should mention rejected legacy alias: {error}",
+        );
     }
 
     #[test]

@@ -8,7 +8,7 @@
 //!
 //! This module handles Markdown files as Bevy assets.
 //!
-//! 该模块负责将 Markdown 文件作为 Bevy 资产处理。
+//! 该模块负责将 Markdown 文件作为 Bevy 资源处理。
 //!
 //! ## Source File Overview
 //!

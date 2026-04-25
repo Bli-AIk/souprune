@@ -2,7 +2,7 @@
 //!
 //! Configuration schema types for various RON config files:
 //! - `input.ron` — InputConfig
-//! - `states.ron` — StateConfig
+//! - `flow.ron` — StateConfig
 //! - `touch_layout.ron` — TouchLayoutDef
 //! - `alight_motion_config.ron` — AlightMotionBattleConfig
 //!
@@ -63,6 +63,7 @@ pub struct TouchOverlayConfig {
 /// Input configuration — top-level `input.ron` schema.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct InputConfig {
+    #[serde(serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub actions: HashMap<String, Vec<InputBinding>>,
     #[serde(default)]
     pub navigation: NavigationConfig,
@@ -73,14 +74,13 @@ pub struct InputConfig {
 }
 
 // ============================================================================
-// State Configuration (states.ron)
+// State Configuration (flow.ron)
 // ============================================================================
 
 /// Definition of a single state's configuration.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StateDefinition {
     #[serde(default)]
-    #[serde(alias = "ui_interactive")]
     pub view_interactive: bool,
     #[serde(default)]
     pub player_movable: bool,
@@ -116,9 +116,10 @@ impl Default for StateDefinition {
     }
 }
 
-/// State configuration — top-level `states.ron` schema.
+/// State configuration — top-level `flow.ron` schema.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StateConfig {
+    #[serde(serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub states: HashMap<String, StateDefinition>,
 }
 
@@ -169,6 +170,7 @@ pub struct TouchControllerDef {
     #[serde(default = "default_controller_size")]
     pub size: f32,
     pub base_texture: String,
+    #[serde(serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub overlays: HashMap<String, String>,
 }
 

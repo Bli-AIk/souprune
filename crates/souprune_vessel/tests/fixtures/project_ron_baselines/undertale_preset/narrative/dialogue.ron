@@ -1,0 +1,226 @@
+// ============================================================================
+// Dialogue Configuration / 对话配置
+// ============================================================================
+//
+// Combined configuration for auto-pause and voice systems.
+// Loaded from `narrative/dialogue.ron` via resolve_path (current mod → dependencies).
+// 自动停顿和语音系统的合并配置。
+// 通过 resolve_path 从 `narrative/dialogue.ron` 加载（当前 mod → 依赖）。
+//
+// ============================================================================
+// Reference: Undertale Original / 参考：Undertale 原作
+// ============================================================================
+//
+// Preset values are calibrated from Undertale's original OBJ_WRITER source code.
+// 预设值根据 Undertale 原作 OBJ_WRITER 源码校准。
+//
+// ── Pause data / 停顿数据 ──
+//
+// UT uses manual `^n` control chars — NO automatic punctuation pausing.
+// UT 使用手动 `^n` 控制字符——标点不自动停顿。
+//
+//   ^1 = 10 ticks = 0.333s at 30 FPS — used 6763 times (95.6% of all pauses)
+//   ^2 = 0.667s (137×), ^3 = 1.0s (40×), ^9 = 3.0s (42×)
+//
+//   ^1 placement:  52% before `,`  25% before `.`  13% before `!`  6% before `?`
+//
+//   Comma: only 3512 out of 40363 commas (8.7%) have a manual ^1 pause.
+//   逗号：仅 3512/40363 个逗号（8.7%）有手动 ^1 停顿。
+//   Our auto_pause fires on EVERY comma, so we use a much shorter duration.
+//   我们的 auto_pause 对每个逗号都触发，故使用更短时长。
+//
+// ── Voice data / 语音数据 ──
+//
+// Standard voice skips: space, newline(&), ^, \(escape), /, %
+// 标准语音跳过：空格、换行(&)、^、\(转义)、/、%
+//
+// Special voice (Mettaton/Temmie/Wingdings) only skips: ^, /, %
+//   → spaces and newlines STILL trigger voice (denser sound).
+// 特殊语音（Mettaton/Temmie/Wingdings）仅跳过：^、/、%
+//   → 空格和换行仍触发语音（更密集）。
+//
+// ============================================================================
+// Mortar Events / Mortar 事件语法
+// ============================================================================
+//
+// ── Typewriter speed / 打字速度 ──
+//
+//   set_typewriter_speed(seconds_per_char: Number)
+//
+// ── Typewriter pause/resume / 打字机暂停/恢复 ──
+//
+//   pause_typewriter()              // Pause indefinitely / 无限暂停
+//   pause_typewriter(seconds)       // Timed pause / 定时暂停
+//   resume_typewriter()             // Resume from pause / 恢复
+//
+// ── Voice control / 语音控制 ──
+//
+//   set_voice_enabled(enabled: Bool)       // true / false
+//   set_voice_preset(preset_name: String)  // Switch preset / 切换预设
+//
+// ── Text effects / 文字效果 ──
+//
+//   apply_shake(intensity?)                // Default: 2.0
+//   apply_wave(amplitude?, frequency?)     // Default: 3.0, 4.0
+//
+// ── Example / 示例 ──
+//
+//   node Dramatic {
+//       text: "你好……世界！"
+//       with events: [
+//           0, set_typewriter_speed(0.08)
+//           0, set_voice_preset("whisper")
+//           2, apply_shake(3.0)
+//           5, pause_typewriter(1.0)
+//       ]
+//
+//       // Multi-line (pauses at "\n" per auto_pause preset) / 多行:
+//       line: "第一行"
+//       line: "第二行"
+//
+//       // Mute voice mid-sentence / 句中静音:
+//       text: "前面有声音……后面没有。"
+//       with events: [
+//           6, set_voice_enabled(false)
+//       ]
+//   }
+//
+// ============================================================================
+// FRE Fact Runtime Control / FRE Fact 运行时控制
+// ============================================================================
+//
+// ── Auto-pause / 自动停顿 ──
+//
+//   dialogue:auto_pause_enabled  (Bool)   — 启用/禁用自动停顿
+//   dialogue:auto_pause_preset   (String) — 覆盖当前预设名称
+//
+// ── Voice / 语音 ──
+//
+//   dialogue:voice_enabled  (Bool)   — 启用/禁用语音播放
+//   dialogue:voice_preset   (String) — 覆盖当前语音预设名称
+//
+// ── FRE Rule Example / FRE 规则示例 ──
+//
+//   Rule(
+//       triggers: ["scene:enter_dark_room"],
+//       modifications: [
+//           SetLocalFact("dialogue:auto_pause_preset", "dramatic"),
+//           SetLocalFact("dialogue:voice_preset", "whisper"),
+//       ],
+//   )
+//
+// ============================================================================
+(
+    // ── Auto-Pause Section / 自动停顿配置 ──
+    //
+    // Named presets: each maps characters → pause duration (seconds).
+    // Supports punctuation and control characters like "\n" (newline).
+    // 命名预设：每个将字符映射为停顿时长（秒）。
+    // 支持标点和控制字符如 "\n"（换行）。
+    auto_pause: (
+        default_preset: "normal",
+        presets: {
+            // Standard preset — aligned with Undertale's ^1 (0.333s at 30 FPS).
+            // Comma is intentionally short: UT only pauses 8.7% of commas manually.
+            // 标准预设——对齐 Undertale 的 ^1（30 FPS 下 0.333 秒）。
+            // 逗号故意短：UT 仅对 8.7% 的逗号手动停顿。
+            "normal": {
+                "\n": 0.15,
+                "。": 0.333,
+                "，": 0.08,
+                "！": 0.333,
+                "？": 0.333,
+                "…": 0.333,
+                "、": 0.1,
+                "；": 0.2,
+                "：": 0.2,
+                ".": 0.333,
+                ",": 0.08,
+                "!": 0.333,
+                "?": 0.333,
+                ";": 0.2,
+                ":": 0.2,
+            },
+            // Slower preset — 1.5× of normal for dramatic or emotional scenes.
+            // 慢速预设——normal 的 1.5 倍，用于戏剧性或情感场景。
+            "dramatic": {
+                "\n": 0.2,
+                "。": 0.5,
+                "，": 0.15,
+                "！": 0.5,
+                "？": 0.5,
+                "…": 0.667,
+                "、": 0.15,
+                "；": 0.3,
+                "：": 0.3,
+                ".": 0.5,
+                ",": 0.15,
+                "!": 0.5,
+                "?": 0.5,
+                ";": 0.3,
+                ":": 0.3,
+            },
+            // Fast preset — brief pauses for fast-talking characters.
+            // 快速预设——用于语速快角色的简短停顿。
+            "fast": {
+                "\n": 0.05,
+                "。": 0.167,
+                "，": 0.04,
+                "！": 0.167,
+                "？": 0.167,
+                "…": 0.167,
+                ".": 0.167,
+                ",": 0.04,
+                "!": 0.167,
+                "?": 0.167,
+            },
+        },
+    ),
+
+    // ── Voice Section / 语音配置 ──
+    //
+    // Named presets: each maps characters → playback rule.
+    // `false` = suppress voice on this character.
+    // Characters not listed play voice normally (default: true).
+    // 命名预设：每个将字符映射为播放规则。
+    // `false` = 在此字符上抑制语音。
+    // 未列出的字符正常播放语音（默认：true）。
+    voice: (
+        default_preset: "normal",
+        presets: {
+            // Standard preset — mute on punctuation, whitespace, control chars.
+            // 标准预设——在标点、空白、控制字符上静音。
+            "normal": {
+                "\n": false,
+                " ": false,
+                "　": false,
+                "。": false,
+                "，": false,
+                "！": false,
+                "？": false,
+                "…": false,
+                "、": false,
+                "；": false,
+                "：": false,
+                ".": false,
+                ",": false,
+                "!": false,
+                "?": false,
+                ";": false,
+                ":": false,
+            },
+            // Whisper preset — fewer muted chars for a softer, more audible style.
+            // 耳语预设——较少静音字符，营造更柔和的可听风格。
+            "whisper": {
+                "\n": false,
+                " ": false,
+                "　": false,
+            },
+            // Dense preset — voice plays on spaces too (Mettaton/Temmie/Wingdings style).
+            // 密集预设——空格也触发语音（对应 UT 的 Mettaton/Temmie/Wingdings 模式）。
+            "dense": {
+                "\n": false,
+            },
+        },
+    ),
+)

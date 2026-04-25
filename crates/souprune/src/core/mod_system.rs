@@ -208,10 +208,19 @@ fn load_builtin_wasm(
     pattern_registry: &mut SpawnPatternRegistry,
     loaded_mods: &mut LoadedMods,
 ) {
-    // CWD-relative candidates (development)
+    // CWD-relative candidates. Keep both packaged and development layouts so
+    // running from the repo root does not depend on one specific target dir.
+    //
+    // CWD 相对候选路径。兼容发行包布局和开发布局，避免仓库根目录运行时
+    // 依赖某一个固定的 target 目录结构。
     let mut candidates = vec![
         std::path::PathBuf::from("builtins/souprune_builtins.wasm"),
         std::path::PathBuf::from("assets/builtins/souprune_builtins.wasm"),
+        std::path::PathBuf::from("target/builtins/wasm32-wasip2/debug/souprune_builtins.wasm"),
+        std::path::PathBuf::from("target/builtins/wasm32-wasip2/release/souprune_builtins.wasm"),
+        std::path::PathBuf::from(
+            "crates/souprune_builtins/target/wasm32-wasip2/debug/souprune_builtins.wasm",
+        ),
         std::path::PathBuf::from(
             "crates/souprune_builtins/target/wasm32-wasip2/release/souprune_builtins.wasm",
         ),

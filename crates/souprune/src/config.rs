@@ -57,6 +57,12 @@ pub struct SoupruneConfig {
     #[serde(skip)]
     pub mod_library: ModLibraryConfig,
 
+    /// Content library configuration for build-time Vessel guests.
+    ///
+    /// 构建期 Vessel guest 的内容库配置。
+    #[serde(skip)]
+    pub content_library: ContentLibraryConfig,
+
     /// Resolved mod dependencies (populated from `[dependencies]` in mod.toml).
     /// Ordered so that transitive dependencies come before direct ones.
     ///
@@ -88,10 +94,29 @@ pub struct ResolvedDependency {
 #[derive(Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct ModLibraryConfig {
-    /// WASM component filename (e.g., "mod_example.wasm").
+    /// WASM component filename (e.g., ".build/runtime.wasm").
     ///
-    /// WASM 组件文件名（如 "mod_example.wasm"）。
+    /// WASM 组件文件名（如 ".build/runtime.wasm"）。
     pub wasm: String,
+}
+
+/// WASM content library configuration from mod.toml [content_library] section.
+///
+/// mod.toml 中 [content_library] 节的 WASM 内容库配置。
+#[derive(Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct ContentLibraryConfig {
+    /// WASM component filename for the content guest.
+    ///
+    /// 内容模块 (Guest) 的 WASM 组件文件名。
+    pub wasm: String,
+
+    /// Optional file header prepended to generated content files.
+    /// When absent, Vessel uses its default bootstrap warning block.
+    ///
+    /// 生成内容文件时附加的可选文件头。
+    /// 未设置时，Vessel 使用默认的 bootstrap 警告块。
+    pub generated_file_header: Option<String>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -144,10 +169,15 @@ pub struct GameConfig {
     /// 输入配置文件路径（RON 格式）。
     pub input_config_path: String,
 
-    /// Path to state configuration file (RON format).
+    /// Path to flow configuration file (RON format).
     ///
-    /// 状态配置文件路径（RON 格式）。
-    pub states_config: String,
+    /// 流程配置文件路径（RON 格式）。
+    pub flow_config_path: String,
+
+    /// Path to dialogue configuration file (RON format).
+    ///
+    /// 对话配置文件路径（RON 格式）。
+    pub dialogue_config_path: String,
 
     /// Path to chase state configuration file (RON format).
     /// If None, chase state functionality is disabled.
@@ -170,6 +200,21 @@ pub struct GameConfig {
     /// 控制物品对话文本逐字显示时的音效。
     #[serde(default)]
     pub dialogue_voice_default: String,
+
+    /// Folder containing enemy definition assets.
+    ///
+    /// 敌人定义资源目录。
+    pub enemy_directory: String,
+
+    /// Folder containing item list assets.
+    ///
+    /// 物品列表资源目录。
+    pub item_directory: String,
+
+    /// Folder containing localized Mortar assets.
+    ///
+    /// 本地化 Mortar 资源目录。
+    pub locales_directory: String,
 
     /// Texture modules required before transitioning from AppSetup.
     ///
@@ -232,11 +277,15 @@ impl Default for GameConfig {
             initial_battle_path: String::new(),
             initial_sequence_path: None,
             player_behavior_path: String::new(),
-            input_config_path: String::new(),
-            states_config: "config/states.ron".to_string(),
+            input_config_path: "app/input.ron".to_string(),
+            flow_config_path: "app/flow.ron".to_string(),
+            dialogue_config_path: "narrative/dialogue.ron".to_string(),
             chase_config: None,
-            dialogue_view_default: "states/overworld/view/dialogue.view.ron".to_string(),
-            dialogue_voice_default: "audios/voice/voice_monster.wav".to_string(),
+            dialogue_view_default: "overworld/view/dialogue.view.ron".to_string(),
+            dialogue_voice_default: "assets/audios/voice/voice_monster.wav".to_string(),
+            enemy_directory: "actors/enemies".to_string(),
+            item_directory: "actors/items".to_string(),
+            locales_directory: "assets/locales".to_string(),
             required_modules: vec!["overworld".to_string(), "common".to_string()],
             hidden_layer_keywords: vec!["prototype".to_string(), "collision".to_string()],
             initial_mode: default_initial_mode(),
@@ -363,7 +412,7 @@ pub fn get_asset_roots(mod_name: &str) -> Vec<PathBuf> {
 /// Returns all asset roots for the current project and its dependencies.
 /// Search priority: current mod first, then dependencies in order.
 ///
-/// 返回当前项目及其依赖的所有资产根目录。
+/// 返回当前项目及其依赖的所有资源根目录。
 /// 搜索优先级：当前 mod 优先，然后按顺序搜索依赖。
 pub fn get_all_asset_roots() -> Vec<PathBuf> {
     let config = load_config();
@@ -417,12 +466,20 @@ struct ModConfigFile {
     #[serde(default)]
     mod_library: Option<ModLibraryConfigPartial>,
     #[serde(default)]
+    content_library: Option<ContentLibraryConfigPartial>,
+    #[serde(default)]
     dependencies: HashMap<String, String>,
 }
 
 #[derive(Deserialize, Default)]
 struct ModLibraryConfigPartial {
     wasm: Option<String>,
+}
+
+#[derive(Deserialize, Default)]
+struct ContentLibraryConfigPartial {
+    wasm: Option<String>,
+    generated_file_header: Option<String>,
 }
 
 #[derive(Deserialize, Default)]
@@ -445,10 +502,14 @@ struct ModGameConfig {
     initial_sequence_path: Option<String>,
     player_behavior_path: Option<String>,
     input_config_path: Option<String>,
-    states_config: Option<String>,
+    flow_config_path: Option<String>,
+    dialogue_config_path: Option<String>,
     chase_config: Option<String>,
     dialogue_view_default: Option<String>,
     dialogue_voice_default: Option<String>,
+    enemy_directory: Option<String>,
+    item_directory: Option<String>,
+    locales_directory: Option<String>,
     required_modules: Option<Vec<String>>,
     hidden_layer_keywords: Option<Vec<String>>,
     initial_mode: Option<String>,
@@ -491,9 +552,13 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         merge!(initial_battle_path);
         merge!(player_behavior_path);
         merge!(input_config_path);
-        merge!(states_config);
+        merge!(flow_config_path);
+        merge!(dialogue_config_path);
         merge!(dialogue_view_default);
         merge!(dialogue_voice_default);
+        merge!(enemy_directory);
+        merge!(item_directory);
+        merge!(locales_directory);
         merge!(required_modules);
         merge!(hidden_layer_keywords);
         merge!(initial_mode);
@@ -530,6 +595,14 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         && let Some(val) = lib_partial.wasm
     {
         config.mod_library.wasm = val;
+    }
+    if let Some(content_partial) = mod_cfg.content_library {
+        if let Some(val) = content_partial.wasm {
+            config.content_library.wasm = val;
+        }
+        if let Some(val) = content_partial.generated_file_header {
+            config.content_library.generated_file_header = Some(val);
+        }
     }
 
     // Validate required resource paths
@@ -679,6 +752,7 @@ fn default_config() -> SoupruneConfig {
         render: RenderConfig::default(),
         resources: ResourcePaths::default(),
         mod_library: ModLibraryConfig::default(),
+        content_library: ContentLibraryConfig::default(),
         resolved_dependencies: Vec::new(),
     }
 }

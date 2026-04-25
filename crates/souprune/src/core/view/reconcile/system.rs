@@ -24,7 +24,7 @@ use std::collections::HashSet;
 pub struct ReconciliationEnabled;
 
 /// Resource to track which assets need reconciliation this frame.
-/// 资源，用于跟踪本帧需要协调的资产。
+/// 资源，用于跟踪本帧需要协调的资源。
 #[derive(Resource, Default)]
 pub struct PendingReconciliations {
     pub asset_ids: HashSet<bevy::asset::AssetId<ViewLayoutAsset>>,
@@ -51,7 +51,7 @@ impl PendingReconciliations {
 }
 
 /// System to detect asset changes and mark them for reconciliation.
-/// 检测资产变化并标记需要协调的系统。
+/// 检测资源变化并标记需要协调的系统。
 pub fn detect_asset_changes_system(
     mut asset_events: MessageReader<AssetEvent<ViewLayoutAsset>>,
     mut pending: ResMut<PendingReconciliations>,

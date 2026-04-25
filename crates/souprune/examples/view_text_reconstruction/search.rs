@@ -5,8 +5,8 @@ use anyhow::{Context, Result, bail};
 use serde::Serialize;
 use souprune_schema::Val;
 use souprune_schema::view::{
-    SerializableTransform, TextAlignDef, TextAnchorDef, TextDef, ViewBoxLogicDef, ViewFontDef,
-    ViewLayoutAsset, ViewNodeDef,
+    CoordinateSystem, SerializableTransform, TextAlignDef, TextAnchorDef, TextDef, ViewBoxLogicDef,
+    ViewFontDef, ViewLayoutAsset, ViewNodeDef,
 };
 use std::collections::{HashMap, HashSet};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -1398,6 +1398,7 @@ fn build_isolated_view_layout(
         requires: Vec::new(),
         facts: None,
         world_space: false,
+        coordinate_system: CoordinateSystem::Standard,
     }
 }
 
@@ -1736,7 +1737,7 @@ mod tests {
     fn host_runtime_layout_preserves_host_structure_and_hides_non_target_content() {
         let host_view = HostViewTemplate {
             source_path: PathBuf::from(
-                "projects/example_mod/states/overworld/view/undertale_backpack.view.ron",
+                "projects/example_mod/overworld/view/undertale_backpack.view.ron",
             ),
             layout: ViewLayoutAsset {
                 roots: vec![
@@ -1759,6 +1760,7 @@ mod tests {
                 requires: Vec::new(),
                 facts: None,
                 world_space: false,
+                coordinate_system: CoordinateSystem::Standard,
             },
             node_path: vec!["InfoBox".to_string()],
             text_id: "NameText".to_string(),
@@ -1837,7 +1839,7 @@ mod tests {
     fn host_export_layout_keeps_original_structure_and_content() {
         let host_view = HostViewTemplate {
             source_path: PathBuf::from(
-                "projects/example_mod/states/overworld/view/undertale_backpack.view.ron",
+                "projects/example_mod/overworld/view/undertale_backpack.view.ron",
             ),
             layout: ViewLayoutAsset {
                 roots: vec![make_node(
@@ -1849,6 +1851,7 @@ mod tests {
                 requires: Vec::new(),
                 facts: None,
                 world_space: false,
+                coordinate_system: CoordinateSystem::Standard,
             },
             node_path: vec!["InfoBox".to_string()],
             text_id: "NameText".to_string(),
@@ -1906,7 +1909,7 @@ mod tests {
         assert_eq!(root.view_box.as_ref().unwrap().border_width, 3.0);
         assert_eq!(
             root.view_box.as_ref().unwrap().structure_file.as_deref(),
-            Some("shared/view_structures/view_box.sdf.ron")
+            Some("view/structures/view_box.sdf.ron")
         );
         assert_eq!(root.children.len(), 1);
     }
@@ -1915,7 +1918,7 @@ mod tests {
     fn find_target_text_def_uses_host_node_path() {
         let host_view = HostViewTemplate {
             source_path: PathBuf::from(
-                "projects/example_mod/states/overworld/view/undertale_backpack.view.ron",
+                "projects/example_mod/overworld/view/undertale_backpack.view.ron",
             ),
             layout: ViewLayoutAsset {
                 roots: vec![make_node(
@@ -1932,6 +1935,7 @@ mod tests {
                 requires: Vec::new(),
                 facts: None,
                 world_space: false,
+                coordinate_system: CoordinateSystem::Standard,
             },
             node_path: vec!["Root".to_string(), "InfoBox".to_string()],
             text_id: "NameText".to_string(),
@@ -1952,8 +1956,8 @@ mod tests {
             .parent()
             .expect("workspace root should exist")
             .to_path_buf();
-        let host_view_path = workspace_root
-            .join("projects/example_mod/states/overworld/view/undertale_backpack.view.ron");
+        let host_view_path =
+            workspace_root.join("projects/example_mod/overworld/view/undertale_backpack.view.ron");
         let raw = fs::read_to_string(&host_view_path).expect("host view should be readable");
         let host_layout: ViewLayoutAsset =
             ron::from_str(&raw).expect("host view should deserialize for test");
@@ -2156,7 +2160,7 @@ mod tests {
                 Val::Static(offset.2),
             ),
             fill_shader: None,
-            structure_file: Some("shared/view_structures/view_box.sdf.ron".to_string()),
+            structure_file: Some("view/structures/view_box.sdf.ron".to_string()),
             fill_color: None,
         }
     }
