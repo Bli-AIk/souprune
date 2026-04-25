@@ -1,6 +1,6 @@
-//! Character animation `.character.ron` asset tests.
+//! Character animation `.animation_config.ron` asset tests.
 //!
-//! `.character.ron` 角色动画资产测试。
+//! `.animation_config.ron` 角色动画资源测试。
 
 #[path = "test_support.rs"]
 mod test_support;
@@ -9,8 +9,8 @@ use proptest::prelude::*;
 use proptest::test_runner::TestRunner;
 use souprune::{AnimationConfigAsset, Direction, StateAnimationMapping};
 
-const ANIM_DIR: &str = "states/overworld/characters";
-const ANIM_SUFFIX: &str = ".character.ron";
+const ANIM_DIR: &str = "overworld/characters";
+const ANIM_SUFFIX: &str = ".animation_config.ron";
 
 fn animation_files() -> Vec<String> {
     test_support::list_project_files_with_suffix(ANIM_DIR, ANIM_SUFFIX)

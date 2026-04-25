@@ -262,7 +262,7 @@ impl PerformancePlayer {
 
 /// Component that links a PerformancePlayer to its loaded performance asset.
 ///
-/// 将 PerformancePlayer 与其加载的演出资产关联的组件。
+/// 将 PerformancePlayer 与其加载的演出资源关联的组件。
 #[derive(Component)]
 pub struct PerformanceHandle(pub Handle<super::danmaku_schema::DanmakuPerformance>);
 

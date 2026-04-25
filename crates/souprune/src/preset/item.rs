@@ -93,9 +93,16 @@ impl ItemRegistry {
 #[derive(Resource)]
 struct ItemFolderHandle(Handle<LoadedFolder>);
 
-fn load_items_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    info!("Starting to load items from folder 'data/items'...");
-    let handle = asset_server.load_folder("data/items");
+fn load_items_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    config: Res<crate::config::SoupruneConfig>,
+) {
+    info!(
+        "Starting to load items from folder '{}'...",
+        config.game.item_directory
+    );
+    let handle = asset_server.load_folder(config.game.item_directory.clone());
     commands.insert_resource(ItemFolderHandle(handle));
 }
 

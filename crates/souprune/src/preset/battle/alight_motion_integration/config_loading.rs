@@ -75,7 +75,7 @@ pub(super) fn load_am_battle_config(
     project_config: Res<crate::config::SoupruneConfig>,
 ) {
     let config_path = format!(
-        "{}/{}/states/battle/alight_motion_config.ron",
+        "{}/{}/battle/alight_motion_config.ron",
         crate::config::get_projects_base_path().display(),
         project_config.project.mod_name
     );

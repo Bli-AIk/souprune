@@ -33,7 +33,7 @@ pub fn load_default_chapter_system(
 /// System to sync battle flow when asset is loaded.
 /// Also loads sequence-specific FRE rules if specified.
 ///
-/// 当资产加载完成时同步战斗流程的系统。
+/// 当资源加载完成时同步战斗流程的系统。
 /// 如果指定了规则文件，也会加载序列特定的 FRE 规则。
 pub fn sync_battle_flow_system(
     mut commands: Commands,

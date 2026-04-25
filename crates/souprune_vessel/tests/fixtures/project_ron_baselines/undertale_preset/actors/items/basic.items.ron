@@ -1,0 +1,78 @@
+#![enable(implicit_some)]
+// Items data - typed RON format
+// 物品数据 - 类型化 RON 格式
+[
+    (
+        id: "monster_candy",
+        locale: (name: "MONSTER_CANDY", file: "items"),
+        description: "Has a distinct, non-licorice flavor.",
+        mortar: "items/monster_candy.mortar",
+        item_type: Food(
+            consumable: true,
+            effects: [
+                Heal(amount: 10),
+            PlayAudio(clip_path: "assets/audios/sfx/snd_heal_c.wav"),
+            ],
+        ),
+    ),
+    (
+        id: "test_parent",
+        locale: (name: "TEST_PARENT", file: "items"),
+        description: "Comes with everything you need.",
+        item_type: Food(
+            consumable: true,
+            effects: [
+                Heal(amount: 4),
+                SpawnChildItem(item_id: "dry_noodles"),
+            ],
+        ),
+    ),
+    (
+        id: "dry_noodles",
+        locale: (name: "DRY_NOODLES", file: "items"),
+        description: "You don't have the water to boil them.",
+        item_type: Food(
+            consumable: true,
+            effects: [
+                Heal(amount: 2),
+            ],
+        ),
+    ),
+    (
+        id: "tough_glove",
+        locale: (name: "TOUGH_GLOVE", file: "items"),
+        description: "A worn pink leather glove.",
+        mortar: "items/tough_glove.mortar",
+        item_type: Weapon(
+            damage: 5,
+            on_hit_effects: [
+            PlayAudio(clip_path: "assets/audios/sfx/slice.wav"),
+            ],
+        ),
+    ),
+    (
+        id: "faded_ribbon",
+        locale: (name: "FADED_RIBBON", file: "items"),
+        description: "If you're cuter, monsters won't hit you as hard.",
+        item_type: Armor(defense: 3),
+    ),
+    (
+        id: "stick",
+        locale: (name: "STICK", file: "items"),
+        description: "Its bark is worse than its bite.",
+        item_type: Weapon(damage: 0),
+    ),
+    (
+        id: "bandage",
+        locale: (name: "BANDAGE", file: "items"),
+        description: "It has already been used several times.",
+        item_type: Armor(defense: 0),
+    ),
+    (
+        id: "cell_phone",
+        locale: (name: "CELL_PHONE", file: "items"),
+        description: "An old cell phone.",
+        mortar: "items/cell_phone.mortar",
+        item_type: KeyItem,
+    ),
+]

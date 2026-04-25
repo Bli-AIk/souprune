@@ -8,7 +8,7 @@
 //!
 //! This module provides a custom asset reader that supports multiple source directories.
 //!
-//! 该模块提供了一个支持多个源目录的自定义资产读取器。
+//! 该模块提供了一个支持多个源目录的自定义资源读取器。
 //!
 //! ## Source File Overview
 //!
@@ -16,7 +16,7 @@
 //!
 //! It implements `MultiSourceAssetReader` to allow cascading lookups for assets.
 //!
-//! 它实现了 `MultiSourceAssetReader` 以允许对资产进行级联查找。
+//! 它实现了 `MultiSourceAssetReader` 以允许对资源进行级联查找。
 
 use bevy::asset::io::file::FileAssetReader;
 use bevy::asset::io::{AssetReader, AssetReaderError, PathStream, Reader};
@@ -28,7 +28,7 @@ use std::path::Path;
 
 /// A composite asset reader that tries to read from multiple sources in order.
 ///
-/// 一个复合资产读取器，按顺序尝试从多个源读取。
+/// 一个复合资源读取器，按顺序尝试从多个源读取。
 pub struct MultiSourceAssetReader {
     readers: Vec<FileAssetReader>,
 }

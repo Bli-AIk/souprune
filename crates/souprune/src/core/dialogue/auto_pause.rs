@@ -4,20 +4,23 @@
 //!
 //! Watches typewriter character progress and automatically pauses when
 //! punctuation characters are revealed, creating natural dialogue rhythm.
-//! All pause rules are loaded from `config/dialogue.ron` — resolved through
+//! All pause rules are loaded from `narrative/dialogue.ron` — resolved through
 //! the project's asset root chain (current mod → preset dependencies).
 //! Named presets allow per-character or per-scene overrides.
 //!
 //! 监视打字机字符进度，在显示标点符号时自动暂停，创造自然的对话节奏。
-//! 所有停顿规则从 `config/dialogue.ron` 加载——通过项目资产根链解析
+//! 所有停顿规则从 `narrative/dialogue.ron` 加载——通过项目资源根链解析
 //! （当前 mod → preset 依赖）。命名预设允许按角色或按场景覆盖。
 
 use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 
 use bevy::prelude::*;
 use bevy_ecs_typewriter::{Typewriter, TypewriterState};
 use bevy_fact_rule_event::LayeredFactDatabase;
-use serde::Deserialize;
+use souprune_schema::dialogue::{
+    AutoPauseConfig as SchemaAutoPauseConfig, DialogueConfig as SchemaDialogueConfig,
+};
 
 use super::components::MortarController;
 use crate::core::fre_facts;
@@ -26,24 +29,28 @@ use crate::core::fre_facts;
 ///
 /// 自动标点停顿的配置资源。
 ///
-/// Loaded from `config/dialogue.ron` via [`resolve_path`](crate::config::resolve_path).
+/// Loaded from `narrative/dialogue.ron` via [`resolve_path`](crate::config::resolve_path).
 /// Contains named presets that map punctuation characters to pause durations.
 /// No hardcoded defaults — the preset or mod must provide this configuration.
 ///
-/// 通过 [`resolve_path`](crate::config::resolve_path) 从 `config/dialogue.ron` 加载。
+/// 通过 [`resolve_path`](crate::config::resolve_path) 从 `narrative/dialogue.ron` 加载。
 /// 包含命名预设，将标点字符映射到暂停时长。
 /// 没有硬编码默认值——preset 或 mod 必须提供此配置。
-#[derive(Resource, Debug, Clone, Deserialize)]
-pub struct AutoPauseConfig {
-    /// Name of the default preset to use when no override is active.
-    ///
-    /// 无覆盖时使用的默认预设名称。
-    pub default_preset: String,
+#[derive(Resource, Debug, Clone, Default)]
+pub struct AutoPauseConfig(pub SchemaAutoPauseConfig);
 
-    /// Named rule sets mapping punctuation characters to pause durations (seconds).
-    ///
-    /// 命名规则集，将标点字符映射到暂停时长（秒）。
-    pub presets: HashMap<String, HashMap<String, f64>>,
+impl Deref for AutoPauseConfig {
+    type Target = SchemaAutoPauseConfig;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for AutoPauseConfig {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 impl AutoPauseConfig {
@@ -53,18 +60,6 @@ impl AutoPauseConfig {
     pub fn active_rules(&self, preset_name: Option<&str>) -> Option<&HashMap<String, f64>> {
         let name = preset_name.unwrap_or(&self.default_preset);
         self.presets.get(name)
-    }
-}
-
-impl Default for AutoPauseConfig {
-    /// Empty default — project must provide `dialogue.ron`.
-    ///
-    /// 空默认值——项目必须提供 `dialogue.ron`。
-    fn default() -> Self {
-        Self {
-            default_preset: String::new(),
-            presets: HashMap::new(),
-        }
     }
 }
 
@@ -235,24 +230,9 @@ pub fn auto_pause_cleanup_system(
     }
 }
 
-/// On-disk format for `config/dialogue.ron`.
+/// Startup system: loads dialogue config from `narrative/dialogue.ron`.
 ///
-/// `config/dialogue.ron` 的磁盘格式。
-///
-/// Deserialized at startup, then split into separate [`AutoPauseConfig`]
-/// and [`VoiceConfig`](super::voice_config::VoiceConfig) resources.
-///
-/// 启动时反序列化，然后拆分为独立的 [`AutoPauseConfig`]
-/// 和 [`VoiceConfig`](super::voice_config::VoiceConfig) 资源。
-#[derive(Deserialize)]
-struct DialogueConfigFile {
-    auto_pause: AutoPauseConfig,
-    voice: super::voice_config::VoiceConfig,
-}
-
-/// Startup system: loads dialogue config from `config/dialogue.ron`.
-///
-/// 启动系统：从 `config/dialogue.ron` 加载对话配置。
+/// 启动系统：从 `narrative/dialogue.ron` 加载对话配置。
 ///
 /// Uses [`resolve_path`](crate::config::resolve_path) to search the current mod first,
 /// then its dependencies (e.g. `undertale_preset`). If no file is found or parsing fails,
@@ -265,13 +245,17 @@ pub fn load_dialogue_config_system(
     mut auto_pause: ResMut<AutoPauseConfig>,
     mut voice: ResMut<super::voice_config::VoiceConfig>,
 ) {
-    let Some(config_path) = crate::config::resolve_path("config/dialogue.ron") else {
-        info!("[Dialogue] config/dialogue.ron not found in any asset root. Config disabled.");
+    let config = crate::config::load_config();
+    let Some(config_path) = crate::config::resolve_path(&config.game.dialogue_config_path) else {
+        info!(
+            "[Dialogue] {} not found in any asset root. Config disabled.",
+            config.game.dialogue_config_path
+        );
         return;
     };
 
     match std::fs::read_to_string(&config_path) {
-        Ok(content) => match ron::from_str::<DialogueConfigFile>(&content) {
+        Ok(content) => match ron::from_str::<SchemaDialogueConfig>(&content) {
             Ok(loaded) => {
                 info!(
                     "[Dialogue] Loaded config from {}: auto_pause={} presets, voice={} presets",
@@ -279,8 +263,8 @@ pub fn load_dialogue_config_system(
                     loaded.auto_pause.presets.len(),
                     loaded.voice.presets.len()
                 );
-                *auto_pause = loaded.auto_pause;
-                *voice = loaded.voice;
+                *auto_pause = AutoPauseConfig(loaded.auto_pause);
+                *voice = super::voice_config::VoiceConfig(loaded.voice);
             }
             Err(e) => {
                 warn!(

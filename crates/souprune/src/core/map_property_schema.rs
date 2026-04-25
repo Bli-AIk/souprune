@@ -18,7 +18,7 @@
 //!
 //! | Property Key | Type | Required | Description |
 //! |--------------|------|----------|-------------|
-//! | `backpack_ui` | String | No | Path to view layout RON file for UI (fallback, states.ron takes priority) |
+//! | `backpack_ui` | String | No | Path to view layout RON file for UI (fallback, flow.ron takes priority) |
 //! | `bgm` | String | No | Path to background music file |
 //! | `rules_file` | String | No | Path to FRE rules file for this map |
 //!
@@ -45,10 +45,10 @@ use std::collections::HashMap;
 /// 框架使用的地图属性键。
 pub mod keys {
     /// Path to view layout RON file for UI.
-    /// Note: `states.ron` view_layout takes priority over this property.
+    /// Note: `flow.ron` view_layout takes priority over this property.
     ///
     /// UI 视图布局 RON 文件路径。
-    /// 注意：`states.ron` 的 view_layout 优先于此属性。
+    /// 注意：`flow.ron` 的 view_layout 优先于此属性。
     pub const BACKPACK_UI: &str = "backpack_ui";
 
     /// Path to background music file.
@@ -128,7 +128,7 @@ pub struct PropertyDef {
 pub static MAP_PROPERTIES: &[PropertyDef] = &[
     PropertyDef {
         key: keys::BACKPACK_UI,
-        description: "Path to view layout RON file for UI (states.ron view_layout takes priority)",
+        description: "Path to view layout RON file for UI (flow.ron view_layout takes priority)",
         required: false,
         default: None,
     },
@@ -257,7 +257,7 @@ pub fn get_string_property<'a>(properties: &'a tiled::Properties, key: &str) -> 
 /// 目前支持：
 /// - `\n` -> 换行符
 pub fn escape_property_string(s: String) -> String {
-    s.replace("\\n", "\n")
+    crate::core::text_escape::decode_text_escapes(&s).into_owned()
 }
 
 /// Get a bool property from the map.

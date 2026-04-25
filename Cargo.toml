@@ -16,6 +16,8 @@ members = [
     "crates/souprune_editor",
     "crates/souprune_schema",
     "crates/souprune_lint",
+    "crates/vessel",
+    "crates/souprune_vessel",
 ]
 
 # Exclude mortar submodule - it has its own workspace

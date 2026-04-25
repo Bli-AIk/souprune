@@ -23,6 +23,10 @@ wasmtime::component::bindgen!({
     world: "souprune-mod",
 });
 
+use self::souprune::plugin::host_api::{
+    Action as WitAction, FactValue as WitFact, Vec2 as WitVec2,
+};
+
 /// Per-call context: set by the host before invoking a mod callback.
 #[derive(Default)]
 pub struct CallContext {
@@ -73,7 +77,7 @@ impl wasmtime_wasi::WasiView for HostState {
     }
 }
 
-impl souprune::plugin::host_api::Host for HostState {
+impl self::souprune::plugin::host_api::Host for HostState {
     fn log(&mut self, level: u32, message: String) {
         match level {
             0 => info!("[MOD] {}", message),
@@ -82,22 +86,22 @@ impl souprune::plugin::host_api::Host for HostState {
         }
     }
 
-    fn is_action_pressed(&mut self, action: souprune::plugin::host_api::Action) -> bool {
+    fn is_action_pressed(&mut self, action: WitAction) -> bool {
         let idx = action_to_index(action);
         self.call_ctx.input_pressed[idx]
     }
 
-    fn is_action_just_pressed(&mut self, action: souprune::plugin::host_api::Action) -> bool {
+    fn is_action_just_pressed(&mut self, action: WitAction) -> bool {
         let idx = action_to_index(action);
         self.call_ctx.input_just_pressed[idx]
     }
 
-    fn set_velocity(&mut self, velocity: souprune::plugin::host_api::Vec2) {
+    fn set_velocity(&mut self, velocity: WitVec2) {
         self.call_ctx.velocity = Vec2::new(velocity.x, velocity.y);
     }
 
-    fn get_entity_position(&mut self) -> souprune::plugin::host_api::Vec2 {
-        souprune::plugin::host_api::Vec2 {
+    fn get_entity_position(&mut self) -> WitVec2 {
+        WitVec2 {
             x: self.call_ctx.entity_position.x,
             y: self.call_ctx.entity_position.y,
         }
@@ -107,11 +111,11 @@ impl souprune::plugin::host_api::Host for HostState {
         self.call_ctx.delta_time
     }
 
-    fn get_fact(&mut self, key: String) -> Option<souprune::plugin::host_api::FactValue> {
+    fn get_fact(&mut self, key: String) -> Option<WitFact> {
         self.call_ctx.fact_snapshot.get(&key).map(fre_to_wit_fact)
     }
 
-    fn set_fact(&mut self, key: String, value: souprune::plugin::host_api::FactValue) {
+    fn set_fact(&mut self, key: String, value: WitFact) {
         self.call_ctx
             .pending_fact_mutations
             .push((key, wit_to_fre_fact(value)));
@@ -121,21 +125,14 @@ impl souprune::plugin::host_api::Host for HostState {
         self.call_ctx.pending_events.push(event_name);
     }
 
-    fn get_entity_position_by_tag(
-        &mut self,
-        tag: String,
-    ) -> Option<souprune::plugin::host_api::Vec2> {
+    fn get_entity_position_by_tag(&mut self, tag: String) -> Option<WitVec2> {
         self.call_ctx
             .entity_positions_by_tag
             .get(&tag)
-            .map(|pos| souprune::plugin::host_api::Vec2 { x: pos.x, y: pos.y })
+            .map(|pos| WitVec2 { x: pos.x, y: pos.y })
     }
 
-    fn spawn_emitter(
-        &mut self,
-        pattern_id: String,
-        position: souprune::plugin::host_api::Vec2,
-    ) -> u64 {
+    fn spawn_emitter(&mut self, pattern_id: String, position: WitVec2) -> u64 {
         let handle = self.call_ctx.emitter_handle_counter;
         self.call_ctx.emitter_handle_counter += 1;
         self.call_ctx
@@ -169,21 +166,20 @@ impl souprune::plugin::host_api::Host for HostState {
     }
 }
 
-fn action_to_index(action: souprune::plugin::host_api::Action) -> usize {
+fn action_to_index(action: WitAction) -> usize {
     match action {
-        souprune::plugin::host_api::Action::Up => Action::Up as usize,
-        souprune::plugin::host_api::Action::Down => Action::Down as usize,
-        souprune::plugin::host_api::Action::Left => Action::Left as usize,
-        souprune::plugin::host_api::Action::Right => Action::Right as usize,
-        souprune::plugin::host_api::Action::Confirm => Action::Confirm as usize,
-        souprune::plugin::host_api::Action::Cancel => Action::Cancel as usize,
-        souprune::plugin::host_api::Action::Menu => Action::Menu as usize,
+        WitAction::Up => Action::Up as usize,
+        WitAction::Down => Action::Down as usize,
+        WitAction::Left => Action::Left as usize,
+        WitAction::Right => Action::Right as usize,
+        WitAction::Confirm => Action::Confirm as usize,
+        WitAction::Cancel => Action::Cancel as usize,
+        WitAction::Menu => Action::Menu as usize,
     }
 }
 
 /// Convert FRE `FactValue` to the WIT-generated `FactValue` variant.
-fn fre_to_wit_fact(v: &FactValue) -> souprune::plugin::host_api::FactValue {
-    use souprune::plugin::host_api::FactValue as WitFact;
+fn fre_to_wit_fact(v: &FactValue) -> WitFact {
     match v {
         FactValue::Int(n) => WitFact::IntVal(*n),
         FactValue::Float(f) => WitFact::FloatVal(*f),
@@ -212,8 +208,7 @@ fn fre_to_wit_fact(v: &FactValue) -> souprune::plugin::host_api::FactValue {
 }
 
 /// Convert WIT-generated `FactValue` variant to FRE `FactValue`.
-fn wit_to_fre_fact(v: souprune::plugin::host_api::FactValue) -> FactValue {
-    use souprune::plugin::host_api::FactValue as WitFact;
+fn wit_to_fre_fact(v: WitFact) -> FactValue {
     match v {
         WitFact::IntVal(n) => FactValue::Int(n),
         WitFact::FloatVal(f) => FactValue::Float(f),

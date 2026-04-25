@@ -3,7 +3,7 @@
 //! FreAsset schema types for `.fre.ron` files.
 //! Mirrors `bevy_fact_rule_event::asset` without Bevy dependency.
 //!
-//! `.fre.ron` 文件的 FRE 资产 Schema 类型。
+//! `.fre.ron` 文件的 FRE 资源 Schema 类型。
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -21,6 +21,7 @@ pub enum FactValueDef {
     String(String),
     StringList(Vec<String>),
     IntList(Vec<i64>),
+    Enum(String),
 }
 
 /// Serializable modification definition.
@@ -82,6 +83,7 @@ pub enum RuleActionDef {
     EmitEvent(String),
     Custom {
         action_type: String,
+        #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
         params: HashMap<String, String>,
     },
     StartDialogue {
@@ -115,6 +117,7 @@ pub enum LocalFactValue {
     Bool(bool),
     String(String),
     Expr(String),
+    Enum(String),
 }
 
 // ============================================================================
@@ -126,7 +129,6 @@ pub enum LocalFactValue {
 pub struct RuleDef {
     #[serde(default)]
     pub id: String,
-    #[serde(alias = "trigger")]
     pub event: RuleEventDef,
     #[serde(default)]
     pub conditions: Vec<String>,
@@ -158,7 +160,9 @@ pub enum RuleScopeDef {
 pub struct FreAsset {
     #[serde(default)]
     pub scope: RuleScopeDef,
-    #[serde(default)]
+    #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
+    pub enums: HashMap<String, Vec<String>>,
+    #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub facts: HashMap<String, FactValueDef>,
     #[serde(default)]
     pub rules: Vec<RuleDef>,

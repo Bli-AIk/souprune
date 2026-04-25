@@ -19,8 +19,8 @@ use bevy::prelude::*;
 /// the wait system can read `duration` once the asset finishes loading.
 ///
 /// 弹幕演出章节等待完成的跟踪组件。
-/// 当 `wait_for_completion: true` 时插入，持有资产句柄以便等待系统
-/// 在资产加载完成后读取 `duration`。
+/// 当 `wait_for_completion: true` 时插入，持有资源句柄以便等待系统
+/// 在资源加载完成后读取 `duration`。
 #[derive(Component)]
 pub struct DanmakuPerformanceTracker {
     pub handle: Handle<DanmakuPerformance>,
@@ -91,7 +91,7 @@ pub fn process_danmaku_performance_system(
 /// or marks `ChapterFinished` immediately if no duration is specified.
 ///
 /// 解析弹幕演出时长并设置等待计时器的系统。
-/// 资产加载完成后，读取 `duration` 字段：有值则插入 `WaitTimer`，
+/// 资源加载完成后，读取 `duration` 字段：有值则插入 `WaitTimer`，
 /// 无值则直接标记 `ChapterFinished`。
 pub fn process_danmaku_wait_chapter_system(
     mut commands: Commands,

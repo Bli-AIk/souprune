@@ -113,15 +113,23 @@ fn check_file(path: &Path) -> CheckResult {
             validate::<souprune_schema::battle::BattlePlayerConfig>(&source)
         }
         Some(RonFileKind::Fre) => validate::<souprune_schema::fre::FreAsset>(&source),
+        Some(RonFileKind::Dialogue) => {
+            validate::<souprune_schema::dialogue::DialogueConfig>(&source)
+        }
         Some(RonFileKind::Input) => validate::<souprune_schema::config::InputConfig>(&source),
-        Some(RonFileKind::States) => validate::<souprune_schema::config::StateConfig>(&source),
+        Some(RonFileKind::Flow) => validate::<souprune_schema::config::StateConfig>(&source),
         Some(RonFileKind::TouchLayout) => {
             validate::<souprune_schema::config::TouchLayoutDef>(&source)
         }
         Some(RonFileKind::AlightMotionConfig) => {
             validate::<souprune_schema::config::AlightMotionBattleConfig>(&source)
         }
-        Some(RonFileKind::Character) => validate_character(&source),
+        Some(RonFileKind::Character) => {
+            validate::<souprune_schema::character::CharacterAsset>(&source)
+        }
+        Some(RonFileKind::AnimationConfig) => {
+            validate::<souprune_schema::character::AnimationConfigAsset>(&source)
+        }
         Some(RonFileKind::PlayerBehavior) => {
             validate::<souprune_schema::overworld::PlayerBehaviorFile>(&source)
         }
@@ -142,21 +150,6 @@ fn check_file(path: &Path) -> CheckResult {
 /// Attempt to deserialize a RON string and convert errors to diagnostics.
 fn validate<T: serde::de::DeserializeOwned>(source: &str) -> Vec<Diagnostic> {
     match ron::from_str::<T>(source) {
-        Ok(_) => Vec::new(),
-        Err(spanned) => spanned_to_diagnostics(source, &spanned),
-    }
-}
-
-/// Validate `.character.ron` — try CharacterAsset first, then AnimationConfigAsset.
-fn validate_character(source: &str) -> Vec<Diagnostic> {
-    if ron::from_str::<souprune_schema::character::CharacterAsset>(source).is_ok() {
-        return Vec::new();
-    }
-    if ron::from_str::<souprune_schema::character::AnimationConfigAsset>(source).is_ok() {
-        return Vec::new();
-    }
-    // Both failed — report the CharacterAsset error as primary
-    match ron::from_str::<souprune_schema::character::CharacterAsset>(source) {
         Ok(_) => Vec::new(),
         Err(spanned) => spanned_to_diagnostics(source, &spanned),
     }

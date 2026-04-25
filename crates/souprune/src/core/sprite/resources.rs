@@ -31,7 +31,7 @@ pub type ModuleAtlasCache = HashMap<String, AtlasCacheData>;
 
 /// Registry for managing sprite modules and their loaded assets.
 ///
-/// 用于管理精灵模块及其已加载资产的注册表。
+/// 用于管理精灵模块及其已加载资源的注册表。
 #[derive(Resource, Default)]
 pub(crate) struct ModuleSpriteRegistry {
     pub(crate) modules: HashMap<String, Handle<LoadedFolder>>,

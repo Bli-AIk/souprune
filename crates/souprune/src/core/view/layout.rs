@@ -109,6 +109,7 @@ mod tests {
                 ]),
             )])),
             world_space: true,
+            coordinate_system: souprune_schema::view::CoordinateSystem::Standard,
         };
 
         let runtime = runtime_view_layout_from_schema(&schema).expect("conversion should succeed");
