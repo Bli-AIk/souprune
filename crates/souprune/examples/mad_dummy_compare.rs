@@ -1,25 +1,41 @@
 //! # mad_dummy_compare
 //!
-//! 验证 `mad_dummy.view.ron` 的 YDown 坐标系转换是否正确。
+//! Validates the UT-original coordinate-space conversion in `mad_dummy.view.ron`.
+//! Compares the SoupRune render against a LÖVE reference frame pixel by pixel.
+//!
+//! 验证 `mad_dummy.view.ron` 的 UT 原始坐标空间转换是否正确。
 //! 自动将 SoupRune 渲染结果与 LÖVE 参考帧进行像素级对比。
+//!
+//! ## Usage
 //!
 //! ## 运行方式
 //!
 //! ```bash
-//! # 1. 导出 LÖVE 参考帧（仅需一次）
+//! # 1. Export the LÖVE reference frame once.
+//! # 1. 导出 LÖVE 参考帧（仅需一次）。
 //! cd dev/mad_dummy_reference && love . --export
 //!
-//! # 2. 运行对比
+//! # 2. Run the comparison.
+//! # 2. 运行对比。
 //! cargo run -p souprune --example mad_dummy_compare
 //! ```
 //!
+//! ## Behavior
+//!
 //! ## 功能
 //!
+//! - Automatically loads and renders `mad_dummy.view.ron`
+//! - Compares against `dev/mad_dummy_reference/frames/frame_000.png`
+//! - Writes comparison metrics and diff images to `generated/mad_dummy_compare/`
+//! - Exits successfully when the automatic comparison passes
+//! - Press `P` for a manual screenshot, or `Escape` to quit before auto-capture
 //! - 自动加载 `mad_dummy.view.ron` 并渲染
 //! - 与 LÖVE 参考帧 (`dev/mad_dummy_reference/frames/frame_000.png`) 对比
 //! - 输出对比指标和 diff 图像到 `generated/mad_dummy_compare/`
-//! - 按 `P` 手动截图，按 `Escape` 退出
+//! - 自动对比通过后以成功状态退出
+//! - 按 `P` 手动截图，或在自动截图前按 `Escape` 退出
 
+use bevy::app::AppExit;
 use bevy::asset::io::file::FileAssetReader;
 use bevy::asset::io::{AssetSourceBuilder, AssetSourceId};
 use bevy::prelude::*;
@@ -36,6 +52,8 @@ const VIEW_PATH: &str = "battle/view/mad_dummy.view.ron";
 const REFERENCE_FRAME: &str = "dev/mad_dummy_reference/frames/frame_000.png";
 
 /// Frames to wait for the view to load and settle before auto-capture.
+///
+/// 自动截图前等待 View 加载和稳定的帧数。
 const SETTLE_FRAMES: u32 = 120;
 
 #[derive(Resource)]
@@ -109,11 +127,13 @@ fn setup(
     mut next_state: ResMut<NextState<souprune::app_state::AppState>>,
     mut spawn_writer: MessageWriter<SpawnViewRequest>,
 ) {
-    // Camera: 640×480 orthographic — 1 world unit = 1 pixel.
-    // GMS/LÖVE coordinates use 640×480 pixel space, so we match that exactly.
+    // Camera: 640×480 orthographic, centered on Bevy world origin.
+    // The View coordinate_space maps UT 640×480 top-left coordinates into this
+    // camera space: UT drawer point (320, 90) becomes Bevy world (0, 150).
     //
-    // Position at y = −40 so that world origin (0, 0) maps to screen (320, 200),
-    // matching LÖVE's OBJ_X = 320, OBJ_Y = 200.
+    // 相机使用 640×480 正交视图，并居中于 Bevy 世界原点。
+    // View 的 coordinate_space 会把 UT 640×480 左上原点坐标映射到该相机空间：
+    // UT drawer 点 (320, 90) 变为 Bevy 世界坐标 (0, 150)。
     commands.spawn((
         Name::new("Mad Dummy Camera"),
         Camera2d,
@@ -124,7 +144,7 @@ fn setup(
             },
             ..OrthographicProjection::default_2d()
         }),
-        Transform::from_xyz(0.0, -40.0, 0.0),
+        Transform::default(),
         MainGameCamera,
     ));
 
@@ -158,7 +178,11 @@ fn auto_capture(mut commands: Commands, mut state: ResMut<CompareState>) {
         .observe(handle_comparison);
 }
 
-fn handle_comparison(trigger: On<ScreenshotCaptured>, mut commands: Commands) {
+fn handle_comparison(
+    trigger: On<ScreenshotCaptured>,
+    mut commands: Commands,
+    mut exit: MessageWriter<AppExit>,
+) {
     let screenshot_rgba = trigger
         .event()
         .image
@@ -182,6 +206,9 @@ fn handle_comparison(trigger: On<ScreenshotCaptured>, mut commands: Commands) {
             REFERENCE_FRAME
         );
         commands.entity(trigger.entity).despawn();
+        exit.write(AppExit::Error(
+            std::num::NonZero::new(1).expect("exit code is non-zero"),
+        ));
         return;
     }
     let reference_rgba = image::open(ref_path)
@@ -205,7 +232,7 @@ fn handle_comparison(trigger: On<ScreenshotCaptured>, mut commands: Commands) {
 
     // Report
     info!("════════════════════════════════════════════════════");
-    info!("  Mad Dummy YDown Coordinate Comparison");
+    info!("  Mad Dummy UT Coordinate-Space Comparison");
     info!("════════════════════════════════════════════════════");
     info!("  Global similarity:  {:.4}", result.global_similarity);
     info!("  Content similarity: {:.4}", result.content_similarity);
@@ -226,9 +253,13 @@ fn handle_comparison(trigger: On<ScreenshotCaptured>, mut commands: Commands) {
     info!("════════════════════════════════════════════════════");
 
     if result.content_similarity > 0.8 {
-        info!("✅ YDown coordinate conversion appears CORRECT");
+        info!("UT coordinate-space conversion appears correct");
+        exit.write(AppExit::Success);
     } else {
-        warn!("⚠️  Low similarity — coordinate conversion may have issues");
+        warn!("Low similarity: coordinate-space conversion may have issues");
+        exit.write(AppExit::Error(
+            std::num::NonZero::new(1).expect("exit code is non-zero"),
+        ));
     }
 
     commands.entity(trigger.entity).despawn();

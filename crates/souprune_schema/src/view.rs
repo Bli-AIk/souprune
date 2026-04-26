@@ -222,6 +222,57 @@ pub enum CoordinateSystem {
     YDown,
 }
 
+/// Full coordinate-space description for imported View layouts.
+///
+/// 导入型 View 布局的完整坐标空间描述。
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CoordinateSpaceDef {
+    /// Normalized source-canvas position of coordinate `(0, 0)`.
+    ///
+    /// 源画布中坐标 `(0, 0)` 的归一化位置。
+    pub axis_origin: SerializableVec2,
+    /// Source coordinate Y-axis direction.
+    ///
+    /// 源坐标 Y 轴方向。
+    pub y_axis: YAxisDirectionDef,
+    /// Source positive rotation direction.
+    ///
+    /// 源坐标正旋转方向。
+    pub rotation: RotationDirectionDef,
+    /// Source canvas size in source units.
+    ///
+    /// 源画布尺寸，以源坐标单位表示。
+    pub extent: CoordinateExtentDef,
+}
+
+/// Source coordinate Y-axis direction.
+///
+/// 源坐标 Y 轴方向。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
+pub enum YAxisDirectionDef {
+    #[default]
+    Up,
+    Down,
+}
+
+/// Source positive rotation direction.
+///
+/// 源坐标正旋转方向。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RotationDirectionDef {
+    #[default]
+    CounterClockwise,
+    Clockwise,
+}
+
+/// Source canvas extent.
+///
+/// 源画布尺寸。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
+pub enum CoordinateExtentDef {
+    Explicit((f32, f32)),
+}
+
 // ============================================================================
 // ViewLayout (top-level asset, mirrors ViewLayoutAsset)
 // ============================================================================
@@ -262,6 +313,12 @@ pub struct ViewLayout {
     /// 用于绝对定位的坐标系。
     #[serde(default)]
     pub coordinate_system: CoordinateSystem,
+
+    /// Coordinate space conversion for imported layouts.
+    ///
+    /// 导入布局的坐标空间转换。
+    #[serde(default)]
+    pub coordinate_space: Option<CoordinateSpaceDef>,
 }
 
 pub type ViewLayoutAsset = ViewLayout;
@@ -310,6 +367,11 @@ pub struct ViewNodeDef {
     /// 基于 Flexbox 的布局与样式。
     #[serde(default)]
     pub style: StyleDef,
+    /// Node transform for containers or explicit object hierarchy nodes.
+    ///
+    /// 容器节点或显式对象层级节点的变换。
+    #[serde(default)]
+    pub transform: Option<SerializableTransform>,
     /// Conditional visibility based on a FRE expression.
     ///
     /// 基于 FRE 表达式的条件可见性。
