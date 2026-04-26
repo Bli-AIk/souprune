@@ -1334,6 +1334,7 @@ fn build_isolated_view_layout(
             name: "ReconstructedTextRoot".to_string(),
             tags: vec!["view_text_reconstruction".to_string()],
             style: Default::default(),
+            transform: None,
             visible_when: None,
             background_color: None,
             border_color: None,
@@ -1399,6 +1400,7 @@ fn build_isolated_view_layout(
         facts: None,
         world_space: false,
         coordinate_system: CoordinateSystem::Standard,
+        coordinate_space: None,
     }
 }
 
@@ -1761,6 +1763,7 @@ mod tests {
                 facts: None,
                 world_space: false,
                 coordinate_system: CoordinateSystem::Standard,
+                coordinate_space: None,
             },
             node_path: vec!["InfoBox".to_string()],
             text_id: "NameText".to_string(),
@@ -1852,6 +1855,7 @@ mod tests {
                 facts: None,
                 world_space: false,
                 coordinate_system: CoordinateSystem::Standard,
+                coordinate_space: None,
             },
             node_path: vec!["InfoBox".to_string()],
             text_id: "NameText".to_string(),
@@ -1936,6 +1940,7 @@ mod tests {
                 facts: None,
                 world_space: false,
                 coordinate_system: CoordinateSystem::Standard,
+                coordinate_space: None,
             },
             node_path: vec!["Root".to_string(), "InfoBox".to_string()],
             text_id: "NameText".to_string(),
@@ -2109,6 +2114,7 @@ mod tests {
             name: name.to_string(),
             tags: Vec::new(),
             style: StyleDef::default(),
+            transform: None,
             visible_when: None,
             background_color: None,
             border_color: None,

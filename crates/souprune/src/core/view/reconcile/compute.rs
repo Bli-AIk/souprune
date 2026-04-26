@@ -7,17 +7,14 @@
 //! 从资源和事实计算期望视图状态的纯函数。
 
 use super::resolve::{
-    process_visible_when_for_repeat, resolve_material, resolve_sprite, resolve_texts,
-    resolve_transform, resolve_viewbox_transform, resolve_visibility,
+    process_visible_when_for_repeat, resolve_material, resolve_node_transform, resolve_sprite,
+    resolve_texts, resolve_viewbox_transform, resolve_visibility,
 };
 use super::tree::{DesiredElement, DesiredViewTree, ViewElementKey};
-use crate::core::sequencer::chapter_schema::Value;
-use crate::core::view::layout::serde_types::SerializableVec3;
 use crate::core::view::layout::{ViewLayoutAsset, ViewNodeDef};
 use crate::core::view::ron_view::parsing::{
     DataPathResolvers, ExprFunctionResolvers, PlayerDataView, RepeatContext,
 };
-use bevy::prelude::Vec3;
 use bevy_fact_rule_event::{FactDatabase, LayeredFactDatabase};
 
 /// Context for resolving expressions during desired state computation.
@@ -125,11 +122,13 @@ fn compute_element(
     // Build element key
     let key = build_element_key(ctx, node_def, repeat_ctx);
 
-    // Resolve transform: ViewBox uses offset, sprites use sprite.transform
-    let transform = if let Some(ref vb) = node_def.view_box {
+    // Resolve transform: node transform wins, ViewBox uses offset, sprites use sprite.transform.
+    let transform = if node_def.transform.is_some() {
+        resolve_node_transform(&ctx.player_data, node_def, repeat_ctx)
+    } else if let Some(ref vb) = node_def.view_box {
         resolve_viewbox_transform(vb, &ctx.player_data)
     } else {
-        resolve_transform(&ctx.player_data, node_def.sprite.as_ref(), repeat_ctx)
+        resolve_node_transform(&ctx.player_data, node_def, repeat_ctx)
     };
 
     let visibility = resolve_visibility(
@@ -199,15 +198,13 @@ fn expand_repeat(
         let full_name = format!("{}::{}_{}", ctx.namespace, node_def.name, i);
         let key = ViewElementKey::with_repeat_index(full_name, i);
 
-        // Resolve transform: ViewBox uses offset, sprites use sprite.transform
-        let transform = if let Some(ref vb) = node_def.view_box {
+        // Resolve transform: node transform wins, ViewBox uses offset, sprites use sprite.transform.
+        let transform = if node_def.transform.is_some() {
+            resolve_node_transform(&ctx.player_data, node_def, Some(&repeat_ctx))
+        } else if let Some(ref vb) = node_def.view_box {
             resolve_viewbox_transform(vb, &ctx.player_data)
         } else {
-            resolve_transform(
-                &ctx.player_data,
-                node_def.sprite.as_ref(),
-                Some(&repeat_ctx),
-            )
+            resolve_node_transform(&ctx.player_data, node_def, Some(&repeat_ctx))
         };
 
         let visibility = resolve_visibility(
@@ -267,25 +264,4 @@ fn build_element_key(
     } else {
         ViewElementKey::new(full_name)
     }
-}
-
-/// Convert a SerializableVec3 to Vec3 by extracting static values.
-/// Expressions are treated as 0.0.
-///
-/// 将 SerializableVec3 转换为 Vec3，提取静态值。
-/// 表达式被视为 0.0。
-fn serializable_vec3_to_vec3(vec: &SerializableVec3) -> Vec3 {
-    let x = match &vec.0 {
-        Value::Static(v) => *v,
-        Value::Expr(_) => 0.0,
-    };
-    let y = match &vec.1 {
-        Value::Static(v) => *v,
-        Value::Expr(_) => 0.0,
-    };
-    let z = match &vec.2 {
-        Value::Static(v) => *v,
-        Value::Expr(_) => 0.0,
-    };
-    Vec3::new(x, y, z)
 }

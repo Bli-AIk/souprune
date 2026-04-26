@@ -12,7 +12,7 @@ use super::tree::{
 };
 use crate::core::view::layout::serde_types::serializable_color_to_color;
 use crate::core::view::layout::view_schema::MaterialParamValue;
-use crate::core::view::layout::{SpriteDef, TextDef};
+use crate::core::view::layout::{SerializableTransform, SpriteDef, TextDef, ViewNodeDef};
 use crate::core::view::layout::{TextAlignDef, TextAnchorDef};
 use crate::core::view::ron_view::parsing::{
     PlayerDataView, RepeatContext, evaluate_float_expr, evaluate_float_expr_with_repeat,
@@ -55,6 +55,32 @@ pub fn resolve_transform(
         return Transform::IDENTITY;
     };
 
+    resolve_transform_def(player_data, tr, repeat_ctx, Some(sprite))
+}
+
+/// Resolve the transform for a view node.
+/// Node transforms take precedence over sprite transforms.
+///
+/// 解析视图节点的变换。
+/// 节点级变换优先于精灵变换。
+pub fn resolve_node_transform(
+    player_data: &PlayerDataView,
+    node_def: &ViewNodeDef,
+    repeat_ctx: Option<&RepeatContext>,
+) -> Transform {
+    if let Some(transform) = &node_def.transform {
+        return resolve_transform_def(player_data, transform, repeat_ctx, None);
+    }
+
+    resolve_transform(player_data, node_def.sprite.as_ref(), repeat_ctx)
+}
+
+fn resolve_transform_def(
+    player_data: &PlayerDataView,
+    tr: &SerializableTransform,
+    repeat_ctx: Option<&RepeatContext>,
+    sprite: Option<&SpriteDef>,
+) -> Transform {
     // Resolve translation
     let translation = if let Some(ref trans) = tr.translation {
         if let Some(ctx) = repeat_ctx {
@@ -107,7 +133,7 @@ pub fn resolve_transform(
 
     // Apply pivot offset if present
     // 如果存在 pivot 则应用偏移
-    let final_translation = if let Some(pivot) = &sprite.pivot {
+    let final_translation = if let Some(pivot) = sprite.and_then(|sprite| sprite.pivot.as_ref()) {
         let (pivot_x, pivot_y) =
             crate::core::view::layout::serde_types::vec2_tuple_to_static(pivot);
         let shift_x = (0.5 - pivot_x) * scale.x;
