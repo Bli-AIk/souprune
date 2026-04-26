@@ -47,56 +47,64 @@ pub type SerializableColor = (Val<f32>, Val<f32>, Val<f32>, Val<f32>);
 /// 用于动态颜色属性的 `SerializableColor` 别名。
 pub type DynamicColor = SerializableColor;
 
-/// Two-dimensional vector with static floating-point channels.
+/// Two-dimensional vector with static or dynamic floating-point channels.
 ///
-/// 使用静态浮点通道的二维向量。
-pub fn vector2(x: f32, y: f32) -> SerializableVec2 {
-    (static_float(x), static_float(y))
+/// 使用静态或动态浮点通道的二维向量。
+pub fn vector2(x: impl Into<Val<f32>>, y: impl Into<Val<f32>>) -> SerializableVec2 {
+    (x.into(), y.into())
 }
 
 /// Two-dimensional vector with explicit value channels.
 ///
 /// 使用显式值通道的二维向量。
-pub fn vector2_value(x: Val<f32>, y: Val<f32>) -> SerializableVec2 {
-    (x, y)
+pub fn vector2_value(x: impl Into<Val<f32>>, y: impl Into<Val<f32>>) -> SerializableVec2 {
+    vector2(x, y)
 }
 
-/// Three-dimensional vector with static floating-point channels.
+/// Three-dimensional vector with static or dynamic floating-point channels.
 ///
-/// 使用静态浮点通道的三维向量。
-pub fn vector3(x: f32, y: f32, z: f32) -> SerializableVec3 {
-    (static_float(x), static_float(y), static_float(z))
+/// 使用静态或动态浮点通道的三维向量。
+pub fn vector3(
+    x: impl Into<Val<f32>>,
+    y: impl Into<Val<f32>>,
+    z: impl Into<Val<f32>>,
+) -> SerializableVec3 {
+    (x.into(), y.into(), z.into())
 }
 
 /// Three-dimensional vector with explicit value channels.
 ///
 /// 使用显式值通道的三维向量。
-pub fn vector3_value(x: Val<f32>, y: Val<f32>, z: Val<f32>) -> SerializableVec3 {
-    (x, y, z)
+pub fn vector3_value(
+    x: impl Into<Val<f32>>,
+    y: impl Into<Val<f32>>,
+    z: impl Into<Val<f32>>,
+) -> SerializableVec3 {
+    vector3(x, y, z)
 }
 
-/// RGBA color with static floating-point channels.
+/// RGBA color with static or dynamic floating-point channels.
 ///
-/// 使用静态浮点通道的 RGBA 颜色。
-pub fn color(red: f32, green: f32, blue: f32, alpha: f32) -> SerializableColor {
-    (
-        static_float(red),
-        static_float(green),
-        static_float(blue),
-        static_float(alpha),
-    )
+/// 使用静态或动态浮点通道的 RGBA 颜色。
+pub fn color(
+    red: impl Into<Val<f32>>,
+    green: impl Into<Val<f32>>,
+    blue: impl Into<Val<f32>>,
+    alpha: impl Into<Val<f32>>,
+) -> SerializableColor {
+    (red.into(), green.into(), blue.into(), alpha.into())
 }
 
 /// RGBA color with explicit value channels.
 ///
 /// 使用显式值通道的 RGBA 颜色。
 pub fn color_value(
-    red: Val<f32>,
-    green: Val<f32>,
-    blue: Val<f32>,
-    alpha: Val<f32>,
+    red: impl Into<Val<f32>>,
+    green: impl Into<Val<f32>>,
+    blue: impl Into<Val<f32>>,
+    alpha: impl Into<Val<f32>>,
 ) -> SerializableColor {
-    (red, green, blue, alpha)
+    color(red, green, blue, alpha)
 }
 
 /// Opaque white color.

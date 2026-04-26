@@ -11,6 +11,8 @@
 use std::fmt;
 use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 
+use souprune_schema::fre::LocalFactValue;
+use souprune_schema::sequence::FactValueMatch;
 use souprune_schema::val::Val;
 use souprune_schema::view::MaterialParamValue;
 
@@ -156,6 +158,24 @@ impl From<Expression> for MaterialParamValue {
     }
 }
 
+impl From<Expression> for LocalFactValue {
+    fn from(value: Expression) -> Self {
+        Self::Expr(value.source)
+    }
+}
+
+impl From<Expression> for FactValueMatch {
+    fn from(value: Expression) -> Self {
+        Self::Expr(value.source)
+    }
+}
+
+impl From<Expression> for Option<Val<f32>> {
+    fn from(value: Expression) -> Self {
+        Some(value.into_schema())
+    }
+}
+
 impl From<&Expression> for Expression {
     fn from(value: &Expression) -> Self {
         value.clone()
@@ -244,7 +264,7 @@ macro_rules! impl_left_numeric_binary_operators {
     };
 }
 
-impl_left_numeric_binary_operators!(f32, f64, i8, i16, i32, i64, isize, u8, u16, u32, u64, usize);
+impl_left_numeric_binary_operators!(f64, i32);
 
 impl Neg for Expression {
     type Output = Expression;
@@ -590,5 +610,32 @@ mod tests {
             fre_value,
             "$${current_enemy_id}.action_params[$act_selection]"
         );
+    }
+
+    #[test]
+    fn expression_uses_into_for_authoring_boundary_values() {
+        let schema_value: Val<f32> = current().into();
+        let optional_schema_value: Option<Val<f32>> = (time() * 2.0).into();
+        let material_value: MaterialParamValue = (fact("player:hp") / fact("player:hp_max")).into();
+        let local_fact_value: LocalFactValue = dynamic_fact("current_enemy_id", "hp").into();
+        let fact_match: FactValueMatch = fact("turn_group").into();
+
+        assert!(matches!(schema_value, Val::Expr(source) if source == "@current"));
+        assert!(matches!(
+            optional_schema_value,
+            Some(Val::Expr(source)) if source == "@time * 2.0"
+        ));
+        assert!(matches!(
+            material_value,
+            MaterialParamValue::Expr(source) if source == "$player:hp / $player:hp_max"
+        ));
+        assert!(matches!(
+            local_fact_value,
+            LocalFactValue::Expr(source) if source == "$${current_enemy_id}.hp"
+        ));
+        assert!(matches!(
+            fact_match,
+            FactValueMatch::Expr(source) if source == "$turn_group"
+        ));
     }
 }
