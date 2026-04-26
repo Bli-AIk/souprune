@@ -11,6 +11,7 @@
 //! 核心弹幕系统 - 通用且与状态无关。
 //! 此模块提供弹幕模式系统的基础，可用于 Battle 和 Overworld 状态。
 
+pub mod builtin_easing;
 pub mod builtin_motion;
 mod components;
 mod danmaku_schema;
