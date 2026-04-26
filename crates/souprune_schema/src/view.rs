@@ -317,7 +317,7 @@ pub struct ViewLayout {
     /// Coordinate space conversion for imported layouts.
     ///
     /// 导入布局的坐标空间转换。
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub coordinate_space: Option<CoordinateSpaceDef>,
 }
 
@@ -370,7 +370,7 @@ pub struct ViewNodeDef {
     /// Node transform for containers or explicit object hierarchy nodes.
     ///
     /// 容器节点或显式对象层级节点的变换。
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub transform: Option<SerializableTransform>,
     /// Conditional visibility based on a FRE expression.
     ///
