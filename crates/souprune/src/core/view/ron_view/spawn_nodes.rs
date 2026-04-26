@@ -152,11 +152,12 @@ fn spawn_view_node_with_repeat_context(
                 .state_sprite
                 .as_ref()
                 .expect("state_sprite must exist when is_state_sprite is true");
-            let transform = state_sprite_config
-                .transform
-                .as_ref()
-                .map(|t| build_transform(t, player_data, None))
-                .unwrap_or_default();
+            let transform = resolve_node_or_local_transform(
+                node_def,
+                state_sprite_config.transform.as_ref(),
+                player_data,
+                repeat_ctx,
+            );
 
             info!(
                 "[State Sprite] Spawning state sprite '{}' at position: {:?}",
@@ -200,11 +201,12 @@ fn spawn_view_node_with_repeat_context(
                 .sprite
                 .as_ref()
                 .expect("sprite must exist when is_standalone_sprite is true");
-            let transform = sprite_def
-                .transform
-                .as_ref()
-                .map(|t| build_transform(t, player_data, repeat_ctx))
-                .unwrap_or_default();
+            let transform = resolve_node_or_local_transform(
+                node_def,
+                sprite_def.transform.as_ref(),
+                player_data,
+                repeat_ctx,
+            );
 
             info!(
                 "[UI Sprite] Spawning standalone sprite '{}' at position: {:?}, scale: {:?}",
@@ -247,6 +249,16 @@ fn spawn_view_node_with_repeat_context(
                 .collect::<Vec<_>>();
 
             let offset = serializable_vec3_to_static(&view_box.offset);
+            let transform = node_def
+                .transform
+                .as_ref()
+                .map(|transform_def| {
+                    combine_transforms(
+                        build_transform(transform_def, player_data, repeat_ctx),
+                        Transform::from_translation(offset),
+                    )
+                })
+                .unwrap_or_else(|| Transform::from_translation(offset));
             let is_dynamic_offset = is_dynamic_vec3(&view_box.offset);
             let fill_color = view_box
                 .fill_color
@@ -268,7 +280,7 @@ fn spawn_view_node_with_repeat_context(
             );
             let mut box_entity = parent.spawn((
                 runtime_view_box,
-                Transform::from_translation(offset),
+                transform,
                 GlobalTransform::default(),
                 Visibility::default(),
                 InheritedVisibility::default(),
@@ -337,7 +349,11 @@ fn spawn_view_node_with_repeat_context(
 
             let mut container_entity = parent.spawn((
                 ViewContainer,
-                Transform::default(),
+                node_def
+                    .transform
+                    .as_ref()
+                    .map(|transform| build_transform(transform, player_data, repeat_ctx))
+                    .unwrap_or_default(),
                 GlobalTransform::default(),
                 Visibility::default(),
                 InheritedVisibility::default(),
@@ -393,5 +409,31 @@ fn spawn_view_node_with_repeat_context(
             player_data,
             namespace,
         );
+    }
+}
+
+fn resolve_node_or_local_transform(
+    node_def: &ViewNodeDef,
+    local_transform: Option<&SerializableTransform>,
+    player_data: &PlayerDataView<'_>,
+    repeat_ctx: Option<&super::parsing::RepeatContext>,
+) -> Transform {
+    let local =
+        local_transform.map(|transform| build_transform(transform, player_data, repeat_ctx));
+    let Some(node_transform) = &node_def.transform else {
+        return local.unwrap_or_default();
+    };
+
+    let node = build_transform(node_transform, player_data, repeat_ctx);
+    local
+        .map(|local| combine_transforms(node, local))
+        .unwrap_or(node)
+}
+
+fn combine_transforms(parent: Transform, child: Transform) -> Transform {
+    Transform {
+        translation: parent.translation + child.translation,
+        rotation: parent.rotation * child.rotation,
+        scale: parent.scale * child.scale,
     }
 }
