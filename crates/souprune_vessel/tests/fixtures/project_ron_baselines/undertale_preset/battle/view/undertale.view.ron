@@ -15,6 +15,12 @@
 
 (
     world_space: true,
+    coordinate_space: Some((
+        axis_origin: (0.0, 0.0),
+        y_axis: Down,
+        rotation: CounterClockwise,
+        extent: Explicit((640.0, 480.0)),
+    )),
     // Data dependencies declaration
     // 数据依赖声明
     requires: [
@@ -108,11 +114,14 @@
         (
             name: "BattleBox",
             tags: ["BattleBox"],
+            transform: (
+                translation: (320.0, 320.0, 0.0),
+            ),
             view_box: (
                 width: 566.0,
                 height: 130.0,
                 border_width: 5.0,
-                offset: (0.0, -80.0, 0.0),
+                offset: (0.0, 0.0, 0.0),
                 structure_file: "view/structures/view_box.sdf.ron",
             ),
             texts: [
@@ -125,7 +134,7 @@
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (-267.5, 50.0, 1.0),
+                        translation: (-267.5, -50.0, 1.0),
                     ),
                     line_height: 1.025,
                     char_spacing: 3.0,
@@ -148,7 +157,7 @@
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (-220.0, 50.0, 1.0),
+                        translation: (-220.0, -50.0, 1.0),
                     ),
                     line_height: 1.025,
                     char_spacing: 3.0,
@@ -173,7 +182,7 @@
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (-220.0, 50.0, 1.0),
+                        translation: (-220.0, -50.0, 1.0),
                     ),
                     line_height: 1.025,
                     char_spacing: 3.0,
@@ -189,7 +198,7 @@
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (35.75, 50.0, 1.0),
+                        translation: (35.75, -50.0, 1.0),
                     ),
                     line_height: 1.025,
                     char_spacing: 3.0,
@@ -210,7 +219,7 @@
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (-220.0, 50.0, 1.0),
+                        translation: (-220.0, -50.0, 1.0),
                     ),
                     line_height: 1.025,
                     char_spacing: 3.0,
@@ -234,7 +243,7 @@
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (-220.0, 50.0, 1.0),
+                        translation: (-220.0, -50.0, 1.0),
                     ),
                     line_height: 1.025,
                     char_spacing: 3.0,
@@ -250,7 +259,7 @@
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (35.75, 50.0, 1.0),
+                        translation: (35.75, -50.0, 1.0),
                     ),
                     line_height: 1.025,
                     char_spacing: 3.0,
@@ -264,7 +273,7 @@
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (66.0, -14.5, 1.0),
+                        translation: (66.0, 14.5, 1.0),
                     ),
                     char_spacing: 3.0,
                     word_spacing: -9.0,
@@ -284,7 +293,7 @@
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (-267.5, 50.0, 1.0),
+                        translation: (-267.5, -50.0, 1.0),
                     ),
                     line_height: 1.025,
                     char_spacing: 3.0,
@@ -333,9 +342,9 @@
                         transform: (
                             // Position: X offset based on longest enemy name, Y offset based on visible index
                             // 位置：X偏移基于最长敌人名字，Y偏移基于可见索引（相对于view_offset）
-                            translation: ("15 * max_strlen($enemy_names) - 125", "31.25 - (@i - $enemy_view_offset) * 32.0", 10.0),
+                            translation: ("-130 + max_strlen($enemy_names) * 16", "-32.0 + (@i - $enemy_view_offset) * 32.0", 10.0),
                             // Width fixed, height fixed
-                            scale: (100.75, 17.0, 1.0),
+                            scale: (100.0, 16.0, 1.0),
                         ),
                         pivot: (0.0, 0.5),
                     ),
@@ -355,8 +364,8 @@
                 color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
                 transform: (
                     translation: (
-                        "if($button_selection == 0, -272.0, if($button_selection == 1, -119.0, if($button_selection == 2, 41.0, 196.0)))",
-                        "-214.0",
+                        "if($button_selection == 0, 48.0, if($button_selection == 1, 201.0, if($button_selection == 2, 361.0, 516.0)))",
+                        "454.0",
                         "2.0",
                     ),
                 ),
@@ -379,12 +388,12 @@
                     translation: (
                         // X position: left of enemy names, inside BattleBox
                         // X 位置：敌人名称左侧，在战斗框内
-                        "-248.0",
+                        "72.0",
                         // Y position: based on visible position (enemy_selection - enemy_view_offset)
                         // Y 位置：基于可见位置（enemy_selection - enemy_view_offset）
                         // Pattern: 50 - (visible_index) * 32 for Y offset from top
                         // 模式：50 - (可见索引) * 32 用于从顶部的 Y 偏移
-                        "-45.5 - ($enemy_selection - $enemy_view_offset) * 32.0",
+                        "286.0 + ($enemy_selection - $enemy_view_offset) * 32.0",
                         "10.0",
                     ),
                 ),
@@ -405,8 +414,8 @@
                 color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
                 transform: (
                     translation: (
-                        "if($act_selection % 2 == 0, -248.0, 11.5)",
-                        "-45.5 - floor($act_selection / 2) * 32.0",
+                        "if($act_selection % 2 == 0, 72.0, 332.0)",
+                        "286.0 + floor($act_selection / 2) * 32.0",
                         "10.0",
                     ),
                 ),
@@ -429,10 +438,10 @@
                     translation: (
                         // X position: fixed at left column
                         // X 位置：固定在左列
-                        "-248.0",
+                        "if($mercy_selection % 2 == 0, 72.0, 320.0)",
                         // Y position: row based on selection
                         // Y 位置：基于选择的行
-                        "-45.5 - $mercy_selection * 32.0",
+                        "286.0 + floor($mercy_selection / 2) * 32.0",
                         "10.0",
                     ),
                 ),
@@ -453,8 +462,8 @@
                 color: (1.0, 0.0, 0.0, 1.0),
                 transform: (
                     translation: (
-                        "if($item_selection % 2 == 0, -248.0, 0.0)",
-                        "-45.5 - floor($item_selection % 4 / 2) * 32.0",
+                        "if($item_selection % 2 == 0, 72.0, 320.0)",
+                        "286.0 + floor($item_selection % 4 / 2) * 32.0",
                         "10.0",
                     ),
                 ),
@@ -472,7 +481,7 @@
             sprite: (
                 visual: "assets/textures/battle/view/fight/false.png",
                 transform: (
-                    translation: (-233.0, -213.0, 1.0),
+                    translation: (87.0, 453.0, 1.0),
                 ),
             ),
         ),
@@ -484,7 +493,7 @@
             sprite: (
                 visual: "assets/textures/battle/view/fight/true.png",
                 transform: (
-                    translation: (-233.0, -213.0, 1.5),
+                    translation: (87.0, 453.0, 1.5),
                 ),
             ),
         ),
@@ -498,7 +507,7 @@
             sprite: (
                 visual: "assets/textures/battle/view/act/false.png",
                 transform: (
-                    translation: (-80.0, -213.0, 1.0),
+                    translation: (240.0, 453.0, 1.0),
                 ),
             ),
         ),
@@ -508,7 +517,7 @@
             sprite: (
                 visual: "assets/textures/battle/view/act/true.png",
                 transform: (
-                    translation: (-80.0, -213.0, 1.5),
+                    translation: (240.0, 453.0, 1.5),
                 ),
             ),
         ),
@@ -522,7 +531,7 @@
             sprite: (
                 visual: "assets/textures/battle/view/item/false.png",
                 transform: (
-                    translation: (80.0, -213.0, 1.0),
+                    translation: (400.0, 453.0, 1.0),
                 ),
             ),
         ),
@@ -532,7 +541,7 @@
             sprite: (
                 visual: "assets/textures/battle/view/item/true.png",
                 transform: (
-                    translation: (80.0, -213.0, 1.5),
+                    translation: (400.0, 453.0, 1.5),
                 ),
             ),
         ),
@@ -546,7 +555,7 @@
             sprite: (
                 visual: "assets/textures/battle/view/mercy/false.png",
                 transform: (
-                    translation: (235.0, -213.0, 1.0),
+                    translation: (555.0, 453.0, 1.0),
                 ),
             ),
         ),
@@ -556,7 +565,7 @@
             sprite: (
                 visual: "assets/textures/battle/view/mercy/true.png",
                 transform: (
-                    translation: (235.0, -213.0, 1.5),
+                    translation: (555.0, 453.0, 1.5),
                 ),
             ),
         ),
@@ -571,7 +580,7 @@
             sprite: (
                 visual: "assets/textures/battle/view/dumb_target.png",
                 transform: (
-                    translation: (-1, -80.5, 10.5),
+                    translation: (319.0, 320.5, 10.5),
                 ),
             ),
         ),
@@ -586,7 +595,7 @@
                 width: 6.0,
                 height: 120.0,
                 border_width: 4.25,
-                offset: ("$fight:bar_x", -80.5, 11.0),
+                offset: ("320.0 + $fight:bar_x", 320.5, 11.0),
                 structure_file: "view/structures/attack_bar.sdf.ron",
             ),
         ),
@@ -597,6 +606,9 @@
         // ========================================
         (
             name: "BattleHUD",
+            transform: (
+                translation: (0.0, 0.0, 0.0),
+            ),
             texts: [
                 (
                     id: "PlayerName",
@@ -605,7 +617,7 @@
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (-290.0, -156.5, 1.0),
+                        translation: (30.0, 400.0, 1.0),
                     ),
                 ),
                 (
@@ -615,7 +627,7 @@
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (-187.5, -156.5, 1.0),
+                        translation: (132.5, 400.0, 1.0),
                     ),
                 ),
                 (
@@ -625,7 +637,7 @@
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (-148.5, -156.5, 1.0),
+                        translation: (171.5, 400.0, 1.0),
                     ),
                 ),
                 (
@@ -635,7 +647,7 @@
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: ("-5.5 + ($player:hp_max - 20) * 94.5 / 79", -156.5, 1.0),
+                        translation: ("290.0 + $player:hp_max * 1.2", 400.0, 1.0),
                     ),
                 ),
                 (
@@ -645,7 +657,7 @@
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: ("33.5 + ($player:hp_max - 20) * 94.5 / 79", -156.5, 1.0),
+                        translation: ("329.0 + $player:hp_max * 1.2", 400.0, 1.0),
                     ),
                 ),
                 (
@@ -655,7 +667,7 @@
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: ("57.5 + ($player:hp_max - 20) * 94.5 / 79", -156.5, 1.0),
+                        translation: ("353.0 + $player:hp_max * 1.2", 400.0, 1.0),
                     ),
                 ),
             ],
@@ -665,7 +677,7 @@
                     sprite: (
                         visual: "assets/textures/battle/view/hpname.png",
                         transform: (
-                            translation: (-64.5, -170.0, 1.0),
+                            translation: (255.5, 410.0, 1.0),
                         ),
                     ),
                 ),
@@ -674,8 +686,8 @@
                     sprite: (
                         visual: "procedural://white_pixel",
                         transform: (
-                            translation: (-45.0, -170.5, 1.0),
-                            scale: ("25.0 + ($player:hp_max - 20) * 95.0 / 79", 20.5, 1.0),
+                            translation: (275.0, 410.0, 1.0),
+                            scale: ("$player:hp_max * 1.2", 20.0, 1.0),
                         ),
                         // New material system for player HP bar
                         // 新的材质系统用于玩家 HP 条
@@ -684,7 +696,7 @@
                             params: {
                                 "hp_ratio": Expr("$player:hp / $player:hp_max"),
                                 "lag_ratio": Static(1.0),
-                                "half_width": Expr("40.0 + ($player:hp_max - 20) * 95.0 / 79 / 2"),
+                                "half_width": Expr("$player:hp_max * 0.6"),
                                 "alpha": Static(1.0),
                             },
                             animations: (

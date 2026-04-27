@@ -326,6 +326,65 @@ pub fn spawn_ron_view_for_entity(
     }
 }
 
+fn camera_visible_size(projection: &Projection) -> Option<Vec2> {
+    let Projection::Orthographic(orthographic) = projection else {
+        return None;
+    };
+    let size = Vec2::new(
+        orthographic.area.width().abs(),
+        orthographic.area.height().abs(),
+    );
+    if size.x > 0.0 && size.y > 0.0 {
+        Some(size)
+    } else {
+        None
+    }
+}
+
+fn camera_relative_view_offset(
+    view_layout: &ViewLayoutAsset,
+    camera_visible_size: Option<Vec2>,
+) -> Vec2 {
+    if view_layout.world_space {
+        return Vec2::ZERO;
+    }
+
+    let Some(CoordinateSpaceDef {
+        axis_origin,
+        extent: CoordinateExtentDef::Explicit((source_width, source_height)),
+        ..
+    }) = view_layout.coordinate_space.as_ref()
+    else {
+        return Vec2::ZERO;
+    };
+
+    let Some(visible_size) = camera_visible_size else {
+        return Vec2::ZERO;
+    };
+
+    if *source_width <= 0.0
+        || *source_height <= 0.0
+        || visible_size.x <= 0.0
+        || visible_size.y <= 0.0
+    {
+        return Vec2::ZERO;
+    }
+
+    let origin_x = match &axis_origin.0 {
+        crate::core::sequencer::chapter_schema::Value::Static(value) => *value,
+        crate::core::sequencer::chapter_schema::Value::Expr(_) => return Vec2::ZERO,
+    };
+    let origin_y = match &axis_origin.1 {
+        crate::core::sequencer::chapter_schema::Value::Static(value) => *value,
+        crate::core::sequencer::chapter_schema::Value::Expr(_) => return Vec2::ZERO,
+    };
+
+    Vec2::new(
+        (origin_x - 0.5) * (visible_size.x - *source_width),
+        (0.5 - origin_y) * (visible_size.y - *source_height),
+    )
+}
+
 /// Unified system to spawn all Views (backpack, battle, chase, dialogue).
 /// All View spawning goes through SpawnViewRequest → this system.
 ///
@@ -353,7 +412,7 @@ pub fn spawn_dynamic_view_system(
         ),
     >,
     camera_query: Query<
-        (Entity, &Transform, &Camera),
+        (Entity, &Transform, &Camera, &Projection),
         (
             With<Camera2d>,
             With<crate::core::camera::MainGameCamera>,
@@ -393,7 +452,9 @@ pub fn spawn_dynamic_view_system(
             }
         }
 
-        let Some((camera_entity, _, _)) = camera_query.iter().find(|(_, _, c)| c.is_active) else {
+        let Some((camera_entity, _, _, projection)) =
+            camera_query.iter().find(|(_, _, c, _)| c.is_active)
+        else {
             warn!("[spawn_dynamic_view] No Camera2d found for view spawning!");
             continue;
         };
@@ -427,7 +488,13 @@ pub fn spawn_dynamic_view_system(
         // transforms are automatically relative to the camera position.
         // World-space views (battle): keep the view entity as a standalone world entity.
         if !view_layout.world_space {
-            commands.entity(view_entity).insert(ChildOf(camera_entity));
+            commands.entity(view_entity).insert((
+                Transform::from_translation(
+                    camera_relative_view_offset(view_layout, camera_visible_size(projection))
+                        .extend(0.0),
+                ),
+                ChildOf(camera_entity),
+            ));
         }
 
         // 自动推断 ActiveView：有 requires（FRE 规则声明）或 bindings（外部数据绑定）
@@ -448,5 +515,47 @@ pub fn spawn_dynamic_view_system(
             "[spawn_dynamic_view] Added ViewGenerated to entity {:?}",
             view_entity
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn explicit_screen_layout(world_space: bool) -> ViewLayoutAsset {
+        ViewLayoutAsset {
+            roots: Vec::new(),
+            requires: Vec::new(),
+            facts: None,
+            world_space,
+            coordinate_system: CoordinateSystem::Standard,
+            coordinate_space: Some(CoordinateSpaceDef {
+                axis_origin: (
+                    crate::core::sequencer::chapter_schema::Value::Static(0.0),
+                    crate::core::sequencer::chapter_schema::Value::Static(0.0),
+                ),
+                y_axis: YAxisDirectionDef::Down,
+                rotation: RotationDirectionDef::CounterClockwise,
+                extent: CoordinateExtentDef::Explicit((640.0, 480.0)),
+            }),
+        }
+    }
+
+    #[test]
+    fn camera_relative_view_offsets_explicit_coordinate_space_to_camera_viewport() {
+        let layout = explicit_screen_layout(false);
+
+        let offset = camera_relative_view_offset(&layout, Some(Vec2::new(320.0, 240.0)));
+
+        assert_eq!(offset, Vec2::new(160.0, -120.0));
+    }
+
+    #[test]
+    fn world_space_view_does_not_offset_explicit_coordinate_space() {
+        let layout = explicit_screen_layout(true);
+
+        let offset = camera_relative_view_offset(&layout, Some(Vec2::new(320.0, 240.0)));
+
+        assert_eq!(offset, Vec2::ZERO);
     }
 }

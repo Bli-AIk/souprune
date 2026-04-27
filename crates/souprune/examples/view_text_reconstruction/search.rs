@@ -1954,15 +1954,15 @@ mod tests {
     }
 
     #[test]
-    fn real_backpack_runtime_layout_mutes_infobox_visuals_but_keeps_offset() {
+    fn real_backpack_runtime_layout_mutes_infobox_visuals_but_keeps_gms_offsets() {
         let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .expect("example crate should have workspace parent")
             .parent()
             .expect("workspace root should exist")
             .to_path_buf();
-        let host_view_path =
-            workspace_root.join("projects/example_mod/overworld/view/undertale_backpack.view.ron");
+        let host_view_path = workspace_root
+            .join("projects/undertale_preset/overworld/view/undertale_backpack.view.ron");
         let raw = fs::read_to_string(&host_view_path).expect("host view should be readable");
         let host_layout: ViewLayoutAsset =
             ron::from_str(&raw).expect("host view should deserialize for test");
@@ -1980,8 +1980,8 @@ mod tests {
                 font: "DTM-Sans".to_string(),
                 align: TextAlignDef::Left,
                 anchor: TextAnchorDef::BottomRight,
-                translation_x: -28.5,
-                translation_y: 22.0,
+                translation_x: -28.0,
+                translation_y: -23.0,
                 world_scale_x: 13.0,
                 world_scale_y: 13.0,
                 line_height: 1.0,
@@ -2016,6 +2016,15 @@ mod tests {
             .iter()
             .find(|root| root.name == "InfoBox")
             .expect("InfoBox should remain in runtime layout");
+        let info_translation = info_box
+            .transform
+            .as_ref()
+            .and_then(|transform| transform.translation.as_ref())
+            .expect("InfoBox should keep its GMS transform");
+        assert_eq!(extract_static_number(&info_translation.0, 0.0), 51.0);
+        assert_eq!(extract_static_number(&info_translation.1, 0.0), 53.0);
+        assert_eq!(extract_static_number(&info_translation.2, 0.0), 0.0);
+
         let view_box = info_box
             .view_box
             .as_ref()
@@ -2028,7 +2037,7 @@ mod tests {
                 extract_static_number(&view_box.offset.1, 0.0),
                 extract_static_number(&view_box.offset.2, 0.0),
             ),
-            (-108.5, -68.5, 0.0)
+            (0.0, 0.0, 0.0)
         );
 
         let name_text = info_box
@@ -2041,8 +2050,8 @@ mod tests {
             .translation
             .as_ref()
             .expect("NameText should keep translation");
-        assert_eq!(extract_static_number(&translation.0, 0.0), -28.5);
-        assert_eq!(extract_static_number(&translation.1, 0.0), 22.0);
+        assert_eq!(extract_static_number(&translation.0, 0.0), -28.0);
+        assert_eq!(extract_static_number(&translation.1, 0.0), -23.0);
         assert_eq!(name_text.visible_when.as_deref(), Some("true"));
 
         let hud_info_text = info_box
