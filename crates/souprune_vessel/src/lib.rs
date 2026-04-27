@@ -9,6 +9,7 @@
 //! 用于从 Rust 代码生成 SoupRune RON 文件。
 
 pub mod build_support;
+pub mod deps;
 pub mod expr;
 pub mod guest;
 pub mod prelude;

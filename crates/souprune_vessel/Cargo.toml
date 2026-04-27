@@ -7,13 +7,23 @@ description = "SoupRune extension for Vessel — danmaku performance constructor
 
 [dependencies]
 anyhow = "1"
-souprune_schema = { path = "../souprune_schema" }
+clap = { version = "4", features = ["derive"], optional = true }
 ron = "0.12"
 serde = { version = "1", features = ["derive"] }
+souprune_schema = { path = "../souprune_schema" }
+toml = "1.1"
 wit-bindgen = "0.55"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 vessel = { path = "../vessel" }
+
+[[bin]]
+name = "vessel-deps"
+path = "src/bin/deps/main.rs"
+required-features = ["deps-cli"]
+
+[features]
+deps-cli = ["dep:clap"]
 
 [dev-dependencies]
 serde_json = "1"
