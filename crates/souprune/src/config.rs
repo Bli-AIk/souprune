@@ -51,6 +51,12 @@ pub struct SoupruneConfig {
     #[serde(skip)]
     pub resources: ResourcePaths,
 
+    /// Per-font layout offsets used by bitmap text rendering.
+    ///
+    /// 位图文本渲染使用的字体级排版偏移。
+    #[serde(default)]
+    pub font_layout: HashMap<String, FontLayoutConfig>,
+
     /// Mod library configuration (WASM component path).
     ///
     /// Mod 库配置（WASM 组件路径）。
@@ -340,6 +346,23 @@ impl Default for RenderConfig {
     }
 }
 
+/// Per-font layout correction for bitmap text.
+///
+/// 位图文本的字体级排版校正。
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct FontLayoutConfig {
+    /// Horizontal glyph offset as a fraction of text world scale.
+    ///
+    /// 字形水平偏移量，单位为文本世界缩放的比例。
+    pub offset_x_factor: f32,
+
+    /// Vertical glyph offset as a fraction of text world scale.
+    ///
+    /// 字形垂直偏移量，单位为文本世界缩放的比例。
+    pub offset_y_factor: f32,
+}
+
 static CONFIG: OnceLock<SoupruneConfig> = OnceLock::new();
 
 /// Returns the base path for the `projects/` directory.
@@ -463,6 +486,8 @@ struct ModConfigFile {
     game: Option<ModGameConfig>,
     #[serde(default)]
     resources: Option<ResourcePathsPartial>,
+    #[serde(default)]
+    font_layout: Option<HashMap<String, FontLayoutConfig>>,
     #[serde(default)]
     mod_library: Option<ModLibraryConfigPartial>,
     #[serde(default)]
@@ -589,6 +614,9 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         if let Some(val) = res_partial.fonts {
             config.resources.fonts = val;
         }
+    }
+    if let Some(font_layout) = mod_cfg.font_layout {
+        config.font_layout.extend(font_layout);
     }
     // Load mod library configuration from [mod_library] section
     if let Some(lib_partial) = mod_cfg.mod_library
@@ -751,6 +779,7 @@ fn default_config() -> SoupruneConfig {
         game: GameConfig::default(),
         render: RenderConfig::default(),
         resources: ResourcePaths::default(),
+        font_layout: HashMap::new(),
         mod_library: ModLibraryConfig::default(),
         content_library: ContentLibraryConfig::default(),
         resolved_dependencies: Vec::new(),

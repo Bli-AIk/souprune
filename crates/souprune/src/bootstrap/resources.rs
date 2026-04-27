@@ -19,6 +19,21 @@ use crate::core;
 use crate::core::input;
 use bevy::prelude::*;
 
+pub(crate) fn font_layout_overrides_from_config(
+    cfg: &config::SoupruneConfig,
+) -> bevy_bitmap_text::FontLayoutOverrides {
+    let mut overrides = bevy_bitmap_text::FontLayoutOverrides::default();
+    for (font_name, layout) in &cfg.font_layout {
+        overrides.insert(
+            bevy_bitmap_text::FontId::from_name(font_name),
+            bevy_bitmap_text::FontLayoutOverride {
+                offset_factor: Vec2::new(layout.offset_x_factor, layout.offset_y_factor),
+            },
+        );
+    }
+    overrides
+}
+
 /// Reset all game runtime state.
 pub fn reset_game_state(world: &mut World) {
     if let Some(audio) = world.get_resource::<bevy_kira_audio::Audio>() {
@@ -153,7 +168,8 @@ pub fn insert_font_resources(app: &mut App) {
             .filter(|root| root.exists())
             .map(|root| root.to_string_lossy().into_owned())
             .collect(),
-    });
+    })
+    .insert_resource(font_layout_overrides_from_config(&cfg));
 }
 
 pub(crate) fn load_touch_layout(
