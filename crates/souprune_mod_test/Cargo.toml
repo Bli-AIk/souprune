@@ -12,4 +12,4 @@ keywords = ["game-framework", "modding", "testing", "wasm"]
 crate-type = ["cdylib"]
 
 [dependencies]
-souprune_sdk = { path = "../souprune_sdk", version = "0.2" }
+souprune_sdk = { path = "../souprune_sdk", version = "0.2.0" }
