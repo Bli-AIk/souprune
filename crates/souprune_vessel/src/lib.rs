@@ -11,6 +11,7 @@
 pub mod build_support;
 pub mod deps;
 pub mod expr;
+pub mod float_output;
 pub mod guest;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod host;
