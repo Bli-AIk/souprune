@@ -2022,7 +2022,10 @@ mod tests {
             .and_then(|transform| transform.translation.as_ref())
             .expect("InfoBox should keep its GMS transform");
         assert_eq!(extract_static_number(&info_translation.0, 0.0), 51.0);
-        assert_eq!(extract_static_number(&info_translation.1, 0.0), 53.0);
+        assert!(matches!(
+            &info_translation.1,
+            Val::Expr(expr) if expr == "53.0 + $info_box_y_offset"
+        ));
         assert_eq!(extract_static_number(&info_translation.2, 0.0), 0.0);
 
         let view_box = info_box

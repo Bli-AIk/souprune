@@ -225,6 +225,7 @@ pub(crate) fn spawn_container_texts(
 
         if has_dynamic {
             cmd.insert(super::super::components::DynamicViewElement {
+                node_transform: None,
                 sprite_def: None,
                 text_def: Some(text_def.clone()),
                 view_box_def: None,

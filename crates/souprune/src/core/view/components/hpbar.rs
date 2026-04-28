@@ -16,6 +16,7 @@ use bevy::prelude::*;
 /// 存储原始定义以便重新求值。
 #[derive(Component, Clone)]
 pub struct DynamicViewElement {
+    pub node_transform: Option<crate::core::view::layout::SerializableTransform>,
     pub sprite_def: Option<crate::core::view::layout::SpriteDef>,
     pub text_def: Option<crate::core::view::layout::TextDef>,
     pub view_box_def: Option<crate::core::view::layout::view_schema::ViewBoxLogicDef>,
