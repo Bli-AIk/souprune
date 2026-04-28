@@ -20,11 +20,11 @@ use crate::core::sprite::params::SpriteParams;
 use crate::extra::debug::DebugCamera;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use bevy_fact_rule_event::{LayeredFactDatabase, RuleScope};
+use bevy_fact_rule_event::{CombinedFactReader, LayeredFactDatabase, RuleScope};
 
 use super::spawn_helpers::load_fre_into_view_root;
 use super::spawn_nodes::spawn_view_node;
-use crate::core::game_action::{GameFreAsset, GameRuleRegistry};
+use crate::core::game_action::{GameActionDef, GameFreAsset, GameRuleDef, GameRuleRegistry};
 
 /// System parameter bundle for FRE-related resources.
 /// Reduces system parameter count to stay within Bevy's 16-parameter limit.
@@ -100,6 +100,7 @@ fn process_interface_requirement(
             let Some(fre_asset) = fre_assets.get(&handle) else {
                 return;
             };
+            enum_registry.register_from_asset(fre_asset);
             load_fre_into_view_root(view_root, fre_asset, mortar_strings, enum_registry);
             let num_rules = register_fre_rules_from_asset(fre_asset, view_entity, rule_registry);
             info!(
@@ -114,6 +115,7 @@ fn process_interface_requirement(
                 let Some(fre_asset) = fre_assets.get(&handle) else {
                     continue;
                 };
+                enum_registry.register_from_asset(fre_asset);
                 load_fre_into_view_root(view_root, fre_asset, mortar_strings, enum_registry);
                 total_rules += register_fre_rules_from_asset(fre_asset, view_entity, rule_registry);
             }
@@ -181,6 +183,7 @@ pub fn spawn_ron_view_for_entity(
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
     layout_path: &str,
+    pre_spawn_events: &[String],
     bindings: Option<
         &std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>,
     >,
@@ -199,6 +202,7 @@ pub fn spawn_ron_view_for_entity(
     // Track pending FRE files that need delayed registration (store handles to keep loading alive)
     // 跟踪需要延迟注册的待处理 FRE 文件（存储句柄以保持加载请求）
     let mut pending_fre_handles: Vec<(String, Handle<GameFreAsset>)> = Vec::new();
+    let mut loaded_rule_defs = Vec::new();
 
     // Process requires declarations
     // 处理 requires 声明
@@ -220,7 +224,9 @@ pub fn spawn_ron_view_for_entity(
                     pending_fre_handles.push((path.clone(), handle));
                     continue;
                 };
+                enum_registry.register_from_asset(fre_asset);
                 load_fre_into_view_root(&mut view_root, fre_asset, mortar_strings, enum_registry);
+                loaded_rule_defs.extend(fre_asset.get_rule_defs().iter().cloned());
 
                 // Register View-scoped rules from this FRE file
                 // 从此 FRE 文件注册 View 作用域的规则
@@ -285,6 +291,14 @@ pub fn spawn_ron_view_for_entity(
         );
     }
 
+    apply_pre_spawn_events(
+        &mut view_root,
+        &loaded_rule_defs,
+        pre_spawn_events,
+        layered_db,
+        enum_registry,
+    );
+
     // Spawn view nodes BEFORE attaching ViewRoot, using a player_data with local_facts
     // 在附加 ViewRoot 之前生成视图节点，使用带有 local_facts 的 player_data
     {
@@ -324,6 +338,121 @@ pub fn spawn_ron_view_for_entity(
             pending_handles: pending_fre_handles,
         });
     }
+}
+
+fn apply_pre_spawn_events(
+    view_root: &mut crate::core::view::components::ViewRoot,
+    rule_defs: &[GameRuleDef],
+    pre_spawn_events: &[String],
+    layered_db: &LayeredFactDatabase,
+    enum_registry: &bevy_fact_rule_event::EnumRegistry,
+) {
+    if pre_spawn_events.is_empty() || rule_defs.is_empty() {
+        return;
+    }
+
+    for event_id in pre_spawn_events {
+        let mut matching_rules = rule_defs
+            .iter()
+            .enumerate()
+            .filter_map(|(index, rule_def)| {
+                let rule = rule_def.to_rule_with_index(index, RuleScope::View);
+                (rule.enabled && rule.trigger.0 == *event_id).then_some(rule)
+            })
+            .collect::<Vec<_>>();
+
+        matching_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+
+        for rule in matching_rules {
+            if !pre_spawn_rule_conditions_match(view_root, layered_db, enum_registry, &rule) {
+                continue;
+            }
+
+            apply_pre_spawn_set_local_fact_actions(
+                view_root,
+                layered_db,
+                enum_registry,
+                &rule.actions,
+            );
+
+            info!(
+                "[ViewRoot] Applied pre-spawn event '{}' via rule '{}'",
+                event_id, rule.id
+            );
+
+            if rule.consume_event {
+                break;
+            }
+        }
+    }
+}
+
+fn pre_spawn_rule_conditions_match(
+    view_root: &crate::core::view::components::ViewRoot,
+    layered_db: &LayeredFactDatabase,
+    enum_registry: &bevy_fact_rule_event::EnumRegistry,
+    rule: &crate::core::game_action::GameRule,
+) -> bool {
+    let combined = CombinedFactReader::new(&view_root.local_facts, layered_db);
+    crate::core::fre_bridge::evaluate_conditions(
+        &rule.condition_expressions,
+        &combined,
+        enum_registry,
+    )
+}
+
+fn apply_pre_spawn_set_local_fact_actions(
+    view_root: &mut crate::core::view::components::ViewRoot,
+    layered_db: &LayeredFactDatabase,
+    enum_registry: &bevy_fact_rule_event::EnumRegistry,
+    actions: &[GameActionDef],
+) {
+    for action in actions {
+        let GameActionDef::SetLocalFact(key, value) = action else {
+            continue;
+        };
+        let combined = CombinedFactReader::new(&view_root.local_facts, layered_db);
+        let fact_value = crate::core::fre_bridge::evaluate_local_fact_value(
+            key,
+            value,
+            &combined,
+            enum_registry,
+        );
+        view_root.local_facts.set(key.as_str(), fact_value);
+    }
+}
+
+fn required_pre_spawn_fre_files_loaded(
+    view_layout: &ViewLayoutAsset,
+    asset_server: &AssetServer,
+    fre_assets: &Assets<GameFreAsset>,
+    hot_reload_root: &mut HotReloadableViewRoot,
+) -> bool {
+    if hot_reload_root.pre_spawn_events.is_empty() {
+        return true;
+    }
+
+    if hot_reload_root.pre_spawn_fre_handles.is_empty() {
+        hot_reload_root.pre_spawn_fre_handles = view_layout
+            .requires
+            .iter()
+            .filter_map(|requirement| {
+                let DataRequirement::File(path) = requirement else {
+                    return None;
+                };
+                info!(
+                    "[spawn_dynamic_view] Pre-loading required FRE before initial spawn: {}",
+                    path
+                );
+                Some(asset_server.load(path.clone()))
+            })
+            .collect();
+    }
+
+    hot_reload_root
+        .pre_spawn_fre_handles
+        .iter()
+        .all(|handle| fre_assets.get(handle).is_some())
 }
 
 fn camera_visible_size(projection: &Projection) -> Option<Vec2> {
@@ -398,10 +527,10 @@ pub fn spawn_dynamic_view_system(
     fre_assets: Res<Assets<GameFreAsset>>,
     // Query for views with HotReloadableViewRoot + RonDrivenView but not yet generated
     // 查询有 HotReloadableViewRoot + RonDrivenView 但尚未生成的 View
-    dynamic_view_query: Query<
+    mut dynamic_view_query: Query<
         (
             Entity,
-            &HotReloadableViewRoot,
+            &mut HotReloadableViewRoot,
             &ViewRoot,
             Option<&PendingViewData>,
         ),
@@ -430,7 +559,9 @@ pub fn spawn_dynamic_view_system(
         .with_resolvers(data_resolvers.as_deref(), None)
         .with_expr_functions(expr_func_resolvers.as_deref());
 
-    for (view_entity, hot_reload_root, _view_root, pending_view_data) in dynamic_view_query.iter() {
+    for (view_entity, mut hot_reload_root, _view_root, pending_view_data) in
+        dynamic_view_query.iter_mut()
+    {
         // Check if asset is loaded
         let Some(view_layout) = view_layouts.get(&hot_reload_root.layout_handle) else {
             trace!(
@@ -450,6 +581,19 @@ pub fn spawn_dynamic_view_system(
                 );
                 continue;
             }
+        }
+
+        if !required_pre_spawn_fre_files_loaded(
+            view_layout,
+            &asset_server,
+            &fre_assets,
+            &mut hot_reload_root,
+        ) {
+            trace!(
+                "[spawn_dynamic_view] Waiting for required FRE assets: {}",
+                hot_reload_root.layout_path
+            );
+            continue;
         }
 
         let Some((camera_entity, _, _, projection)) =
@@ -478,6 +622,7 @@ pub fn spawn_dynamic_view_system(
             &mortar_strings,
             &player_data,
             &hot_reload_root.layout_path,
+            &hot_reload_root.pre_spawn_events,
             bindings,
             &layered_db,
             &mut fre_params.rule_registry,
@@ -521,6 +666,7 @@ pub fn spawn_dynamic_view_system(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy_fact_rule_event::{FactValue, LocalFactValue, RuleEventDef};
 
     fn explicit_screen_layout(world_space: bool) -> ViewLayoutAsset {
         ViewLayoutAsset {
@@ -557,5 +703,46 @@ mod tests {
         let offset = camera_relative_view_offset(&layout, Some(Vec2::new(320.0, 240.0)));
 
         assert_eq!(offset, Vec2::ZERO);
+    }
+
+    #[test]
+    fn pre_spawn_event_applies_set_local_fact_before_initial_spawn() {
+        let mut view_root =
+            crate::core::view::components::ViewRoot::new("overworld/backpack.view.ron".into());
+        view_root.local_facts.set("info_box_y_offset", 0);
+
+        let mut layered_db = LayeredFactDatabase::new();
+        layered_db.set_global("overworld:player_screen_y", FactValue::Float(130.1));
+
+        let rule_defs = vec![GameRuleDef {
+            id: "move_info_box_down_when_player_is_low".into(),
+            event: RuleEventDef::Event("overworld:screen_facts_updated".into()),
+            conditions: vec![
+                "$overworld:player_screen_y > 130".into(),
+                "$info_box_y_offset != 135".into(),
+            ],
+            actions: vec![GameActionDef::SetLocalFact(
+                "info_box_y_offset".into(),
+                LocalFactValue::Int(135),
+            )],
+            modifications: Vec::new(),
+            outputs: Vec::new(),
+            enabled: true,
+            priority: 100,
+            consume_event: true,
+        }];
+
+        apply_pre_spawn_events(
+            &mut view_root,
+            &rule_defs,
+            &["overworld:screen_facts_updated".into()],
+            &layered_db,
+            &bevy_fact_rule_event::EnumRegistry::default(),
+        );
+
+        assert_eq!(
+            view_root.local_facts.get_by_str("info_box_y_offset"),
+            Some(&FactValue::Int(135))
+        );
     }
 }

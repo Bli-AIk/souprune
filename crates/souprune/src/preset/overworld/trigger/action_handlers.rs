@@ -131,6 +131,7 @@ pub fn setup_action_handlers_system(world: &mut World) {
                 .push(crate::core::view::SpawnViewRequest {
                     path,
                     mode_scope: None,
+                    pre_spawn_events: Vec::new(),
                     bindings: None,
                 });
         });

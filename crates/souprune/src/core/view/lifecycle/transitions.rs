@@ -66,6 +66,7 @@ pub(crate) fn backpack_state_transition_system(
             spawn_writer.write(super::super::SpawnViewRequest {
                 path: view_layout_path.clone(),
                 mode_scope: Some("overworld".to_string()),
+                pre_spawn_events: state_config.get_pre_spawn_events(state_name).to_vec(),
                 bindings: None,
             });
 

@@ -194,6 +194,7 @@ fn setup(
     spawn_writer.write(SpawnViewRequest {
         path: VIEW_PATH.to_string(),
         mode_scope: Some("overworld".to_string()),
+        pre_spawn_events: Vec::new(),
         bindings: None,
     });
 

@@ -19,7 +19,7 @@ use bevy_fact_rule_event::{EnumRegistry, FactReader, FactValue};
 ///
 /// 根据 FactReader 评估条件表达式。
 /// 如果所有条件都通过则返回 true。
-pub(in crate::core::fre_bridge) fn evaluate_conditions(
+pub(crate) fn evaluate_conditions(
     conditions: &[String],
     facts: &dyn FactReader,
     enums: &EnumRegistry,

@@ -90,6 +90,11 @@ pub struct StateDefinition {
     pub camera_follow_player: bool,
     #[serde(default)]
     pub view_layout: Option<String>,
+    /// FRE events to apply before spawning this state's view.
+    ///
+    /// 生成此状态的 View 前要先应用的 FRE 事件。
+    #[serde(default)]
+    pub pre_spawn_events: Vec<String>,
     #[serde(default)]
     pub initial_layer: Option<String>,
     #[serde(default)]
@@ -108,6 +113,7 @@ impl Default for StateDefinition {
             player_can_interact: None,
             camera_follow_player: true,
             view_layout: None,
+            pre_spawn_events: Vec::new(),
             initial_layer: None,
             on_enter_sound: None,
             on_exit_sound: None,

@@ -14,7 +14,7 @@ mod expressions;
 use bevy::prelude::*;
 use bevy_fact_rule_event::EnumRegistry;
 
-pub(super) use conditions::evaluate_conditions;
+pub(crate) use conditions::evaluate_conditions;
 pub use conditions::evaluate_single_condition;
 pub(crate) use expressions::evaluate_local_fact_value;
 
