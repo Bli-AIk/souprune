@@ -112,6 +112,15 @@ impl LoadedStateConfig {
         self.get(state_name).and_then(|s| s.view_layout.as_deref())
     }
 
+    /// Get FRE events that should run before spawning the state's view.
+    ///
+    /// 获取生成该状态 View 前应先运行的 FRE 事件。
+    pub fn get_pre_spawn_events(&self, state_name: &str) -> &[String] {
+        self.get(state_name)
+            .map(|s| s.pre_spawn_events.as_slice())
+            .unwrap_or(&[])
+    }
+
     /// Iterate over all configured states.
     ///
     /// 遍历所有状态配置。

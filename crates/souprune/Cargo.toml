@@ -52,8 +52,8 @@ bevy_tween = "0.12"
 iyes_perf_ui = { version = "0.5", optional = true }
 bevy_ecs_typewriter = "0.2"
 bevy_fact_rule_event = "0.4"
-bevy_mortar_bond = "0.3"
-bevy_alight_motion = "0.3"
+bevy_mortar_bond = "0.4"
+bevy_alight_motion = "0.4"
 log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -62,7 +62,7 @@ toml = "0.9.8"
 regex = "1.10"
 bevy_rand = { version = "0.14", features = ["wyrand"] }
 rand = "0.10"
-bevy_bitmap_text = "0.1"
+bevy_bitmap_text = "0.2"
 bevy_kira_audio = { version = "0.25", features = ["wav", "ogg", "flac", "mp3"] }
 anyhow = "1.0.100"
 async-channel = "2"

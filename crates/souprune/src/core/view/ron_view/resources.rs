@@ -37,6 +37,14 @@ pub struct HotReloadableViewRoot {
     ///
     /// 当前已加载布局资源的句柄
     pub layout_handle: Handle<ViewLayoutAsset>,
+    /// FRE events applied before the initial entity tree is spawned.
+    ///
+    /// 初次生成实体树前先应用的 FRE 事件。
+    pub pre_spawn_events: Vec<String>,
+    /// Required FRE assets kept alive while pre-spawn events wait for loading.
+    ///
+    /// 预生成事件等待加载时需要保持存活的 required FRE 资源。
+    pub pre_spawn_fre_handles: Vec<Handle<crate::core::game_action::GameFreAsset>>,
 }
 
 /// Resource that tracks pending view reloads.

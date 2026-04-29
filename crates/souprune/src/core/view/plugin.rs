@@ -102,7 +102,12 @@ impl Plugin for CoreViewPlugin {
                 Startup,
                 super::procedural_textures::init_procedural_textures,
             )
-            .add_systems(schedule, handle_spawn_view_request_system)
+            .add_systems(
+                schedule,
+                handle_spawn_view_request_system
+                    .after(backpack_state_transition_system)
+                    .before(ron_view::spawn_dynamic_view_system),
+            )
             .add_systems(schedule, handle_despawn_view_request_system)
             .add_systems(
                 schedule,
@@ -143,7 +148,9 @@ impl Plugin for CoreViewPlugin {
             )
             .add_systems(
                 schedule,
-                ron_view::spawn_dynamic_view_system.in_set(ViewUpdate),
+                ron_view::spawn_dynamic_view_system
+                    .before(crate::core::fre_bridge::process_view_actions_system)
+                    .in_set(ViewUpdate),
             )
             .add_systems(
                 schedule,

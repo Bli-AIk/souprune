@@ -133,6 +133,62 @@ pub(super) fn resolve_int(expr: &str, facts: &dyn FactReader) -> Option<i64> {
     expr.parse::<i64>().ok()
 }
 
+pub(super) fn resolve_number(expr: &str, facts: &dyn FactReader) -> Option<f64> {
+    let expr = expr.trim();
+
+    if let Some(idx) = expr.find(" + ") {
+        let left = expr[..idx].trim();
+        let right = expr[idx + 3..].trim();
+        return Some(resolve_number(left, facts)? + resolve_number(right, facts)?);
+    }
+
+    if let Some(idx) = expr.find(" - ") {
+        let left = expr[..idx].trim();
+        let right = expr[idx + 3..].trim();
+        return Some(resolve_number(left, facts)? - resolve_number(right, facts)?);
+    }
+
+    if let Some(idx) = expr.find(" % ") {
+        let left = expr[..idx].trim();
+        let right = expr[idx + 3..].trim();
+        let right_val = resolve_int(right, facts)?;
+        if right_val == 0 {
+            return None;
+        }
+        return Some((resolve_int(left, facts)? % right_val) as f64);
+    }
+
+    if let Some(base) = expr.strip_suffix(".len()")
+        && let Some(var_name) = base.strip_prefix('$')
+    {
+        return match facts.get_by_str(var_name)? {
+            FactValue::StringList(list) => Some(list.len() as f64),
+            FactValue::IntList(list) => Some(list.len() as f64),
+            FactValue::FloatList(list) => Some(list.len() as f64),
+            FactValue::BoolList(list) => Some(list.len() as f64),
+            _ => None,
+        };
+    }
+    if expr.ends_with(".len()") {
+        return None;
+    }
+
+    if let Some(var_name) = expr.strip_prefix('$') {
+        return match facts.get_by_str(var_name)? {
+            FactValue::Int(value) => Some(*value as f64),
+            FactValue::Float(value) => Some(*value),
+            FactValue::Bool(value) => Some(if *value { 1.0 } else { 0.0 }),
+            FactValue::StringList(list) => Some(list.len() as f64),
+            FactValue::IntList(list) => Some(list.len() as f64),
+            FactValue::FloatList(list) => Some(list.len() as f64),
+            FactValue::BoolList(list) => Some(list.len() as f64),
+            FactValue::String(_) => None,
+        };
+    }
+
+    expr.parse::<f64>().ok()
+}
+
 /// Evaluate a LocalFactValue to a FactValue.
 ///
 /// 将 LocalFactValue 评估为 FactValue。

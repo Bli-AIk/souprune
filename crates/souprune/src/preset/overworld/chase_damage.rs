@@ -518,6 +518,7 @@ pub(super) fn setup_chase_hud_system(
     spawn_writer.write(crate::core::view::SpawnViewRequest {
         path: ui_path.to_string(),
         mode_scope: Some("overworld".to_string()),
+        pre_spawn_events: Vec::new(),
         bindings: None,
     });
 

@@ -153,6 +153,7 @@ fn setup(
     spawn_writer.write(SpawnViewRequest {
         path: VIEW_PATH.to_string(),
         mode_scope: None,
+        pre_spawn_events: Vec::new(),
         bindings: None,
     });
 

@@ -204,6 +204,7 @@ pub fn spawn_sprite_entity(
         };
 
         commands.entity(entity_id).insert(DynamicViewElement {
+            node_transform: None,
             sprite_def: Some(processed_sprite_def),
             text_def: None,
             view_box_def: None,

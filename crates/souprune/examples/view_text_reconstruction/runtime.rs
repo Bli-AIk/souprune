@@ -1602,6 +1602,7 @@ fn apply_pending_candidate(
     spawn_writer.write(SpawnViewRequest {
         path: task.0.runtime_view_relative_path.clone(),
         mode_scope: None,
+        pre_spawn_events: Vec::new(),
         bindings: None,
     });
 

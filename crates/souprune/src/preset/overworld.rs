@@ -31,6 +31,7 @@ pub mod chase_config;
 pub mod chase_damage;
 mod collision;
 pub(crate) mod player;
+mod screen_facts;
 pub(crate) mod tilemap;
 pub mod trigger;
 
@@ -74,6 +75,13 @@ impl Plugin for OverworldPlugin {
                 trigger::setup_action_handlers_system.run_if(on_entering_mode("overworld")),
             )
             .add_systems(schedule, bind_camera_target_system.in_set(OverworldUpdate))
+            .add_systems(
+                schedule,
+                screen_facts::sync_overworld_screen_facts_system
+                    .after(crate::core::camera::CameraUpdateSet)
+                    .before(bevy_fact_rule_event::FRESystemSet::EmitEvents)
+                    .in_set(OverworldUpdate),
+            )
             .add_systems(
                 schedule,
                 mark_tilemap_as_overworld_scoped.in_set(OverworldUpdate),

@@ -32,6 +32,7 @@ pub fn process_view_action_system(
                     spawn_writer.write(crate::core::view::SpawnViewRequest {
                         path: path.clone(),
                         mode_scope: Some("battle".to_string()),
+                        pre_spawn_events: Vec::new(),
                         bindings: None,
                     });
                 }
@@ -50,6 +51,7 @@ pub fn process_view_action_system(
             spawn_writer.write(crate::core::view::SpawnViewRequest {
                 path: view_layout.clone(),
                 mode_scope: Some("battle".to_string()),
+                pre_spawn_events: Vec::new(),
                 bindings: if bindings.is_empty() {
                     None
                 } else {

@@ -119,6 +119,17 @@ impl Vec3Tuple {
     }
 }
 
+impl<X, Y, Z> From<(X, Y, Z)> for Vec3Tuple
+where
+    X: Into<Val<f32>>,
+    Y: Into<Val<f32>>,
+    Z: Into<Val<f32>>,
+{
+    fn from((x, y, z): (X, Y, Z)) -> Self {
+        Self::positional(x, y, z)
+    }
+}
+
 /// 2D vector: supports both positional and named syntax.
 ///
 /// 二维向量：支持位置式和命名式语法。
@@ -145,6 +156,16 @@ impl Vec2Tuple {
             x: x.into(),
             y: y.into(),
         }
+    }
+}
+
+impl<X, Y> From<(X, Y)> for Vec2Tuple
+where
+    X: Into<Val<f32>>,
+    Y: Into<Val<f32>>,
+{
+    fn from((x, y): (X, Y)) -> Self {
+        Self::positional(x, y)
     }
 }
 
@@ -191,6 +212,18 @@ impl ColorTuple {
             b: blue.into(),
             a: alpha.into(),
         }
+    }
+}
+
+impl<Red, Green, Blue, Alpha> From<(Red, Green, Blue, Alpha)> for ColorTuple
+where
+    Red: Into<Val<f32>>,
+    Green: Into<Val<f32>>,
+    Blue: Into<Val<f32>>,
+    Alpha: Into<Val<f32>>,
+{
+    fn from((red, green, blue, alpha): (Red, Green, Blue, Alpha)) -> Self {
+        Self::rgba(red, green, blue, alpha)
     }
 }
 

@@ -21,6 +21,7 @@ use crate::core::mode::ModeScoped;
 pub struct SpawnViewRequest {
     pub path: String,
     pub mode_scope: Option<String>,
+    pub pre_spawn_events: Vec<String>,
     pub bindings: Option<
         std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>,
     >,
@@ -73,6 +74,8 @@ pub(super) fn handle_spawn_view_request_system(
             ron_view::HotReloadableViewRoot {
                 layout_path: request.path.clone(),
                 layout_handle: handle.clone(),
+                pre_spawn_events: request.pre_spawn_events.clone(),
+                pre_spawn_fre_handles: Vec::new(),
             },
             components::ViewRoot::new(request.path.clone()),
             RonDrivenView,

@@ -131,9 +131,19 @@ fn resolve_transform_def(
         Quat::IDENTITY
     };
 
-    // Apply pivot offset if present
-    // 如果存在 pivot 则应用偏移
-    let final_translation = if let Some(pivot) = sprite.and_then(|sprite| sprite.pivot.as_ref()) {
+    // Material sprites do not have Bevy's Sprite anchor component, so their
+    // pivot remains a transform offset. Regular sprites carry pivot through
+    // Anchor and must keep their authored translation unchanged.
+    //
+    // material 精灵没有 Bevy 的 Sprite anchor 组件，因此 pivot 仍然表现为
+    // transform 偏移。普通精灵通过 Anchor 携带 pivot，translation 必须保持源数据。
+    let final_translation = if let Some(pivot) = sprite.and_then(|sprite| {
+        if sprite.material.is_some() {
+            sprite.pivot.as_ref()
+        } else {
+            None
+        }
+    }) {
         let (pivot_x, pivot_y) =
             crate::core::view::layout::serde_types::vec2_tuple_to_static(pivot);
         let shift_x = (0.5 - pivot_x) * scale.x;
@@ -315,4 +325,67 @@ pub fn process_visible_when_for_repeat(
     };
 
     Some(processed)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::view::layout::ViewNodeDef;
+    use bevy_fact_rule_event::LayeredFactDatabase;
+
+    fn player_data(db: &LayeredFactDatabase) -> PlayerDataView<'_> {
+        PlayerDataView::new(db)
+    }
+
+    #[test]
+    fn regular_sprite_pivot_does_not_offset_desired_transform() {
+        let node: ViewNodeDef = ron::from_str(
+            r#"
+            (
+                name: "Cursor",
+                sprite: Some((
+                    visual: "common/view/heartsmall",
+                    transform: Some((
+                        translation: Some((-23.0, 22.5, 6.0)),
+                    )),
+                    pivot: Some((0.0, 1.0)),
+                )),
+            )
+            "#,
+        )
+        .expect("node should parse");
+        let db = LayeredFactDatabase::default();
+
+        let transform = resolve_node_transform(&player_data(&db), &node, None);
+
+        assert_eq!(transform.translation, Vec3::new(-23.0, 22.5, 6.0));
+    }
+
+    #[test]
+    fn material_sprite_pivot_offsets_desired_transform() {
+        let node: ViewNodeDef = ron::from_str(
+            r#"
+            (
+                name: "HealthBar",
+                sprite: Some((
+                    visual: "procedural://white_pixel",
+                    transform: Some((
+                        translation: Some((10.0, 20.0, 0.0)),
+                        scale: Some((100.0, 16.0, 1.0)),
+                    )),
+                    pivot: Some((0.0, 0.5)),
+                    material: Some((
+                        shader: "assets/shaders/hp_bar.wgsl",
+                    )),
+                )),
+            )
+            "#,
+        )
+        .expect("node should parse");
+        let db = LayeredFactDatabase::default();
+
+        let transform = resolve_node_transform(&player_data(&db), &node, None);
+
+        assert_eq!(transform.translation, Vec3::new(60.0, 20.0, 0.0));
+    }
 }

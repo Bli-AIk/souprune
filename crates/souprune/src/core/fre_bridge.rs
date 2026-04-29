@@ -20,7 +20,8 @@ mod view_actions;
 
 pub use custom_dispatch::dispatch_custom_actions_system;
 pub use eval::evaluate_single_condition;
-use eval::{evaluate_conditions, evaluate_local_fact_value, register_condition_evaluator_system};
+use eval::register_condition_evaluator_system;
+pub(crate) use eval::{evaluate_conditions, evaluate_local_fact_value};
 pub use extensions::ViewActionExtensions;
 pub use view_actions::process_view_actions_system;
 
