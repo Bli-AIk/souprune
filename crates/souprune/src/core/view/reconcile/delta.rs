@@ -101,10 +101,10 @@ pub fn apply_deltas(commands: &mut Commands, deltas: &[ViewDelta]) {
                 commands.entity(*entity).despawn();
             }
             ViewDelta::UpdateTransform { entity, new_value } => {
-                commands.entity(*entity).insert(*new_value);
+                commands.entity(*entity).try_insert(*new_value);
             }
             ViewDelta::UpdateVisibility { entity, new_value } => {
-                commands.entity(*entity).insert(*new_value);
+                commands.entity(*entity).try_insert(*new_value);
             }
             ViewDelta::UpdateSprite { entity, new_value } => {
                 // Queue update to preserve existing sprite properties like texture
@@ -128,7 +128,7 @@ pub fn apply_deltas(commands: &mut Commands, deltas: &[ViewDelta]) {
                 // Note: This is simplified; actual implementation needs to handle Text2d
                 commands
                     .entity(*entity)
-                    .insert(Text2d::new(&new_value.content));
+                    .try_insert(Text2d::new(&new_value.content));
             }
             ViewDelta::UpdateHealthBar {
                 entity,
@@ -146,7 +146,7 @@ pub fn apply_deltas(commands: &mut Commands, deltas: &[ViewDelta]) {
             } => {
                 commands
                     .entity(*entity)
-                    .insert(crate::core::view::components::VisibleWhen {
+                    .try_insert(crate::core::view::components::VisibleWhen {
                         expression: new_expression.clone(),
                     });
             }
@@ -295,5 +295,34 @@ impl DeltaStats {
             || self.health_bar_updates > 0
             || self.visible_when_updates > 0
             || self.material_updates > 0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Resource)]
+    struct StaleEntity(Entity);
+
+    fn update_stale_transform(mut commands: Commands, stale: Res<StaleEntity>) {
+        apply_deltas(
+            &mut commands,
+            &[ViewDelta::UpdateTransform {
+                entity: stale.0,
+                new_value: Transform::from_xyz(1.0, 2.0, 3.0),
+            }],
+        );
+    }
+
+    #[test]
+    fn transform_update_ignores_already_despawned_entity() {
+        let mut app = App::new();
+        let entity = app.world_mut().spawn(Transform::default()).id();
+        app.world_mut().despawn(entity);
+        app.insert_resource(StaleEntity(entity));
+        app.add_systems(Update, update_stale_transform);
+
+        app.update();
     }
 }

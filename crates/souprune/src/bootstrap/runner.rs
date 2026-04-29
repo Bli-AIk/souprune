@@ -17,7 +17,7 @@ use crate::bootstrap::logging::setup_logging;
 use crate::bootstrap::plugins::{
     get_bevy_default_plugins, get_file_importer_plugins, get_game_plugins, get_third_plugins,
 };
-use crate::bootstrap::resources::load_touch_layout;
+use crate::bootstrap::resources::{font_layout_overrides_from_config, load_touch_layout};
 use crate::config;
 use crate::core::input;
 use crate::extra;
@@ -181,6 +181,7 @@ pub fn run() {
             .map(|root| root.to_string_lossy().into_owned())
             .collect(),
         })
+        .insert_resource(font_layout_overrides_from_config(&config))
         .insert_resource(action_registry)
         .insert_resource(player_input_settings)
         .insert_resource(input_behavior_config);

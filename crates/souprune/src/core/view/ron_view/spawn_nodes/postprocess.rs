@@ -97,6 +97,7 @@ pub(super) fn apply_dynamic_element(
     commands
         .entity(entity_id)
         .insert(crate::core::view::components::DynamicViewElement {
+            node_transform: None,
             sprite_def: Some(processed_sprite_def),
             text_def: None,
             view_box_def: None,

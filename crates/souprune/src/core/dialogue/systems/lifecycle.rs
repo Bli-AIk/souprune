@@ -235,6 +235,7 @@ pub fn handle_pending_dialogue_start_system(
         spawn_view_writer.write(crate::core::view::SpawnViewRequest {
             path: view_path,
             mode_scope: None,
+            pre_spawn_events: Vec::new(),
             bindings: None,
         });
     }

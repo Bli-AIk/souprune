@@ -9,8 +9,16 @@
 //! 用于从 Rust 代码生成 SoupRune RON 文件。
 
 pub mod build_support;
+pub mod deps;
+pub mod expr;
+pub mod float_output;
 pub mod guest;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod host;
 pub mod prelude;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use host::{build_component, write_generated_files};
 
 /// Export a Rust guest as a Vessel build-time WASM component.
 ///

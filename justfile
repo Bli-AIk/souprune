@@ -1,11 +1,20 @@
 # 可覆盖变量（默认 souprune）
 # 用法：just project=mygame build
 project := env_var_or_default("project", "souprune")
+# Target mod for content building (reads from projects/config.toml by default)
+# 用法：just mod=epictale run
+mod := env_var_or_default("mod", `sed -n 's/^mod_name[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' projects/config.toml`)
 workspace_root := justfile_directory()
 
 # 默认任务：debug 构建
-default: builtin-build
+default: prepare-assets
     cargo build -p {{project}} --features debug
+
+# 构建运行主程序前所需的内置 WASM 与 mod RON 内容
+prepare-assets: builtin-build content-build-deps
+
+# release 构建运行主程序前所需的内置 WASM 与 mod RON 内容
+prepare-assets-release: builtin-build-release content-build-deps
 
 # 格式化
 fmt:
@@ -25,6 +34,13 @@ build-mods: builtin-build
         just project-build "$mod_name" || exit $?; \
     done
     @echo "Built all mods"
+
+# 构建目标 mod 及其依赖 mod 的 content guest，并直接生成正式内容文件
+content-build-deps:
+    @for mod_name in $(CARGO_TARGET_DIR={{workspace_root}}/target/vessel-cli cargo run -p souprune_vessel --features deps-cli -- {{mod}}); do \
+        just content-build "$mod_name" || exit $?; \
+    done
+    @echo "Built content for {{mod}} and its dependencies"
 
 alias generate-mods := build-mods
 
@@ -74,19 +90,19 @@ fix:
     cargo clippy -p {{project}} --fix --allow-dirty --allow-staged --all-features
 
 # 普通构建（release 前）
-build: builtin-build
+build: prepare-assets
     cargo build -p {{project}}
 
 # 普通运行（动态链接加速）
-run: builtin-build
+run: prepare-assets
     cargo run -p {{project}} --features bevy/dynamic_linking
 
 # 不安全 GPU 运行（禁用 Vulkan 验证层）
-unsafe_gpu:
+unsafe_gpu: prepare-assets
     cargo run -p {{project}} --features unsafe_gpu
 
 # 不安全 GPU 开发运行（debug + 禁用验证层）
-unsafe_dev:
+unsafe_dev: prepare-assets
     cargo run -p {{project}} --features "unsafe_gpu,debug"
 
 # 测试
@@ -106,7 +122,7 @@ test-mods:
     @echo "Tested all mods"
 
 # 开发运行（debug + 动态链接加速）
-dev: builtin-build
+dev: prepare-assets
     cargo run -p {{project}} --features "debug,bevy/dynamic_linking"
 
 # 清理
@@ -121,19 +137,19 @@ clean-all:
     @echo "Cleaned workspace, nested crate targets, and mod build artifacts (preserved Vessel manifests)"
 
 # Release 构建运行（静态链接，最终性能）
-release: builtin-build-release
+release: prepare-assets-release
     cargo run -p {{project}} --release
 
 # Tracy
-tracy:
+tracy: prepare-assets-release
     cargo run -p {{project}} --release --features trace_tracy
 
 # Bevy Debug Tracy (detailed Bevy function names in trace)
-bevy_debug_tracy:
+bevy_debug_tracy: prepare-assets-release
     cargo run -p {{project}} --release --features debug_tracy
 
 # Souprune Debug Tracy (souprune debug feature + trace)
-soup_debug_tracy:
+soup_debug_tracy: prepare-assets-release
     cargo run -p {{project}} --release --features "trace_tracy,debug"
 
 editor:

@@ -27,7 +27,7 @@ use crate::core::sprite::params::SpriteParams;
 use bevy::prelude::*;
 
 use postprocess::{apply_dynamic_element, apply_visible_when};
-use repeat::{build_transform, resolve_repeat_item};
+use repeat::{build_transform, build_vec3, resolve_repeat_item};
 use sprite::spawn_standalone_sprite_node;
 
 /// Spawn a single view node and its children.
@@ -248,7 +248,7 @@ fn spawn_view_node_with_repeat_context(
                 .map(|text_def| build_text_config(text_def, mortar_strings, player_data))
                 .collect::<Vec<_>>();
 
-            let offset = serializable_vec3_to_static(&view_box.offset);
+            let offset = build_vec3(&view_box.offset, player_data, repeat_ctx);
             let transform = node_def
                 .transform
                 .as_ref()
@@ -259,6 +259,10 @@ fn spawn_view_node_with_repeat_context(
                     )
                 })
                 .unwrap_or_else(|| Transform::from_translation(offset));
+            let is_dynamic_node_transform = node_def
+                .transform
+                .as_ref()
+                .is_some_and(is_dynamic_transform);
             let is_dynamic_offset = is_dynamic_vec3(&view_box.offset);
             let fill_color = view_box
                 .fill_color
@@ -293,16 +297,21 @@ fn spawn_view_node_with_repeat_context(
                 box_entity.insert(view_element.clone());
             }
 
-            if is_dynamic_offset {
+            if is_dynamic_node_transform || is_dynamic_offset {
                 let dynamic_elem = DynamicViewElement {
+                    node_transform: node_def.transform.clone(),
                     sprite_def: None,
                     text_def: None,
                     view_box_def: Some(view_box.clone()),
                 };
                 box_entity.insert(dynamic_elem);
             }
-            let needs_time_transform =
-                is_dynamic_offset && super::parsing::vec3_tuple_depends_on_time(&view_box.offset);
+            let needs_time_transform = node_def
+                .transform
+                .as_ref()
+                .is_some_and(transform_depends_on_time)
+                || (is_dynamic_offset
+                    && super::parsing::vec3_tuple_depends_on_time(&view_box.offset));
             if needs_time_transform {
                 box_entity.insert(TimeDependentTransform);
             }
@@ -436,4 +445,28 @@ fn combine_transforms(parent: Transform, child: Transform) -> Transform {
         rotation: parent.rotation * child.rotation,
         scale: parent.scale * child.scale,
     }
+}
+
+fn is_dynamic_transform(transform: &SerializableTransform) -> bool {
+    transform.translation.as_ref().is_some_and(is_dynamic_vec3)
+        || transform.scale.as_ref().is_some_and(is_dynamic_vec3)
+        || transform
+            .rotation
+            .as_ref()
+            .is_some_and(crate::core::sequencer::chapter_schema::Value::is_expr)
+}
+
+fn transform_depends_on_time(transform: &SerializableTransform) -> bool {
+    transform
+        .translation
+        .as_ref()
+        .is_some_and(super::parsing::vec3_tuple_depends_on_time)
+        || transform
+            .scale
+            .as_ref()
+            .is_some_and(super::parsing::vec3_tuple_depends_on_time)
+        || transform
+            .rotation
+            .as_ref()
+            .is_some_and(super::parsing::expression_depends_on_time)
 }

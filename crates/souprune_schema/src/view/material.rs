@@ -32,6 +32,12 @@ impl Default for MaterialParamValue {
     }
 }
 
+impl From<f32> for MaterialParamValue {
+    fn from(value: f32) -> Self {
+        Self::Static(value)
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct MaterialAnimationsDef {
     #[serde(default)]
