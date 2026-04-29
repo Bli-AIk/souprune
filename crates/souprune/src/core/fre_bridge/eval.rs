@@ -14,7 +14,7 @@ mod expressions;
 use bevy::prelude::*;
 use bevy_fact_rule_event::EnumRegistry;
 
-pub(super) use conditions::evaluate_conditions;
+pub(crate) use conditions::evaluate_conditions;
 pub use conditions::evaluate_single_condition;
 pub(crate) use expressions::evaluate_local_fact_value;
 
@@ -119,6 +119,24 @@ mod tests {
 
         assert!(evaluate_single_condition("$selection < 5", &facts, &enums));
         assert!(!evaluate_single_condition("$selection < 3", &facts, &enums));
+    }
+
+    #[test]
+    fn test_evaluate_single_condition_float_comparison() {
+        let mut facts = FactDatabase::new();
+        facts.set("overworld:player_screen_y", FactValue::Float(130.1));
+        let enums = empty_enums();
+
+        assert!(evaluate_single_condition(
+            "$overworld:player_screen_y > 130.0",
+            &facts,
+            &enums
+        ));
+        assert!(!evaluate_single_condition(
+            "$overworld:player_screen_y <= 130.0",
+            &facts,
+            &enums
+        ));
     }
 
     #[test]

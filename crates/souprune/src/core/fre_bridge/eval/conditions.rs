@@ -10,7 +10,7 @@
 //! FRE 表达式层里负责条件判断的一半。它解析比较运算符，借助共享的
 //! 表达式解析辅助逻辑求出左右两侧的值，并最终给出某条规则是否允许执行的布尔结果。
 
-use super::expressions::{resolve_int, resolve_value};
+use super::expressions::{resolve_number, resolve_value};
 use bevy::prelude::*;
 use bevy_fact_rule_event::{EnumRegistry, FactReader, FactValue};
 
@@ -19,7 +19,7 @@ use bevy_fact_rule_event::{EnumRegistry, FactReader, FactValue};
 ///
 /// 根据 FactReader 评估条件表达式。
 /// 如果所有条件都通过则返回 true。
-pub(in crate::core::fre_bridge) fn evaluate_conditions(
+pub(crate) fn evaluate_conditions(
     conditions: &[String],
     facts: &dyn FactReader,
     enums: &EnumRegistry,
@@ -66,7 +66,7 @@ pub fn evaluate_single_condition(
         let left = condition[..idx].trim();
         let right = condition[idx + 4..].trim();
         if left.contains(" % ") || left.contains(" + ") || left.contains(" - ") {
-            return compare_ints(left, right, facts, |a, b| a == b);
+            return compare_numbers(left, right, facts, |a, b| a == b);
         }
         return compare_values(left, right, facts, enums, |a, b| a == b);
     }
@@ -75,7 +75,7 @@ pub fn evaluate_single_condition(
         let left = condition[..idx].trim();
         let right = condition[idx + 4..].trim();
         if left.contains(" % ") || left.contains(" + ") || left.contains(" - ") {
-            return compare_ints(left, right, facts, |a, b| a != b);
+            return compare_numbers(left, right, facts, |a, b| a != b);
         }
         return compare_values(left, right, facts, enums, |a, b| a != b);
     }
@@ -83,25 +83,25 @@ pub fn evaluate_single_condition(
     if let Some(idx) = condition.find(" >= ") {
         let left = condition[..idx].trim();
         let right = condition[idx + 4..].trim();
-        return compare_ints(left, right, facts, |a, b| a >= b);
+        return compare_numbers(left, right, facts, |a, b| a >= b);
     }
 
     if let Some(idx) = condition.find(" <= ") {
         let left = condition[..idx].trim();
         let right = condition[idx + 4..].trim();
-        return compare_ints(left, right, facts, |a, b| a <= b);
+        return compare_numbers(left, right, facts, |a, b| a <= b);
     }
 
     if let Some(idx) = condition.find(" > ") {
         let left = condition[..idx].trim();
         let right = condition[idx + 3..].trim();
-        return compare_ints(left, right, facts, |a, b| a > b);
+        return compare_numbers(left, right, facts, |a, b| a > b);
     }
 
     if let Some(idx) = condition.find(" < ") {
         let left = condition[..idx].trim();
         let right = condition[idx + 3..].trim();
-        return compare_ints(left, right, facts, |a, b| a < b);
+        return compare_numbers(left, right, facts, |a, b| a < b);
     }
 
     if let Some(var_name) = condition.strip_prefix('$') {
@@ -145,12 +145,12 @@ where
     }
 }
 
-fn compare_ints<F>(left: &str, right: &str, facts: &dyn FactReader, cmp: F) -> bool
+fn compare_numbers<F>(left: &str, right: &str, facts: &dyn FactReader, cmp: F) -> bool
 where
-    F: Fn(i64, i64) -> bool,
+    F: Fn(f64, f64) -> bool,
 {
-    let left_val = resolve_int(left, facts);
-    let right_val = resolve_int(right, facts);
+    let left_val = resolve_number(left, facts);
+    let right_val = resolve_number(right, facts);
 
     match (left_val, right_val) {
         (Some(l), Some(r)) => cmp(l, r),

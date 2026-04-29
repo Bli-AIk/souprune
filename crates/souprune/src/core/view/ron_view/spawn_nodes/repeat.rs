@@ -57,3 +57,15 @@ pub(super) fn build_transform(
     }
     transform
 }
+
+pub(super) fn build_vec3(
+    tuple: &crate::core::view::layout::serde_types::Vec3Tuple,
+    player_data: &PlayerDataView<'_>,
+    repeat_ctx: Option<&super::super::parsing::RepeatContext>,
+) -> Vec3 {
+    Vec3::new(
+        evaluate_float_expr_with_repeat(&tuple.0, player_data, None, repeat_ctx),
+        evaluate_float_expr_with_repeat(&tuple.1, player_data, None, repeat_ctx),
+        evaluate_float_expr_with_repeat(&tuple.2, player_data, None, repeat_ctx),
+    )
+}

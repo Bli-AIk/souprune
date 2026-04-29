@@ -105,27 +105,20 @@ fn update_element_transform(
     player_data: &PlayerDataView,
     time: Option<f64>,
 ) {
+    let mut next_transform = dynamic_elem
+        .node_transform
+        .as_ref()
+        .map(|node_transform| evaluate_serializable_transform(node_transform, player_data, time));
+
     // Update sprite transform if present
     // 如果存在精灵定义则更新变换
     if let Some(sprite_def) = &dynamic_elem.sprite_def
         && let Some(t_def) = &sprite_def.transform
     {
-        let new_translation = if let Some(trans) = &t_def.translation {
-            Vec3::new(
-                evaluate_float_expr(&trans.0, player_data, time),
-                evaluate_float_expr(&trans.1, player_data, time),
-                evaluate_float_expr(&trans.2, player_data, time),
-            )
-        } else {
-            Vec3::ZERO
-        };
+        let new_translation = evaluate_translation(t_def.translation.as_ref(), player_data, time);
 
         if let Some(scale_def) = &t_def.scale {
-            let new_scale = Vec3::new(
-                evaluate_float_expr(&scale_def.0, player_data, time),
-                evaluate_float_expr(&scale_def.1, player_data, time),
-                evaluate_float_expr(&scale_def.2, player_data, time),
-            );
+            let new_scale = evaluate_vec3(scale_def, player_data, time);
 
             // Apply pivot offset if present
             // 如果存在 pivot 则应用偏移
@@ -145,43 +138,80 @@ fn update_element_transform(
         }
 
         if let Some(rot) = &t_def.rotation {
-            transform.rotation =
-                Quat::from_rotation_z(evaluate_float_expr(rot, player_data, time).to_radians());
+            transform.rotation = evaluate_rotation(rot, player_data, time);
         }
+        next_transform = Some(*transform);
     }
 
     // Update text transform if present
     // 如果存在文本定义则更新变换
     if let Some(text_def) = &dynamic_elem.text_def {
-        let new_translation = if let Some(trans) = &text_def.transform.translation {
-            Vec3::new(
-                evaluate_float_expr(&trans.0, player_data, time),
-                evaluate_float_expr(&trans.1, player_data, time),
-                evaluate_float_expr(&trans.2, player_data, time),
-            )
-        } else {
-            Vec3::ZERO
-        };
-        transform.translation = new_translation;
-
-        if let Some(scale_def) = &text_def.transform.scale {
-            transform.scale = Vec3::new(
-                evaluate_float_expr(&scale_def.0, player_data, time),
-                evaluate_float_expr(&scale_def.1, player_data, time),
-                evaluate_float_expr(&scale_def.2, player_data, time),
-            );
-        }
+        next_transform = Some(evaluate_serializable_transform(
+            &text_def.transform,
+            player_data,
+            time,
+        ));
     }
 
     // Update view_box offset if present (fact-driven position for view_box elements)
     // 如果存在 view_box 定义则更新偏移（fact 驱动的 view_box 元素位置）
     if let Some(view_box_def) = &dynamic_elem.view_box_def {
-        transform.translation = Vec3::new(
-            evaluate_float_expr(&view_box_def.offset.0, player_data, time),
-            evaluate_float_expr(&view_box_def.offset.1, player_data, time),
-            evaluate_float_expr(&view_box_def.offset.2, player_data, time),
-        );
+        let mut view_box_transform = next_transform.unwrap_or_default();
+        view_box_transform.translation += evaluate_vec3(&view_box_def.offset, player_data, time);
+        next_transform = Some(view_box_transform);
     }
+
+    if let Some(next_transform) = next_transform {
+        *transform = next_transform;
+    }
+}
+
+fn evaluate_serializable_transform(
+    transform_def: &crate::core::view::layout::SerializableTransform,
+    player_data: &PlayerDataView,
+    time: Option<f64>,
+) -> Transform {
+    let mut transform = Transform {
+        translation: evaluate_translation(transform_def.translation.as_ref(), player_data, time),
+        ..Default::default()
+    };
+    if let Some(scale) = &transform_def.scale {
+        transform.scale = evaluate_vec3(scale, player_data, time);
+    }
+    if let Some(rotation) = &transform_def.rotation {
+        transform.rotation = evaluate_rotation(rotation, player_data, time);
+    }
+    transform
+}
+
+fn evaluate_translation(
+    translation: Option<&crate::core::view::layout::serde_types::Vec3Tuple>,
+    player_data: &PlayerDataView,
+    time: Option<f64>,
+) -> Vec3 {
+    translation
+        .map(|tuple| evaluate_vec3(tuple, player_data, time))
+        .unwrap_or(Vec3::ZERO)
+}
+
+fn evaluate_vec3(
+    tuple: &crate::core::view::layout::serde_types::Vec3Tuple,
+    player_data: &PlayerDataView,
+    time: Option<f64>,
+) -> Vec3 {
+    Vec3::new(
+        evaluate_float_expr(&tuple.0, player_data, time),
+        evaluate_float_expr(&tuple.1, player_data, time),
+        evaluate_float_expr(&tuple.2, player_data, time),
+    )
+}
+
+fn evaluate_rotation(
+    rotation: &crate::core::view::layout::FloatOrExpr,
+    player_data: &PlayerDataView,
+    time: Option<f64>,
+) -> Quat {
+    Quat::from_rotation_z(evaluate_float_expr(rotation, player_data, time).to_radians())
 }
 
 pub fn update_dynamic_text_system(

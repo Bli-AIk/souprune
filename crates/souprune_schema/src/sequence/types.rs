@@ -274,68 +274,80 @@ impl TweenTarget {
     /// Create a position tween target without an explicit source value.
     ///
     /// 创建不带显式起始值的位置补间目标。
-    pub fn position(to: Vec3Tuple) -> Self {
-        Self::Position { from: None, to }
+    pub fn position(to: impl Into<Vec3Tuple>) -> Self {
+        Self::Position {
+            from: None,
+            to: to.into(),
+        }
     }
 
     /// Create a position tween target with an explicit source value.
     ///
     /// 创建带显式起始值的位置补间目标。
-    pub fn position_from(from: Vec3Tuple, to: Vec3Tuple) -> Self {
+    pub fn position_from(from: impl Into<Vec3Tuple>, to: impl Into<Vec3Tuple>) -> Self {
         Self::Position {
-            from: Some(from),
-            to,
+            from: Some(from.into()),
+            to: to.into(),
         }
     }
 
     /// Create a scale tween target without an explicit source value.
     ///
     /// 创建不带显式起始值的缩放补间目标。
-    pub fn scale(to: Vec3Tuple) -> Self {
-        Self::Scale { from: None, to }
+    pub fn scale(to: impl Into<Vec3Tuple>) -> Self {
+        Self::Scale {
+            from: None,
+            to: to.into(),
+        }
     }
 
     /// Create a scale tween target with an explicit source value.
     ///
     /// 创建带显式起始值的缩放补间目标。
-    pub fn scale_from(from: Vec3Tuple, to: Vec3Tuple) -> Self {
+    pub fn scale_from(from: impl Into<Vec3Tuple>, to: impl Into<Vec3Tuple>) -> Self {
         Self::Scale {
-            from: Some(from),
-            to,
+            from: Some(from.into()),
+            to: to.into(),
         }
     }
 
     /// Create a color tween target without an explicit source value.
     ///
     /// 创建不带显式起始值的颜色补间目标。
-    pub fn color(to: ColorTuple) -> Self {
-        Self::Color { from: None, to }
+    pub fn color(to: impl Into<ColorTuple>) -> Self {
+        Self::Color {
+            from: None,
+            to: to.into(),
+        }
     }
 
     /// Create a color tween target with an explicit source value.
     ///
     /// 创建带显式起始值的颜色补间目标。
-    pub fn color_from(from: ColorTuple, to: ColorTuple) -> Self {
+    pub fn color_from(from: impl Into<ColorTuple>, to: impl Into<ColorTuple>) -> Self {
         Self::Color {
-            from: Some(from),
-            to,
+            from: Some(from.into()),
+            to: to.into(),
         }
     }
 
     /// Create a ViewBox size tween target without an explicit source value.
     ///
     /// 创建不带显式起始值的 ViewBox 尺寸补间目标。
-    pub fn box_size(to: Vec2Tuple) -> Self {
-        Self::BoxSize { from: None, to }
+    pub fn box_size(to: impl Into<Vec2Tuple>) -> Self {
+        Self::BoxSize {
+            from: None,
+            to: to.into(),
+        }
     }
 
     /// Create a ViewBox size tween target with an explicit source value.
     ///
     /// 创建带显式起始值的 ViewBox 尺寸补间目标。
-    pub fn box_size_from(from: Vec2Tuple, to: Vec2Tuple) -> Self {
+    pub fn box_size_from(from: impl Into<Vec2Tuple>, to: impl Into<Vec2Tuple>) -> Self {
         Self::BoxSize {
-            from: Some(from),
-            to,
+            from: Some(from.into()),
+            to: to.into(),
         }
     }
 

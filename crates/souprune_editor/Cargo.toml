@@ -36,13 +36,13 @@ bevy = { version = "0.18", default-features = false, features = [
     "x11",
     "wayland",
 ] }
-bevy_workbench = { path = "../bevy_workbench" }
+bevy_workbench = { path = "../bevy_workbench", version = "0.3.2" }
 bevy_egui = { version = "0.39", features = ["render"] }
-bevy_fact_rule_event = "0.4"
+bevy_fact_rule_event = "0.4.1"
 bevy_tween = "0.12"
 egui = "0.33"
-souprune = { path = "../souprune" }
-souprune_schema = { path = "../souprune_schema" }
+souprune = { path = "../souprune", version = "0.5.1" }
+souprune_schema = { path = "../souprune_schema", version = "0.1.0" }
 ron = "0.12"
 rfd = "0.17"
 serde = { version = "1", features = ["derive"] }

@@ -153,6 +153,7 @@ pub fn spawn_shader_material_entity(
         };
 
         entity_commands.insert(DynamicViewElement {
+            node_transform: None,
             sprite_def: Some(processed_sprite_def),
             text_def: None,
             view_box_def: None,
