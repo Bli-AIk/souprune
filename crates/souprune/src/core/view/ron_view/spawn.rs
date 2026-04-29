@@ -361,7 +361,7 @@ fn apply_pre_spawn_events(
             })
             .collect::<Vec<_>>();
 
-        matching_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+        matching_rules.sort_by_key(|rule| std::cmp::Reverse(rule.priority));
 
         for rule in matching_rules {
             if !pre_spawn_rule_conditions_match(view_root, layered_db, enum_registry, &rule) {
