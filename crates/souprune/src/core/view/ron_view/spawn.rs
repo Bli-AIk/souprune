@@ -11,6 +11,8 @@
 //! 初始化每个 View 自己的事实状态、应用接口绑定，并遍历布局节点生成真正的
 //! Bevy 实体树，供后续的 View 对账与更新系统继续处理。
 
+mod pre_spawn_events;
+
 use super::super::components::*;
 use super::super::layout::*;
 use super::parsing::{DataPathResolvers, ExprFunctionResolvers, PlayerDataView};
@@ -20,11 +22,12 @@ use crate::core::sprite::params::SpriteParams;
 use crate::extra::debug::DebugCamera;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use bevy_fact_rule_event::{CombinedFactReader, LayeredFactDatabase, RuleScope};
+use bevy_fact_rule_event::{LayeredFactDatabase, RuleScope};
+use pre_spawn_events::apply_pre_spawn_events;
 
 use super::spawn_helpers::load_fre_into_view_root;
 use super::spawn_nodes::spawn_view_node;
-use crate::core::game_action::{GameActionDef, GameFreAsset, GameRuleDef, GameRuleRegistry};
+use crate::core::game_action::{GameFreAsset, GameRuleRegistry};
 
 /// System parameter bundle for FRE-related resources.
 /// Reduces system parameter count to stay within Bevy's 16-parameter limit.
@@ -340,88 +343,6 @@ pub fn spawn_ron_view_for_entity(
     }
 }
 
-fn apply_pre_spawn_events(
-    view_root: &mut crate::core::view::components::ViewRoot,
-    rule_defs: &[GameRuleDef],
-    pre_spawn_events: &[String],
-    layered_db: &LayeredFactDatabase,
-    enum_registry: &bevy_fact_rule_event::EnumRegistry,
-) {
-    if pre_spawn_events.is_empty() || rule_defs.is_empty() {
-        return;
-    }
-
-    for event_id in pre_spawn_events {
-        let mut matching_rules = rule_defs
-            .iter()
-            .enumerate()
-            .filter_map(|(index, rule_def)| {
-                let rule = rule_def.to_rule_with_index(index, RuleScope::View);
-                (rule.enabled && rule.trigger.0 == *event_id).then_some(rule)
-            })
-            .collect::<Vec<_>>();
-
-        matching_rules.sort_by_key(|rule| std::cmp::Reverse(rule.priority));
-
-        for rule in matching_rules {
-            if !pre_spawn_rule_conditions_match(view_root, layered_db, enum_registry, &rule) {
-                continue;
-            }
-
-            apply_pre_spawn_set_local_fact_actions(
-                view_root,
-                layered_db,
-                enum_registry,
-                &rule.actions,
-            );
-
-            info!(
-                "[ViewRoot] Applied pre-spawn event '{}' via rule '{}'",
-                event_id, rule.id
-            );
-
-            if rule.consume_event {
-                break;
-            }
-        }
-    }
-}
-
-fn pre_spawn_rule_conditions_match(
-    view_root: &crate::core::view::components::ViewRoot,
-    layered_db: &LayeredFactDatabase,
-    enum_registry: &bevy_fact_rule_event::EnumRegistry,
-    rule: &crate::core::game_action::GameRule,
-) -> bool {
-    let combined = CombinedFactReader::new(&view_root.local_facts, layered_db);
-    crate::core::fre_bridge::evaluate_conditions(
-        &rule.condition_expressions,
-        &combined,
-        enum_registry,
-    )
-}
-
-fn apply_pre_spawn_set_local_fact_actions(
-    view_root: &mut crate::core::view::components::ViewRoot,
-    layered_db: &LayeredFactDatabase,
-    enum_registry: &bevy_fact_rule_event::EnumRegistry,
-    actions: &[GameActionDef],
-) {
-    for action in actions {
-        let GameActionDef::SetLocalFact(key, value) = action else {
-            continue;
-        };
-        let combined = CombinedFactReader::new(&view_root.local_facts, layered_db);
-        let fact_value = crate::core::fre_bridge::evaluate_local_fact_value(
-            key,
-            value,
-            &combined,
-            enum_registry,
-        );
-        view_root.local_facts.set(key.as_str(), fact_value);
-    }
-}
-
 fn required_pre_spawn_fre_files_loaded(
     view_layout: &ViewLayoutAsset,
     asset_server: &AssetServer,
@@ -666,7 +587,6 @@ pub fn spawn_dynamic_view_system(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy_fact_rule_event::{FactValue, LocalFactValue, RuleEventDef};
 
     fn explicit_screen_layout(world_space: bool) -> ViewLayoutAsset {
         ViewLayoutAsset {
@@ -703,46 +623,5 @@ mod tests {
         let offset = camera_relative_view_offset(&layout, Some(Vec2::new(320.0, 240.0)));
 
         assert_eq!(offset, Vec2::ZERO);
-    }
-
-    #[test]
-    fn pre_spawn_event_applies_set_local_fact_before_initial_spawn() {
-        let mut view_root =
-            crate::core::view::components::ViewRoot::new("overworld/backpack.view.ron".into());
-        view_root.local_facts.set("info_box_y_offset", 0);
-
-        let mut layered_db = LayeredFactDatabase::new();
-        layered_db.set_global("overworld:player_screen_y", FactValue::Float(130.1));
-
-        let rule_defs = vec![GameRuleDef {
-            id: "move_info_box_down_when_player_is_low".into(),
-            event: RuleEventDef::Event("overworld:screen_facts_updated".into()),
-            conditions: vec![
-                "$overworld:player_screen_y > 130".into(),
-                "$info_box_y_offset != 135".into(),
-            ],
-            actions: vec![GameActionDef::SetLocalFact(
-                "info_box_y_offset".into(),
-                LocalFactValue::Int(135),
-            )],
-            modifications: Vec::new(),
-            outputs: Vec::new(),
-            enabled: true,
-            priority: 100,
-            consume_event: true,
-        }];
-
-        apply_pre_spawn_events(
-            &mut view_root,
-            &rule_defs,
-            &["overworld:screen_facts_updated".into()],
-            &layered_db,
-            &bevy_fact_rule_event::EnumRegistry::default(),
-        );
-
-        assert_eq!(
-            view_root.local_facts.get_by_str("info_box_y_offset"),
-            Some(&FactValue::Int(135))
-        );
     }
 }
