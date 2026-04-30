@@ -283,26 +283,6 @@
             behaviors: [],
         ),
         (
-            t: 1.0,
-            time_mode: Absolute,
-            cue: Some((
-                action_type: "battle:speech_bubble",
-                params: {
-                    "advance_mode": "Timed",
-                    "bubble_profile": "mad_dummy_wide",
-                    "channel": "battle_enemy_speech",
-                    "duration": "2.0",
-                    "hide_on_finish": "true",
-                    "mortar_node": "enemy_speech_timed_wave",
-                    "mortar_path": "battle/enemies/mad_dummy.mortar",
-                },
-            )),
-            pattern: Single,
-            offset: (0.0, 0.0),
-            apply: [],
-            behaviors: [],
-        ),
-        (
             t: 1.08,
             time_mode: Absolute,
             spawn: "cotton",

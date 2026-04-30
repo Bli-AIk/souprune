@@ -27,20 +27,29 @@ pub enum TimeMode {
     Absolute,
 }
 
-/// Generic timeline cue emitted by the danmaku runtime.
+/// Timeline cue emitted by the danmaku runtime.
 ///
-/// 由弹幕运行时发出的通用时间线 cue。
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-pub struct TimelineCueDef {
-    /// Action type used by downstream systems to route the cue.
+/// 由弹幕运行时发出的时间线 cue。
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub enum TimelineCueDef {
+    /// Generic cue for extension points that do not have a typed schema yet.
     ///
-    /// 下游系统用于路由 cue 的动作类型。
-    pub action_type: String,
-    /// String parameters carried by the cue.
+    /// 尚无强类型 schema 的扩展点使用的通用 cue。
+    Custom {
+        /// Action type used by downstream systems to route the cue.
+        ///
+        /// 下游系统用于路由 cue 的动作类型。
+        action_type: String,
+        /// String parameters carried by the cue.
+        ///
+        /// cue 携带的字符串参数。
+        #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
+        params: HashMap<String, String>,
+    },
+    /// Preset battle enemy speech bubble cue.
     ///
-    /// cue 携带的字符串参数。
-    #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
-    pub params: HashMap<String, String>,
+    /// 预设战斗敌人对话气泡 cue。
+    BattleSpeechBubble(crate::battle::BattleSpeechBubbleDef),
 }
 
 /// Timeline event — describes what happens at a specific time.
@@ -210,7 +219,7 @@ impl TimelineEvent {
     /// Create an absolute-time generic cue event.
     ///
     /// 创建绝对时间的通用 cue 事件。
-    pub fn absolute_cue<K, V>(
+    pub fn absolute_custom_cue<K, V>(
         t: f32,
         action_type: impl Into<String>,
         params: impl IntoIterator<Item = (K, V)>,
@@ -223,7 +232,7 @@ impl TimelineEvent {
             t,
             time_mode: TimeMode::Absolute,
             spawn: None,
-            cue: Some(TimelineCueDef {
+            cue: Some(TimelineCueDef::Custom {
                 action_type: action_type.into(),
                 params: params
                     .into_iter()
@@ -240,7 +249,7 @@ impl TimelineEvent {
     /// Create a delta-time generic cue event.
     ///
     /// 创建增量时间的通用 cue 事件。
-    pub fn delta_cue<K, V>(
+    pub fn delta_custom_cue<K, V>(
         t: f32,
         action_type: impl Into<String>,
         params: impl IntoIterator<Item = (K, V)>,
@@ -249,9 +258,28 @@ impl TimelineEvent {
         K: Into<String>,
         V: Into<String>,
     {
-        let mut event = Self::absolute_cue(t, action_type, params);
+        let mut event = Self::absolute_custom_cue(t, action_type, params);
         event.time_mode = TimeMode::Delta;
         event
+    }
+
+    /// Create an absolute-time battle speech bubble cue event.
+    ///
+    /// 创建绝对时间的战斗对话气泡 cue 事件。
+    pub fn absolute_battle_speech_bubble(
+        t: f32,
+        bubble: crate::battle::BattleSpeechBubbleDef,
+    ) -> Self {
+        Self {
+            t,
+            time_mode: TimeMode::Absolute,
+            spawn: None,
+            cue: Some(TimelineCueDef::BattleSpeechBubble(bubble)),
+            pattern: SpawnPattern::default(),
+            offset: (0.0, 0.0),
+            apply: Vec::new(),
+            behaviors: Vec::new(),
+        }
     }
 }
 

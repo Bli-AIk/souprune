@@ -22,7 +22,7 @@ use crate::core::game_action::{GameFreAsset, GameRuleRegistry};
 use leafwing_input_manager::action_state::ActionState;
 
 pub use crate::preset::battle::speech_bubble::{
-    BATTLE_ENEMY_SPEECH_CHANNEL, BATTLE_SPEECH_BUBBLE_ACTION, BattleSpeechBubbleRequest,
+    BATTLE_ENEMY_SPEECH_CHANNEL, BattleSpeechBubbleRequest,
 };
 pub use action_handlers::{
     apply_pending_damage_system, has_pending_damage, setup_battle_action_handlers_system,

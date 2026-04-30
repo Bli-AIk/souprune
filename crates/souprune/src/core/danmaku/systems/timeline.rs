@@ -23,14 +23,10 @@ use rand::RngExt;
 /// 弹幕时间线到达非子弹事件时发出的通用 cue。
 #[derive(Message, Debug, Clone)]
 pub struct DanmakuTimelineCueEvent {
-    /// Action type used by preset or content systems to route the cue.
+    /// Typed cue payload.
     ///
-    /// 预设或内容系统用于路由 cue 的动作类型。
-    pub action_type: String,
-    /// String parameters carried by the cue.
-    ///
-    /// cue 携带的字符串参数。
-    pub params: std::collections::HashMap<String, String>,
+    /// 类型化的 cue 载荷。
+    pub cue: TimelineCueDef,
 }
 
 /// A computed spawn point for a bullet within a pattern.
@@ -96,10 +92,7 @@ pub fn advance_performance_timeline(
             }
 
             if let Some(cue) = &event.cue {
-                cue_writer.write(DanmakuTimelineCueEvent {
-                    action_type: cue.action_type.clone(),
-                    params: cue.params.clone(),
-                });
+                cue_writer.write(DanmakuTimelineCueEvent { cue: cue.clone() });
             }
 
             spawn_bullets_from_timeline_event(

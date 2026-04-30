@@ -2,6 +2,8 @@
 //!
 //! 战斗对话通道编排的回归测试。
 
+use souprune_schema::battle::BattleSpeechBubbleAdvance;
+use souprune_schema::danmaku::{DanmakuPerformance, TimelineCueDef};
 use souprune_schema::fre::{FreAsset, RuleEventDef};
 use souprune_schema::sequence::{Chapter, FactModificationDef, FactValueMatch, SequenceAsset};
 use souprune_schema::view::ViewLayoutAsset;
@@ -132,6 +134,56 @@ fn enemy_speech_confirm_skips_typewriter_before_advancing() {
 }
 
 #[test]
+fn cotton_first_turn_uses_typed_battle_speech_bubble_chapters() {
+    let sequence =
+        read_project_sequence("example_mod", "battle/turns/cotton_first_turn.sequence.ron");
+
+    let bubbles: Vec<_> = sequence
+        .chapters
+        .iter()
+        .filter_map(|chapter| match chapter {
+            Chapter::BattleSpeechBubble(request) => Some(request),
+            _ => None,
+        })
+        .collect();
+
+    assert_eq!(bubbles.len(), 2);
+    assert_eq!(bubbles[0].mortar_node, "enemy_speech_manual_intro");
+    assert_eq!(bubbles[1].mortar_node, "enemy_speech_timed_wave");
+    assert!(matches!(
+        bubbles[0].advance,
+        BattleSpeechBubbleAdvance::Manual
+    ));
+    assert!(matches!(
+        bubbles[1].advance,
+        BattleSpeechBubbleAdvance::Timed { duration }
+            if (duration - 2.0).abs() < f32::EPSILON
+    ));
+    assert!(
+        sequence
+            .chapters
+            .iter()
+            .all(|chapter| !matches!(chapter, Chapter::Custom { .. })),
+        "speech bubbles should not be authored through Custom chapters"
+    );
+}
+
+#[test]
+fn cotton_first_turn_performance_does_not_embed_enemy_speech_bubble() {
+    let performance = read_project_performance(
+        "example_mod",
+        "battle/danmaku/cotton_first_turn.performance.ron",
+    );
+
+    let has_battle_speech_cue = performance
+        .timeline
+        .iter()
+        .any(|event| matches!(event.cue, Some(TimelineCueDef::BattleSpeechBubble(_))));
+
+    assert!(!has_battle_speech_cue);
+}
+
+#[test]
 fn undertale_view_renders_enemy_bubble_text_from_container() {
     let view = read_project_view("undertale_preset", "battle/view/undertale.view.ron");
     let node = view
@@ -176,6 +228,10 @@ fn read_project_sequence(project: &str, relative_path: &str) -> SequenceAsset {
 }
 
 fn read_project_fre(project: &str, relative_path: &str) -> FreAsset {
+    read_project_ron(project, relative_path)
+}
+
+fn read_project_performance(project: &str, relative_path: &str) -> DanmakuPerformance {
     read_project_ron(project, relative_path)
 }
 
