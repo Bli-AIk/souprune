@@ -1,0 +1,6 @@
+# Crates excluded from root workspace quality gates.
+# These crates are either independent submodules or parked tools not maintained
+# with the main SoupRune code path.
+# One crate directory name per line. Lines starting with # are comments.
+iyes_perf_ui
+souprune_editor

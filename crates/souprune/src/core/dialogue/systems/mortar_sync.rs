@@ -18,6 +18,7 @@ use bevy_mortar_bond::{
     MortarValue, MortarVariableState, MortarVariableValue, evaluate_condition_cached,
     process_interpolated_text,
 };
+use std::collections::HashMap;
 
 use super::lifecycle::DialogueControllerEntity;
 
@@ -95,70 +96,52 @@ pub fn prepare_item_dialogue_mortar_system(
 pub fn sync_mortar_text_to_typewriter_system(
     runtime: Res<MortarRuntime>,
     variables: Option<Res<MortarDialogueVariables>>,
-    mut query: Query<&mut Typewriter, With<DialogueControllerEntity>>,
+    mut query: Query<
+        (
+            Entity,
+            &crate::core::dialogue::DialogueChannel,
+            &mut Typewriter,
+        ),
+        With<DialogueControllerEntity>,
+    >,
     mut mortar_events: MessageWriter<MortarEvent>,
-    mut cached_condition: Local<Option<CachedCondition>>,
+    mut cached_conditions: Local<HashMap<Entity, Option<CachedCondition>>>,
 ) {
-    let Some(state) = runtime.primary_dialogue_state() else {
-        *cached_condition = None;
-        return;
-    };
-
     let default_vs = MortarVariableState::new();
     let variable_state = variables
         .as_ref()
         .and_then(|v| v.state.as_ref())
         .unwrap_or(&default_vs);
 
-    let Some(text_data) = state.current_text_data() else {
-        return;
-    };
+    for (entity, channel, mut typewriter) in &mut query {
+        let Some(state) = runtime.get_dialogue(entity) else {
+            cached_conditions.remove(&entity);
+            continue;
+        };
 
-    let new_text = if text_data.is_line {
-        let group = state.current_line_group().unwrap_or(&[]);
-        let mut result_lines = Vec::new();
-        for line_data in group {
-            if let Some(condition) = &line_data.condition
-                && !evaluate_condition_cached(
-                    condition,
-                    &runtime.functions,
-                    variable_state,
-                    &mut cached_condition,
-                )
-            {
+        let cached_condition = cached_conditions.entry(entity).or_default();
+        let Some(text_data) = state.current_text_data() else {
+            continue;
+        };
+
+        let new_text = match resolve_mortar_text_for_typewriter(
+            state,
+            text_data,
+            &runtime.functions,
+            variable_state,
+            cached_condition,
+        ) {
+            Some(text) => text,
+            None => {
+                mortar_events.write(MortarEvent::next_text_for(entity));
                 continue;
             }
-            let line_text =
-                process_interpolated_text(line_data, &runtime.functions, &[], variable_state);
-            if !line_text.is_empty() {
-                result_lines.push(line_text);
-            }
-        }
-        if result_lines.is_empty() {
-            mortar_events.write(MortarEvent::next_text());
-            return;
-        }
-        result_lines.join("\n")
-    } else {
-        if let Some(condition) = &text_data.condition {
-            let result = evaluate_condition_cached(
-                condition,
-                &runtime.functions,
-                variable_state,
-                &mut cached_condition,
-            );
-            if !result {
-                mortar_events.write(MortarEvent::next_text());
-                return;
-            }
-        }
-        process_interpolated_text(text_data, &runtime.functions, &[], variable_state)
-    };
+        };
 
-    for mut typewriter in &mut query {
         if typewriter.source_text != new_text {
             info!(
-                "[DEBUG] sync_mortar: setting typewriter text (is_line={}, lines={}): '{}'",
+                "[DEBUG] sync_mortar: setting typewriter text for channel '{}' (is_line={}, lines={}): '{}'",
+                channel.name,
                 text_data.is_line,
                 new_text.matches('\n').count() + 1,
                 new_text
@@ -169,4 +152,52 @@ pub fn sync_mortar_text_to_typewriter_system(
             typewriter.play();
         }
     }
+}
+
+fn resolve_mortar_text_for_typewriter(
+    state: &bevy_mortar_bond::DialogueState,
+    text_data: &bevy_mortar_bond::TextData,
+    functions: &bevy_mortar_bond::MortarFunctionRegistry,
+    variable_state: &MortarVariableState,
+    cached_condition: &mut Option<CachedCondition>,
+) -> Option<String> {
+    if text_data.is_line {
+        let lines = state
+            .current_line_group()
+            .unwrap_or(&[])
+            .iter()
+            .filter_map(|line_data| {
+                mortar_line_text_if_condition_matches(
+                    line_data,
+                    functions,
+                    variable_state,
+                    cached_condition,
+                )
+            })
+            .collect::<Vec<_>>();
+        (!lines.is_empty()).then(|| lines.join("\n"))
+    } else {
+        mortar_line_text_if_condition_matches(
+            text_data,
+            functions,
+            variable_state,
+            cached_condition,
+        )
+    }
+}
+
+fn mortar_line_text_if_condition_matches(
+    text_data: &bevy_mortar_bond::TextData,
+    functions: &bevy_mortar_bond::MortarFunctionRegistry,
+    variable_state: &MortarVariableState,
+    cached_condition: &mut Option<CachedCondition>,
+) -> Option<String> {
+    if let Some(condition) = &text_data.condition
+        && !evaluate_condition_cached(condition, functions, variable_state, cached_condition)
+    {
+        return None;
+    }
+
+    let text = process_interpolated_text(text_data, functions, &[], variable_state);
+    (!text.is_empty()).then_some(text)
 }

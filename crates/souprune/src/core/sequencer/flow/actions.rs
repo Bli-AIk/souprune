@@ -13,7 +13,7 @@
 
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
-use bevy_fact_rule_event::LayeredFactDatabase;
+use bevy_fact_rule_event::{FactDatabase, FactValue, LayeredFactDatabase};
 
 use super::super::chapter_schema::Chapter;
 use super::super::context::{ActiveChapter, ChapterFinished};
@@ -29,9 +29,14 @@ pub fn process_custom_chapter_system(
     query: Query<(Entity, &ActiveChapter), Without<ChapterFinished>>,
     handler_registry: Res<crate::core::game_action::GameActionHandlerRegistry>,
     fact_db: Res<LayeredFactDatabase>,
+    view_roots: Query<&crate::core::view::ViewRoot, With<crate::core::view::ActiveView>>,
     custom_action_writer: Option<MessageWriter<crate::core::fre_bridge::FreCustomActionEvent>>,
 ) {
     let mut custom_action_writer = custom_action_writer;
+    let local_facts = view_roots
+        .iter()
+        .next()
+        .map(|view_root| &view_root.local_facts);
     for (entity, active_chapter) in query.iter() {
         if let Chapter::Custom {
             action_type,
@@ -43,9 +48,19 @@ pub fn process_custom_chapter_system(
                 action_type, params
             );
 
+            let resolved_params: std::collections::HashMap<String, String> = params
+                .iter()
+                .map(|(key, value)| {
+                    (
+                        key.clone(),
+                        resolve_custom_param_value(value, &fact_db, local_facts),
+                    )
+                })
+                .collect();
+
             let action = crate::core::game_action::GameActionDef::Custom {
                 action_type: action_type.clone(),
-                params: params.clone(),
+                params: resolved_params.clone(),
             };
 
             if handler_registry.has_handler(action_type) {
@@ -53,13 +68,54 @@ pub fn process_custom_chapter_system(
             } else if let Some(ref mut writer) = custom_action_writer {
                 writer.write(crate::core::fre_bridge::FreCustomActionEvent {
                     action_type: action_type.clone(),
-                    params: params.clone(),
+                    params: resolved_params,
                 });
             }
 
             commands.entity(entity).insert(ChapterFinished);
         }
     }
+}
+
+fn fact_value_to_custom_param(value: &FactValue) -> String {
+    match value {
+        FactValue::String(s) => s.clone(),
+        FactValue::Int(i) => i.to_string(),
+        FactValue::Float(f) => f.to_string(),
+        FactValue::Bool(b) => b.to_string(),
+        FactValue::StringList(list) => list.join("\n"),
+        FactValue::IntList(list) => list
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join("\n"),
+        FactValue::FloatList(list) => list
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join("\n"),
+        FactValue::BoolList(list) => list
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join("\n"),
+    }
+}
+
+fn resolve_custom_param_value(
+    value: &str,
+    fact_db: &LayeredFactDatabase,
+    local_facts: Option<&FactDatabase>,
+) -> String {
+    let Some(key) = value.strip_prefix('$') else {
+        return value.to_string();
+    };
+
+    local_facts
+        .and_then(|facts| facts.get_by_str(key))
+        .or_else(|| fact_db.get_by_str(key))
+        .map(fact_value_to_custom_param)
+        .unwrap_or_default()
 }
 
 /// System that handles SpawnBehavior chapters — spawns a headless entity
@@ -105,5 +161,43 @@ pub fn process_spawn_behavior_chapter_system(
         ));
 
         commands.entity(entity).insert(ChapterFinished);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy_fact_rule_event::{FactDatabase, FactValue, LayeredFactDatabase};
+
+    #[test]
+    fn custom_param_resolution_prefers_view_local_facts() {
+        let mut global_facts = LayeredFactDatabase::default();
+        global_facts.set("mortar_path", FactValue::String("global.mortar".into()));
+
+        let mut local_facts = FactDatabase::new();
+        local_facts.set(
+            "mortar_path",
+            FactValue::String("battle/enemies/mad_dummy.mortar".into()),
+        );
+
+        assert_eq!(
+            resolve_custom_param_value("$mortar_path", &global_facts, Some(&local_facts)),
+            "battle/enemies/mad_dummy.mortar"
+        );
+    }
+
+    #[test]
+    fn custom_param_resolution_reads_run_sequence_params() {
+        let global_facts = LayeredFactDatabase::default();
+        let mut local_facts = FactDatabase::new();
+        local_facts.set(
+            "_param_mortar_node",
+            FactValue::String("enemy_speech_manual_intro".into()),
+        );
+
+        assert_eq!(
+            resolve_custom_param_value("$_param_mortar_node", &global_facts, Some(&local_facts)),
+            "enemy_speech_manual_intro"
+        );
     }
 }

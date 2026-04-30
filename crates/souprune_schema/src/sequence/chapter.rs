@@ -136,6 +136,7 @@ pub enum Chapter {
         #[serde(default)]
         easing: EaseKindRepr,
     },
+    BattleSpeechBubble(crate::battle::BattleSpeechBubbleDef),
     SpawnBehavior {
         behavior_id: String,
         #[serde(default)]

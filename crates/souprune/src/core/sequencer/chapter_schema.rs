@@ -168,6 +168,10 @@ pub enum Chapter {
         #[serde(default = "default_easing", with = "ease_kind_serde")]
         easing: EaseKind,
     },
+    /// Start a preset battle enemy speech bubble.
+    ///
+    /// 启动预设战斗敌人对话气泡。
+    BattleSpeechBubble(souprune_schema::battle::BattleSpeechBubbleDef),
     Log {
         text: String,
         #[serde(default)]

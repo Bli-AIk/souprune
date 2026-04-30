@@ -21,46 +21,74 @@ use crate::core::fre_facts;
 use crate::core::view::components::{ActiveView, ViewRoot};
 
 pub fn sync_typewriter_state_to_facts_system(
-    query: Query<&Typewriter, With<DialogueControllerEntity>>,
+    query: Query<
+        (&crate::core::dialogue::DialogueChannel, Option<&Typewriter>),
+        With<DialogueControllerEntity>,
+    >,
     mut facts: ResMut<LayeredFactDatabase>,
 ) {
-    let mut any_playing = false;
-    let mut all_finished = true;
-    let mut any_finished = false;
-    let mut has_typewriters = false;
+    let mut any_channel_playing = false;
+    let mut all_channels_finished = true;
+    let mut any_channel_finished = false;
+    let mut has_controllers = false;
+    let mut changed = false;
 
-    for tw in query.iter() {
-        has_typewriters = true;
-        match tw.state {
-            TypewriterState::Playing => {
-                any_playing = true;
-                all_finished = false;
-            }
-            TypewriterState::Paused => {
-                any_playing = true;
-                all_finished = false;
-            }
-            TypewriterState::Finished => {
-                any_finished = true;
-            }
-            TypewriterState::Idle => {}
+    for (channel, typewriter) in query.iter() {
+        has_controllers = true;
+
+        let (any_playing, all_finished, any_finished) = match typewriter {
+            Some(tw) => match tw.state {
+                TypewriterState::Playing | TypewriterState::Paused => (true, false, false),
+                TypewriterState::Finished => (false, true, true),
+                TypewriterState::Idle => (false, true, false),
+            },
+            None => (false, true, true),
+        };
+
+        any_channel_playing |= any_playing;
+        all_channels_finished &= all_finished;
+        any_channel_finished |= any_finished;
+
+        let db = facts.bypass_change_detection();
+        if db.set_if_changed(
+            fre_facts::dialogue_channel_key(&channel.name, "typewriter_playing"),
+            any_playing,
+        ) {
+            changed = true;
+        }
+        if db.set_if_changed(
+            fre_facts::dialogue_channel_key(&channel.name, "all_typewriters_finished"),
+            all_finished,
+        ) {
+            changed = true;
+        }
+        if db.set_if_changed(
+            fre_facts::dialogue_channel_key(&channel.name, "any_typewriter_finished"),
+            any_finished,
+        ) {
+            changed = true;
         }
     }
 
-    if !has_typewriters {
-        all_finished = true;
-        any_finished = true;
+    if !has_controllers {
+        all_channels_finished = true;
+        any_channel_finished = true;
     }
 
     let db = facts.bypass_change_detection();
-    let mut changed = false;
-    if db.set_if_changed(fre_facts::DIALOGUE_TYPEWRITER_PLAYING, any_playing) {
+    if db.set_if_changed(fre_facts::DIALOGUE_TYPEWRITER_PLAYING, any_channel_playing) {
         changed = true;
     }
-    if db.set_if_changed(fre_facts::DIALOGUE_ALL_TYPEWRITERS_FINISHED, all_finished) {
+    if db.set_if_changed(
+        fre_facts::DIALOGUE_ALL_TYPEWRITERS_FINISHED,
+        all_channels_finished,
+    ) {
         changed = true;
     }
-    if db.set_if_changed(fre_facts::DIALOGUE_ANY_TYPEWRITER_FINISHED, any_finished) {
+    if db.set_if_changed(
+        fre_facts::DIALOGUE_ANY_TYPEWRITER_FINISHED,
+        any_channel_finished,
+    ) {
         changed = true;
     }
 
@@ -71,53 +99,50 @@ pub fn sync_typewriter_state_to_facts_system(
 
 pub fn sync_typewriter_text_to_facts_system(
     runtime: Res<MortarRuntime>,
-    query: Query<&Typewriter, With<DialogueControllerEntity>>,
-    mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
-    _facts: Res<LayeredFactDatabase>,
+    query: Query<
+        (
+            Entity,
+            &crate::core::dialogue::DialogueChannel,
+            Option<&Typewriter>,
+        ),
+        With<DialogueControllerEntity>,
+    >,
+    mut facts: ResMut<LayeredFactDatabase>,
 ) {
-    let typewriter_count = query.iter().count();
+    let mut changed = false;
 
-    let new_text = if typewriter_count > 0 {
-        query
-            .iter()
-            .next()
-            .map(|tw| tw.current_text.clone())
-            .unwrap_or_default()
-    } else if let Some(state) = runtime.primary_dialogue_state() {
-        state.current_text().unwrap_or("").to_string()
-    } else {
-        return;
-    };
+    for (entity, channel, typewriter) in query.iter() {
+        let new_text = if let Some(typewriter) = typewriter {
+            typewriter.current_text.clone()
+        } else if let Some(state) = runtime.get_dialogue(entity) {
+            state.current_text().unwrap_or("").to_string()
+        } else {
+            String::new()
+        };
 
-    if typewriter_count > 0 || runtime.has_active_dialogues() {
         trace!(
-            "sync_typewriter_text_to_facts: {} typewriters, dialogue_active={}, text='{}'",
-            typewriter_count,
-            runtime.has_active_dialogues(),
-            new_text
+            "sync_typewriter_text_to_facts: channel='{}', text='{}'",
+            channel.name, new_text
         );
+
+        let dialogue_visible = !new_text.is_empty();
+        let db = facts.bypass_change_detection();
+        if db.set_if_changed(
+            fre_facts::dialogue_channel_key(&channel.name, "text"),
+            new_text,
+        ) {
+            changed = true;
+        }
+        if db.set_if_changed(
+            fre_facts::dialogue_channel_key(&channel.name, "visible"),
+            dialogue_visible,
+        ) {
+            changed = true;
+        }
     }
 
-    let dialogue_visible = !new_text.is_empty();
-    for mut view_root in active_view_query.iter_mut() {
-        let current = view_root
-            .local_facts
-            .get_string("dialogue_text")
-            .map(|s| s.to_string())
-            .unwrap_or_default();
-
-        if current != new_text {
-            trace!(
-                "sync_typewriter_text_to_facts: updating {} dialogue_text: '{}' -> '{}'",
-                view_root.namespace, current, new_text
-            );
-            view_root
-                .local_facts
-                .set("dialogue_text", FactValue::String(new_text.clone()));
-            view_root
-                .local_facts
-                .set("dialogue_visible", FactValue::Bool(dialogue_visible));
-        }
+    if changed {
+        facts.set_changed();
     }
 }
 

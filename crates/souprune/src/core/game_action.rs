@@ -33,6 +33,8 @@ pub enum GameActionDef {
     CloseView,
     SwitchState(String),
     StartDialogue {
+        #[serde(default)]
+        channel: Option<String>,
         mortar: String,
         node: String,
         #[serde(default)]

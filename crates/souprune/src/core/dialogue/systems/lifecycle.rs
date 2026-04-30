@@ -15,6 +15,7 @@ use bevy::prelude::*;
 use bevy_ecs_typewriter::Typewriter;
 use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
 use bevy_mortar_bond::{MortarDialogueFinished, MortarEvent, MortarRuntime};
+use std::collections::HashSet;
 
 use crate::core::fre_facts;
 
@@ -22,6 +23,29 @@ use super::super::auto_pause::AutoPauseState;
 
 #[derive(Component)]
 pub struct DialogueControllerEntity;
+
+/// Internal request to spawn a dialogue controller for a named channel.
+///
+/// 为命名通道生成对话控制器的内部请求。
+#[derive(Message, Debug, Clone)]
+pub struct DialogueStartRequest {
+    pub channel: String,
+    pub mortar_path: Option<String>,
+    pub mortar_node: Option<String>,
+    pub localized_mortar_path: Option<String>,
+    pub has_mortar: bool,
+}
+
+fn channel_event<'a>(event_id: &'a str, suffix: &str) -> Option<&'a str> {
+    event_id
+        .strip_prefix("dialogue:")
+        .and_then(|rest| rest.strip_suffix(suffix))
+        .filter(|channel| !channel.is_empty())
+}
+
+fn channel_ended_event(channel: &str) -> String {
+    format!("dialogue:{channel}:ended")
+}
 
 pub fn has_pending_dialogue_ended(facts: Res<LayeredFactDatabase>) -> bool {
     facts
@@ -46,67 +70,86 @@ pub fn emit_pending_dialogue_ended_system(
 pub fn handle_mortar_dialogue_finished_system(
     mut mortar_finished: MessageReader<MortarDialogueFinished>,
     mut fre_event_writer: MessageWriter<FactEvent>,
+    controller_query: Query<
+        &crate::core::dialogue::DialogueChannel,
+        With<DialogueControllerEntity>,
+    >,
 ) {
     for finished in mortar_finished.read() {
         info!(
             "handle_mortar_dialogue_finished_system: Mortar dialogue finished (path: {}, node: {})",
             finished.mortar_path, finished.node
         );
+        if let Some(entity) = finished.entity
+            && let Ok(channel) = controller_query.get(entity)
+        {
+            fre_event_writer.write(FactEvent::new(channel_ended_event(&channel.name)));
+        }
         fre_event_writer.write(FactEvent::new(fre_facts::DIALOGUE_ENDED));
     }
 }
 
 pub fn spawn_dialogue_controller_system(
     mut commands: Commands,
-    runtime: Res<MortarRuntime>,
-    query: Query<Entity, With<DialogueControllerEntity>>,
-    facts: Res<LayeredFactDatabase>,
+    query: Query<(Entity, &crate::core::dialogue::DialogueChannel), With<DialogueControllerEntity>>,
+    mut start_requests: MessageReader<DialogueStartRequest>,
+    mut mortar_events: MessageWriter<MortarEvent>,
+    mut facts: ResMut<LayeredFactDatabase>,
 ) {
-    let has_controller = !query.is_empty();
-    let dialogue_active = facts.get_bool(fre_facts::DIALOGUE_ACTIVE).unwrap_or(false);
-    let has_typewriter = facts
-        .get_bool(fre_facts::DIALOGUE_HAS_TYPEWRITER)
-        .unwrap_or(true);
-    let has_mortar = facts
-        .get_bool(fre_facts::DIALOGUE_HAS_MORTAR)
-        .unwrap_or(false)
-        || runtime.has_active_dialogues();
+    for request in start_requests.read() {
+        let channel = request.channel.clone();
+        let channel_active = facts
+            .get_bool(&fre_facts::dialogue_channel_key(&channel, "active"))
+            .unwrap_or(false);
+        let has_controller_for_channel = query.iter().any(|(_, existing)| existing.name == channel);
 
-    if dialogue_active || has_controller || runtime.has_active_dialogues() {
-        debug!(
-            "spawn_dialogue_controller_system: dialogue_active={}, has_controller={}, has_mortar={}, runtime_active={}",
-            dialogue_active,
-            has_controller,
-            has_mortar,
-            runtime.has_active_dialogues()
-        );
-    }
+        if !channel_active || has_controller_for_channel {
+            continue;
+        }
 
-    if dialogue_active && !has_controller {
+        let has_typewriter = facts
+            .get_bool(&fre_facts::dialogue_channel_key(&channel, "has_typewriter"))
+            .or_else(|| facts.get_bool(fre_facts::DIALOGUE_HAS_TYPEWRITER))
+            .unwrap_or(true);
+        let has_mortar = facts
+            .get_bool(&fre_facts::dialogue_channel_key(&channel, "has_mortar"))
+            .unwrap_or(request.has_mortar);
+
         info!(
-            "spawn_dialogue_controller_system: spawning dialogue controller (mortar={}, typewriter={})",
-            has_mortar, has_typewriter
+            "spawn_dialogue_controller_system: spawning dialogue controller for channel '{}' (mortar={}, typewriter={})",
+            channel, has_mortar, has_typewriter
         );
 
-        let mut entity_commands = commands.spawn(DialogueControllerEntity);
-
-        // Always insert auto-pause state for character tracking
-        // 始终插入自动停顿状态以追踪字符进度
-        entity_commands.insert(AutoPauseState::default());
+        let mut entity_commands = commands.spawn((
+            DialogueControllerEntity,
+            crate::core::dialogue::DialogueChannel::new(&channel),
+            AutoPauseState::default(),
+        ));
+        let entity = entity_commands.id();
 
         if has_mortar {
-            entity_commands.insert(super::super::components::MortarController::new());
+            let mut controller = super::super::components::MortarController::with_path(
+                request.mortar_path.clone().unwrap_or_default(),
+            );
+            controller.current_node = request.mortar_node.clone();
+            entity_commands.insert(controller);
         }
 
         if has_typewriter {
             let typewriter_speed = facts
-                .get_float(fre_facts::DIALOGUE_TYPEWRITER_SPEED)
+                .get_float(&fre_facts::dialogue_channel_key(
+                    &channel,
+                    "typewriter_speed",
+                ))
+                .or_else(|| facts.get_float(fre_facts::DIALOGUE_TYPEWRITER_SPEED))
                 .map(|n| n as f32)
                 .unwrap_or(0.03);
             let typewriter = Typewriter::new("", typewriter_speed);
             entity_commands.insert(typewriter);
 
-            if let Some(voice_path) = facts.get_string(fre_facts::DIALOGUE_VOICE)
+            if let Some(voice_path) = facts
+                .get_string(&fre_facts::dialogue_channel_key(&channel, "voice"))
+                .or_else(|| facts.get_string(fre_facts::DIALOGUE_VOICE))
                 && !voice_path.is_empty()
             {
                 info!(
@@ -116,6 +159,24 @@ pub fn spawn_dialogue_controller_system(
                 entity_commands.insert(super::super::components::TypewriterVoice::new(voice_path));
             }
         }
+
+        if request.has_mortar
+            && let (Some(localized_path), Some(node)) = (
+                request.localized_mortar_path.clone(),
+                request.mortar_node.clone(),
+            )
+        {
+            mortar_events.write(MortarEvent::start_node_for(entity, localized_path, node));
+        }
+
+        facts.set(
+            fre_facts::dialogue_channel_key(&channel, "active"),
+            FactValue::Bool(true),
+        );
+        facts.set(
+            fre_facts::dialogue_channel_key(&channel, "finished"),
+            FactValue::Bool(false),
+        );
     }
 }
 
@@ -130,40 +191,103 @@ pub fn despawn_dialogue_controller_system(
     mut commands: Commands,
     mut fre_events: MessageReader<FactEvent>,
     runtime: Res<MortarRuntime>,
-    query: Query<Entity, With<DialogueControllerEntity>>,
+    query: Query<(Entity, &crate::core::dialogue::DialogueChannel), With<DialogueControllerEntity>>,
     mut facts: ResMut<LayeredFactDatabase>,
+    mut mortar_events: MessageWriter<MortarEvent>,
 ) {
-    let mut should_cleanup = false;
+    let mut cleanup_all = false;
+    let mut channel_cleanups = HashSet::new();
     for event in fre_events.read() {
-        if event.id.0 == fre_facts::DIALOGUE_ENDED {
-            should_cleanup = true;
-            break;
+        if let Some(channel) =
+            channel_event(&event.id.0, ":ended").or_else(|| channel_event(&event.id.0, ":stop"))
+        {
+            channel_cleanups.insert(channel.to_string());
+            continue;
+        }
+
+        if event.id.0 == fre_facts::DIALOGUE_ENDED || event.id.0 == fre_facts::DIALOGUE_STOP_PREFIX
+        {
+            cleanup_all = true;
         }
     }
 
-    if !should_cleanup {
-        let mortar_active = runtime.has_active_dialogues();
-        let dialogue_active_fact = facts
-            .bypass_change_detection()
-            .get_bool(fre_facts::DIALOGUE_ACTIVE)
-            .unwrap_or(false);
-        let has_controller = !query.is_empty();
-
-        should_cleanup = has_controller && !mortar_active && !dialogue_active_fact;
+    if channel_cleanups.is_empty() && !cleanup_all {
+        for (entity, channel) in &query {
+            let channel_active = facts
+                .bypass_change_detection()
+                .get_bool(&fre_facts::dialogue_channel_key(&channel.name, "active"))
+                .unwrap_or(false);
+            if runtime.get_dialogue(entity).is_none() && !channel_active {
+                channel_cleanups.insert(channel.name.clone());
+            }
+        }
     }
 
-    if !should_cleanup {
+    if channel_cleanups.is_empty() && !cleanup_all {
         return;
     }
 
-    info!("despawn_dialogue_controller_system: dialogue ended, cleaning up controller");
-    facts.set(fre_facts::DIALOGUE_HAS_FOCUS, FactValue::Bool(false));
-    facts.set(fre_facts::DIALOGUE_ACTIVE, FactValue::Bool(false));
-    facts.set(fre_facts::DIALOGUE_HAS_MORTAR, FactValue::Bool(false));
-
-    for entity in query.iter() {
+    info!("despawn_dialogue_controller_system: cleaning up dialogue controllers");
+    for (entity, channel) in &query {
+        if !cleanup_all && !channel_cleanups.contains(&channel.name) {
+            continue;
+        }
+        facts.set(
+            fre_facts::dialogue_channel_key(&channel.name, "has_focus"),
+            FactValue::Bool(false),
+        );
+        facts.set(
+            fre_facts::dialogue_channel_key(&channel.name, "active"),
+            FactValue::Bool(false),
+        );
+        facts.set(
+            fre_facts::dialogue_channel_key(&channel.name, "has_mortar"),
+            FactValue::Bool(false),
+        );
+        facts.set(
+            fre_facts::dialogue_channel_key(&channel.name, "visible"),
+            FactValue::Bool(false),
+        );
+        facts.set(
+            fre_facts::dialogue_channel_key(&channel.name, "finished"),
+            FactValue::Bool(true),
+        );
+        mortar_events.write(MortarEvent::stop_dialogue_for(entity));
         commands.entity(entity).despawn();
     }
+
+    let remaining_channels: Vec<String> = query
+        .iter()
+        .filter(|(_, channel)| !cleanup_all && !channel_cleanups.contains(&channel.name))
+        .map(|(_, channel)| channel.name.clone())
+        .collect();
+    let remaining_has_focus = remaining_channels.iter().any(|channel| {
+        facts
+            .get_bool(&fre_facts::dialogue_channel_key(channel, "has_focus"))
+            .unwrap_or(false)
+    });
+    let remaining_active = remaining_channels.iter().any(|channel| {
+        facts
+            .get_bool(&fre_facts::dialogue_channel_key(channel, "active"))
+            .unwrap_or(false)
+    });
+    let remaining_has_mortar = remaining_channels.iter().any(|channel| {
+        facts
+            .get_bool(&fre_facts::dialogue_channel_key(channel, "has_mortar"))
+            .unwrap_or(false)
+    });
+    facts.set(
+        fre_facts::DIALOGUE_HAS_FOCUS,
+        FactValue::Bool(remaining_has_focus),
+    );
+    facts.set(
+        fre_facts::DIALOGUE_ACTIVE,
+        FactValue::Bool(remaining_active),
+    );
+    facts.set(
+        fre_facts::DIALOGUE_HAS_MORTAR,
+        FactValue::Bool(remaining_has_mortar),
+    );
 }
 
 pub fn has_pending_dialogue_start(facts: Res<LayeredFactDatabase>) -> bool {
@@ -174,7 +298,7 @@ pub fn has_pending_dialogue_start(facts: Res<LayeredFactDatabase>) -> bool {
 
 pub fn handle_pending_dialogue_start_system(
     mut facts: ResMut<LayeredFactDatabase>,
-    mut mortar_events: MessageWriter<MortarEvent>,
+    mut start_request_writer: MessageWriter<DialogueStartRequest>,
     mut spawn_view_writer: MessageWriter<crate::core::view::SpawnViewRequest>,
     mut fre_event_writer: MessageWriter<FactEvent>,
     locale: Res<crate::extra::mortar::CurrentLocale>,
@@ -190,6 +314,11 @@ pub fn handle_pending_dialogue_start_system(
 
     info!("handle_pending_dialogue_start_system: pending_start=true, processing dialogue");
 
+    let channel = facts
+        .bypass_change_detection()
+        .get_string(fre_facts::DIALOGUE_PENDING_CHANNEL)
+        .map(|s| fre_facts::normalize_dialogue_channel(s).to_string())
+        .unwrap_or_else(|| fre_facts::DIALOGUE_DEFAULT_CHANNEL.to_string());
     let pending_view = facts
         .bypass_change_detection()
         .get_string(fre_facts::DIALOGUE_PENDING_VIEW)
@@ -207,11 +336,15 @@ pub fn handle_pending_dialogue_start_system(
         .filter(|s| !s.is_empty());
 
     info!(
-        "handle_pending_dialogue_start_system: view={:?}, path={:?}, node={:?}",
-        pending_view, mortar_path, mortar_node
+        "handle_pending_dialogue_start_system: channel={}, view={:?}, path={:?}, node={:?}",
+        channel, pending_view, mortar_path, mortar_node
     );
 
     facts.set(fre_facts::DIALOGUE_PENDING_START, FactValue::Bool(false));
+    facts.set(
+        fre_facts::DIALOGUE_PENDING_CHANNEL,
+        FactValue::String(fre_facts::DIALOGUE_DEFAULT_CHANNEL.to_string()),
+    );
     facts.set(
         fre_facts::DIALOGUE_PENDING_VIEW,
         FactValue::String(String::new()),
@@ -226,7 +359,8 @@ pub fn handle_pending_dialogue_start_system(
     );
 
     info!(
-        "handle_pending_dialogue_start_system: view={:?}, mortar={:?}",
+        "handle_pending_dialogue_start_system: channel={}, view={:?}, mortar={:?}",
+        channel,
         pending_view,
         mortar_path.as_ref().zip(mortar_node.as_ref())
     );
@@ -241,20 +375,45 @@ pub fn handle_pending_dialogue_start_system(
     }
 
     let has_mortar = mortar_path.is_some() && mortar_node.is_some();
-    if let (Some(path), Some(node)) = (mortar_path.clone(), mortar_node.clone()) {
+    let localized_mortar_path = mortar_path.as_ref().map(|path| {
         let config = crate::config::load_config();
-        let localized_path = format!("{}/{}/{}", config.game.locales_directory, locale.0, path);
+        format!("{}/{}/{}", config.game.locales_directory, locale.0, path)
+    });
 
-        info!(
-            "handle_pending_dialogue_start_system: starting Mortar dialogue '{}' node '{}'",
-            localized_path, node
-        );
+    facts.set(
+        fre_facts::dialogue_channel_key(&channel, "active"),
+        FactValue::Bool(has_mortar),
+    );
+    facts.set(
+        fre_facts::dialogue_channel_key(&channel, "has_mortar"),
+        FactValue::Bool(has_mortar),
+    );
+    facts.set(
+        fre_facts::dialogue_channel_key(&channel, "finished"),
+        FactValue::Bool(false),
+    );
 
-        mortar_events.write(MortarEvent::start_node(localized_path, node));
-    }
+    start_request_writer.write(DialogueStartRequest {
+        channel: channel.clone(),
+        mortar_path,
+        mortar_node,
+        localized_mortar_path,
+        has_mortar,
+    });
 
     let dialogue_active = has_mortar;
     facts.set(fre_facts::DIALOGUE_ACTIVE, FactValue::Bool(dialogue_active));
     facts.set(fre_facts::DIALOGUE_HAS_MORTAR, FactValue::Bool(has_mortar));
     fre_event_writer.write(FactEvent::new(fre_facts::DIALOGUE_STARTED));
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::core::dialogue::DialogueChannel;
+
+    #[test]
+    fn controller_channel_matches_normalized_name() {
+        let channel = DialogueChannel::new("");
+        assert_eq!(channel.name, "main");
+    }
 }

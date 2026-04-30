@@ -65,11 +65,14 @@ jobs:
       - name: Clippy
         run: |
           EXCLUDES=""
-          if [ -f scripts/lint_ignore.txt ]; then
+          WORKSPACE_PACKAGES="$(cargo metadata --no-deps --format-version 1 | jq -r '.workspace_members as $members | .packages[] | select(.id as $id | $members | index($id)) | .name')"
+          if [ -f scripts/workspace_ignore.txt ]; then
             while IFS= read -r crate; do
               [[ "$crate" =~ ^#.*$ || -z "$crate" ]] && continue
-              EXCLUDES="$EXCLUDES --exclude $crate"
-            done < scripts/lint_ignore.txt
+              if grep -qx "$crate" <<< "$WORKSPACE_PACKAGES"; then
+                EXCLUDES="$EXCLUDES --exclude $crate"
+              fi
+            done < scripts/workspace_ignore.txt
           fi
           cargo clippy --workspace --all-targets --all-features $EXCLUDES -- -D warnings
 

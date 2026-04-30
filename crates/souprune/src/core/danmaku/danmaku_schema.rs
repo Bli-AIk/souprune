@@ -11,7 +11,7 @@ use std::ops::{Deref, DerefMut};
 pub use souprune_schema::danmaku::{
     AimedConfig, BulletBehavior, BulletPrototype, ColliderShape, ColorTint, Easing, EdgeSide,
     HitBehaviorPreset, LinearConfig, OrbitalConfig, SineConfig, SpawnPattern, TimeMode,
-    TimelineEvent, TweenConfig, TweenMode,
+    TimelineCueDef, TimelineEvent, TweenConfig, TweenMode,
 };
 
 pub type TweenTarget = souprune_schema::danmaku::DanmakuTweenTarget;

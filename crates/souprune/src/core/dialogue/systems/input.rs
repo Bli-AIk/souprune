@@ -24,12 +24,26 @@ pub fn has_fact_events(events: MessageReader<FactEvent>) -> bool {
     !events.is_empty()
 }
 
+fn stop_event_channel(event_id: &str) -> Option<&str> {
+    event_id
+        .strip_prefix("dialogue:")
+        .and_then(|rest| rest.strip_suffix(":stop"))
+        .filter(|channel| !channel.is_empty())
+}
+
 pub fn dialogue_advance_system(
     mut fre_events: MessageReader<FactEvent>,
     config: Res<DialogueInputConfig>,
     mut mortar_events: MessageWriter<MortarEvent>,
     facts: Res<LayeredFactDatabase>,
-    query: Query<&Typewriter, With<DialogueControllerEntity>>,
+    query: Query<
+        (
+            Entity,
+            &crate::core::dialogue::DialogueChannel,
+            Option<&Typewriter>,
+        ),
+        With<DialogueControllerEntity>,
+    >,
     runtime: Res<MortarRuntime>,
 ) {
     for event in fre_events.read() {
@@ -39,60 +53,44 @@ pub fn dialogue_advance_system(
             continue;
         }
 
-        let has_focus = facts
-            .get_bool(fre_facts::DIALOGUE_HAS_FOCUS)
-            .unwrap_or(false);
-        if !has_focus {
-            debug!("dialogue_advance_system: dialogue:has_focus is false, skipping");
-            continue;
-        }
-
         info!(
             "dialogue_advance_system: matched '{}', checking runtime state",
             config.advance_event
         );
 
-        let mortar_active = runtime.has_active_dialogues();
-
-        if !mortar_active {
-            info!("dialogue_advance_system: no active dialogue, skipping");
-            continue;
-        }
-
-        let typewriters: Vec<_> = query.iter().collect();
-        if typewriters.is_empty() {
-            if mortar_active {
-                info!("dialogue_advance_system: no typewriters, sending NextText");
-                mortar_events.write(MortarEvent::next_text());
+        for (entity, channel, typewriter) in query.iter() {
+            let has_focus = facts
+                .get_bool(&fre_facts::dialogue_channel_key(&channel.name, "has_focus"))
+                .or_else(|| facts.get_bool(fre_facts::DIALOGUE_HAS_FOCUS))
+                .unwrap_or(false);
+            if !has_focus {
+                continue;
             }
-            continue;
-        }
 
-        let focus_mode = facts
-            .get_string(fre_facts::DIALOGUE_FOCUS_MODE)
-            .unwrap_or("all_finished");
-        let require_all_finished = focus_mode == "all_finished";
+            if runtime.get_dialogue(entity).is_none() {
+                continue;
+            }
 
-        let all_ready = if require_all_finished {
-            typewriters.iter().all(|tw| {
-                tw.state == TypewriterState::Finished || tw.state == TypewriterState::Idle
-            })
-        } else {
-            typewriters.iter().any(|tw| {
-                tw.state == TypewriterState::Finished || tw.state == TypewriterState::Idle
-            })
-        };
+            let Some(typewriter) = typewriter else {
+                info!(
+                    "dialogue_advance_system: no typewriter for channel '{}', sending NextText",
+                    channel.name
+                );
+                mortar_events.write(MortarEvent::next_text_for(entity));
+                continue;
+            };
 
-        if !all_ready {
-            debug!(
-                "Dialogue advance blocked: typewriters not ready (focus_mode: {})",
-                focus_mode
-            );
-            continue;
-        }
+            let ready = typewriter.state == TypewriterState::Finished
+                || typewriter.state == TypewriterState::Idle;
+            if !ready {
+                debug!(
+                    "Dialogue advance blocked for channel '{}': typewriter not ready",
+                    channel.name
+                );
+                continue;
+            }
 
-        if mortar_active {
-            mortar_events.write(MortarEvent::next_text());
+            mortar_events.write(MortarEvent::next_text_for(entity));
         }
     }
 }
@@ -100,7 +98,11 @@ pub fn dialogue_advance_system(
 pub fn dialogue_skip_typewriter_system(
     mut fre_events: MessageReader<FactEvent>,
     config: Res<DialogueInputConfig>,
-    mut query: Query<&mut Typewriter, With<DialogueControllerEntity>>,
+    facts: Res<LayeredFactDatabase>,
+    mut query: Query<
+        (&crate::core::dialogue::DialogueChannel, &mut Typewriter),
+        With<DialogueControllerEntity>,
+    >,
 ) {
     for event in fre_events.read() {
         debug!(
@@ -119,7 +121,14 @@ pub fn dialogue_skip_typewriter_system(
             typewriter_count
         );
 
-        for mut typewriter in &mut query {
+        for (channel, mut typewriter) in &mut query {
+            let has_focus = facts
+                .get_bool(&fre_facts::dialogue_channel_key(&channel.name, "has_focus"))
+                .or_else(|| facts.get_bool(fre_facts::DIALOGUE_HAS_FOCUS))
+                .unwrap_or(false);
+            if !has_focus {
+                continue;
+            }
             debug!(
                 "dialogue_skip_typewriter_system: typewriter state = {:?}",
                 typewriter.state
@@ -138,13 +147,31 @@ pub fn dialogue_skip_typewriter_system(
 
 pub fn handle_dialogue_stop_event_system(
     mut events: MessageReader<FactEvent>,
-    mut typewriter_query: Query<&mut Typewriter, With<DialogueControllerEntity>>,
+    mut typewriter_query: Query<
+        (
+            Entity,
+            &crate::core::dialogue::DialogueChannel,
+            &mut Typewriter,
+        ),
+        With<DialogueControllerEntity>,
+    >,
+    mut mortar_events: MessageWriter<MortarEvent>,
 ) {
     for event in events.read() {
-        if event.id.0.starts_with(fre_facts::DIALOGUE_STOP_PREFIX) {
-            info!("handle_dialogue_stop_event: stopping all typewriters");
-            for mut typewriter in typewriter_query.iter_mut() {
+        let channel_filter = stop_event_channel(&event.id.0);
+        let stop_all = event.id.0 == fre_facts::DIALOGUE_STOP_PREFIX;
+        if !stop_all && channel_filter.is_none() {
+            continue;
+        }
+
+        info!(
+            "handle_dialogue_stop_event: stopping dialogue '{}'",
+            event.id.0
+        );
+        for (entity, channel, mut typewriter) in typewriter_query.iter_mut() {
+            if stop_all || channel_filter == Some(channel.name.as_str()) {
                 typewriter.stop();
+                mortar_events.write(MortarEvent::stop_dialogue_for(entity));
             }
         }
     }
