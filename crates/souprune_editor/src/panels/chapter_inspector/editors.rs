@@ -15,7 +15,6 @@
 
 use bevy::prelude::*;
 use bevy_workbench::i18n::FluentArgs;
-use souprune_schema::battle::BattleSpeechBubbleAdvance;
 use souprune_schema::sequence::{
     Chapter, ElementModification, ElementSelector, GapPolicy, LogLevel, SplitAxis,
 };
@@ -23,6 +22,8 @@ use souprune_schema::sequence::{
 use crate::i18n::{t, t_args};
 use crate::widgets;
 use crate::widgets::property_editors::*;
+
+mod battle_speech_bubble;
 
 /// 渲染章节属性编辑器。返回 true 如果有修改。
 pub(super) fn render_chapter_properties(
@@ -344,46 +345,7 @@ pub(super) fn render_chapter_properties(
             changed |= edit_option_string(ui, &t(world, "prop-group-fact"), group_fact);
         }
         Chapter::BattleSpeechBubble(bubble) => {
-            changed |= labeled_text(ui, "Channel", &mut bubble.channel);
-            changed |= widgets::path_picker::edit_file_path(
-                ui,
-                "Mortar path",
-                &mut bubble.mortar_path,
-                world,
-            );
-            changed |= labeled_text(ui, "Mortar node", &mut bubble.mortar_node);
-            ui.label(format!("Frame: {:?}", bubble.frame));
-
-            let current_mode = match bubble.advance {
-                BattleSpeechBubbleAdvance::Manual => 0,
-                BattleSpeechBubbleAdvance::Timed { .. } => 1,
-            };
-            let mut selected_mode = current_mode;
-            egui::ComboBox::from_label("Advance")
-                .selected_text(match selected_mode {
-                    0 => "Manual",
-                    _ => "Timed",
-                })
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut selected_mode, 0, "Manual");
-                    ui.selectable_value(&mut selected_mode, 1, "Timed");
-                });
-            if selected_mode != current_mode {
-                bubble.advance = match selected_mode {
-                    0 => BattleSpeechBubbleAdvance::Manual,
-                    _ => BattleSpeechBubbleAdvance::Timed { duration: 2.0 },
-                };
-                changed = true;
-            }
-            if let BattleSpeechBubbleAdvance::Timed { duration } = &mut bubble.advance {
-                changed |= labeled_drag(ui, "Duration", duration, 0.0..=60.0, 0.1);
-            }
-
-            changed |= ui
-                .checkbox(&mut bubble.hide_on_finish, "Hide on finish")
-                .changed();
-            changed |= edit_option_string(ui, "Voice", &mut bubble.voice);
-            changed |= edit_option_f32(ui, "Typewriter speed", &mut bubble.typewriter_speed);
+            changed |= battle_speech_bubble::edit_battle_speech_bubble(ui, bubble, world);
         }
     }
 
