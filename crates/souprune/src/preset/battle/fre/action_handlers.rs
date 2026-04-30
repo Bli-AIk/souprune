@@ -15,6 +15,9 @@ use bevy_fact_rule_event::LayeredFactDatabase;
 use bevy_tween::interpolation::EaseKind;
 
 use crate::core::game_action::{GameActionDef, GameActionHandlerRegistry};
+use crate::preset::battle::speech_bubble::{
+    BATTLE_SPEECH_BUBBLE_ACTION, BattleSpeechBubbleRequest,
+};
 use crate::preset::battle_box::{GapPolicy, MergeBattleBoxes, SplitAxis, SplitBattleBox};
 
 /// System to set up battle-specific action handlers.
@@ -66,6 +69,19 @@ pub fn setup_battle_action_handlers_system(
 
             // TODO: Emit danmaku play event
         }
+    });
+
+    // battle:speech_bubble - Start an enemy speech bubble through Core Dialogue
+    handler_registry.register(BATTLE_SPEECH_BUBBLE_ACTION, |action, _db, commands| {
+        let GameActionDef::Custom { params, .. } = action else {
+            return;
+        };
+        let request = BattleSpeechBubbleRequest {
+            params: params.clone(),
+        };
+        commands.queue(move |world: &mut World| {
+            world.write_message(request);
+        });
     });
 
     // EndBattle - End the current battle

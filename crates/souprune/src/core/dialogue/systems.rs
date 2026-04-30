@@ -13,7 +13,7 @@ pub use input::{
     has_fact_events,
 };
 pub use lifecycle::{
-    DialogueControllerEntity, despawn_dialogue_controller_system,
+    DialogueControllerEntity, DialogueStartRequest, despawn_dialogue_controller_system,
     emit_pending_dialogue_ended_system, handle_mortar_dialogue_finished_system,
     handle_pending_dialogue_start_system, has_pending_dialogue_ended, has_pending_dialogue_start,
     should_check_dialogue_despawn, spawn_dialogue_controller_system,

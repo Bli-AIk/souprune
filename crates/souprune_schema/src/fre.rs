@@ -87,6 +87,8 @@ pub enum RuleActionDef {
         params: HashMap<String, String>,
     },
     StartDialogue {
+        #[serde(default)]
+        channel: Option<String>,
         mortar: String,
         node: String,
         #[serde(default)]

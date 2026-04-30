@@ -4,6 +4,29 @@
 
 use bevy::prelude::*;
 
+/// Named dialogue channel for an independent dialogue controller.
+///
+/// 独立对话控制器的命名对话通道。
+#[derive(Component, Debug, Clone, PartialEq, Eq, Hash, Reflect)]
+#[reflect(Component)]
+pub struct DialogueChannel {
+    /// Channel name.
+    ///
+    /// 通道名称。
+    pub name: String,
+}
+
+impl DialogueChannel {
+    /// Create a normalized dialogue channel.
+    ///
+    /// 创建规范化后的对话通道。
+    pub fn new(name: impl AsRef<str>) -> Self {
+        Self {
+            name: crate::core::fre_facts::normalize_dialogue_channel(name.as_ref()).to_string(),
+        }
+    }
+}
+
 /// Dialogue controller component - manages Mortar dialogue state for an entity.
 ///
 /// 对话控制器组件 - 管理实体的 Mortar 对话状态。

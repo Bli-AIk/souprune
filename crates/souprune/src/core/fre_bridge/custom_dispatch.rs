@@ -30,6 +30,7 @@ fn dispatch_single_custom_action(
 ) {
     match action {
         GameActionDef::StartDialogue {
+            channel,
             mortar,
             node,
             view,
@@ -37,9 +38,17 @@ fn dispatch_single_custom_action(
             focus,
             voice,
         } => {
+            let channel = channel
+                .as_deref()
+                .map(fre_facts::normalize_dialogue_channel)
+                .unwrap_or(fre_facts::DIALOGUE_DEFAULT_CHANNEL);
             info!(
-                "FRE: StartDialogue(mortar: {}, node: {}) from rule '{}'",
-                mortar, node, rule.id
+                "FRE: StartDialogue(channel: {}, mortar: {}, node: {}) from rule '{}'",
+                channel, mortar, node, rule.id
+            );
+            fact_db.set_local(
+                fre_facts::DIALOGUE_PENDING_CHANNEL,
+                FactValue::String(channel.to_string()),
             );
             fact_db.set_local(
                 fre_facts::DIALOGUE_PENDING_MORTAR_PATH,

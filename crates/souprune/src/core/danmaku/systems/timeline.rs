@@ -18,6 +18,21 @@ use bevy_rand::prelude::GlobalRng;
 use bevy_rand::prelude::WyRand;
 use rand::RngExt;
 
+/// Generic cue emitted when a danmaku timeline reaches a non-bullet event.
+///
+/// 弹幕时间线到达非子弹事件时发出的通用 cue。
+#[derive(Message, Debug, Clone)]
+pub struct DanmakuTimelineCueEvent {
+    /// Action type used by preset or content systems to route the cue.
+    ///
+    /// 预设或内容系统用于路由 cue 的动作类型。
+    pub action_type: String,
+    /// String parameters carried by the cue.
+    ///
+    /// cue 携带的字符串参数。
+    pub params: std::collections::HashMap<String, String>,
+}
+
 /// A computed spawn point for a bullet within a pattern.
 struct SpawnPoint {
     /// World position where the bullet should spawn.
@@ -39,6 +54,7 @@ pub fn advance_performance_timeline(
     pattern_registry: Res<SpawnPatternRegistry>,
     mut loaded_mods: NonSendMut<LoadedMods>,
     spawn_context: Res<DanmakuSpawnContext>,
+    mut cue_writer: MessageWriter<DanmakuTimelineCueEvent>,
     mut query: Query<(Entity, &mut PerformancePlayer, &PerformanceHandle)>,
     player_query: Query<&Transform, (With<BulletTarget>, Without<Bullet>)>,
     viewbox_query: Query<(
@@ -77,6 +93,13 @@ pub fn advance_performance_timeline(
 
             if trigger_time > player.elapsed {
                 break;
+            }
+
+            if let Some(cue) = &event.cue {
+                cue_writer.write(DanmakuTimelineCueEvent {
+                    action_type: cue.action_type.clone(),
+                    params: cue.params.clone(),
+                });
             }
 
             spawn_bullets_from_timeline_event(
@@ -144,8 +167,11 @@ fn spawn_bullets_from_timeline_event(
     asset_server: &AssetServer,
     rng: &mut WyRand,
 ) {
-    let Some(prototype) = performance.prototypes.get(&event.spawn) else {
-        warn!("Prototype not found: {}", event.spawn);
+    let Some(spawn_id) = event.spawn.as_deref() else {
+        return;
+    };
+    let Some(prototype) = performance.prototypes.get(spawn_id) else {
+        warn!("Prototype not found: {}", spawn_id);
         return;
     };
 

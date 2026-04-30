@@ -27,6 +27,22 @@ pub enum TimeMode {
     Absolute,
 }
 
+/// Generic timeline cue emitted by the danmaku runtime.
+///
+/// 由弹幕运行时发出的通用时间线 cue。
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub struct TimelineCueDef {
+    /// Action type used by downstream systems to route the cue.
+    ///
+    /// 下游系统用于路由 cue 的动作类型。
+    pub action_type: String,
+    /// String parameters carried by the cue.
+    ///
+    /// cue 携带的字符串参数。
+    #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
+    pub params: HashMap<String, String>,
+}
+
 /// Timeline event — describes what happens at a specific time.
 ///
 /// 时间线事件 — 描述在特定时间发生的情况。
@@ -44,7 +60,18 @@ pub struct TimelineEvent {
     /// Identifier of the bullet prototype to spawn.
     ///
     /// 要生成的弹幕原型的标识符。
-    pub spawn: String,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_optional_spawn",
+        serialize_with = "serialize_optional_spawn",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub spawn: Option<String>,
+    /// Generic cue to emit when the timeline reaches this event.
+    ///
+    /// 时间线到达此事件时发出的通用 cue。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cue: Option<TimelineCueDef>,
     /// Spatial distribution pattern for spawned bullets.
     ///
     /// 生成弹幕的空间分布模式。
@@ -67,12 +94,40 @@ pub struct TimelineEvent {
     pub behaviors: Vec<BulletBehavior>,
 }
 
+fn deserialize_optional_spawn<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum SpawnField {
+        Plain(String),
+        Optional(Option<String>),
+    }
+
+    match SpawnField::deserialize(deserializer)? {
+        SpawnField::Plain(value) => Ok(Some(value)),
+        SpawnField::Optional(value) => Ok(value),
+    }
+}
+
+fn serialize_optional_spawn<S>(value: &Option<String>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    match value {
+        Some(value) => serializer.serialize_str(value),
+        None => serializer.serialize_none(),
+    }
+}
+
 impl Default for TimelineEvent {
     fn default() -> Self {
         Self {
             t: 0.0,
             time_mode: TimeMode::default(),
-            spawn: String::new(),
+            spawn: None,
+            cue: None,
             pattern: SpawnPattern::default(),
             offset: (0.0, 0.0),
             apply: Vec::new(),
@@ -108,7 +163,8 @@ impl TimelineEvent {
         Self {
             t,
             time_mode: TimeMode::Delta,
-            spawn: spawn.into(),
+            spawn: Some(spawn.into()),
+            cue: None,
             pattern,
             offset,
             apply: apply.into_iter().map(Into::into).collect(),
@@ -142,12 +198,60 @@ impl TimelineEvent {
         Self {
             t,
             time_mode: TimeMode::Absolute,
-            spawn: spawn.into(),
+            spawn: Some(spawn.into()),
+            cue: None,
             pattern,
             offset,
             apply: apply.into_iter().map(Into::into).collect(),
             behaviors: behaviors.into_iter().collect(),
         }
+    }
+
+    /// Create an absolute-time generic cue event.
+    ///
+    /// 创建绝对时间的通用 cue 事件。
+    pub fn absolute_cue<K, V>(
+        t: f32,
+        action_type: impl Into<String>,
+        params: impl IntoIterator<Item = (K, V)>,
+    ) -> Self
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        Self {
+            t,
+            time_mode: TimeMode::Absolute,
+            spawn: None,
+            cue: Some(TimelineCueDef {
+                action_type: action_type.into(),
+                params: params
+                    .into_iter()
+                    .map(|(key, value)| (key.into(), value.into()))
+                    .collect(),
+            }),
+            pattern: SpawnPattern::default(),
+            offset: (0.0, 0.0),
+            apply: Vec::new(),
+            behaviors: Vec::new(),
+        }
+    }
+
+    /// Create a delta-time generic cue event.
+    ///
+    /// 创建增量时间的通用 cue 事件。
+    pub fn delta_cue<K, V>(
+        t: f32,
+        action_type: impl Into<String>,
+        params: impl IntoIterator<Item = (K, V)>,
+    ) -> Self
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        let mut event = Self::absolute_cue(t, action_type, params);
+        event.time_mode = TimeMode::Delta;
+        event
     }
 }
 

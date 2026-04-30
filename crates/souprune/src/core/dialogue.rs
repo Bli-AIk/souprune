@@ -28,8 +28,8 @@ mod typewriter_bridge;
 mod voice_config;
 
 pub use auto_pause::AutoPauseConfig;
-pub use components::MortarController;
 pub use components::TypewriterVoice;
+pub use components::{DialogueChannel, MortarController};
 pub use config::DialogueInputConfig;
 pub use systems::DialogueControllerEntity;
 pub use systems::MortarFactBindings;
@@ -56,6 +56,8 @@ impl Plugin for DialoguePlugin {
             .init_resource::<auto_pause::AutoPauseConfig>()
             .init_resource::<voice_config::VoiceConfig>()
             .init_resource::<bevy_mortar_bond::MortarDialogueVariables>()
+            .add_message::<systems::DialogueStartRequest>()
+            .register_type::<DialogueChannel>()
             .register_type::<MortarController>()
             .register_type::<TypewriterVoice>()
             .add_systems(
@@ -144,6 +146,10 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
     // Dialogue configuration facts
     // 对话配置 facts
     facts.set_global(fre_facts::DIALOGUE_HAS_TYPEWRITER, FactValue::Bool(true));
+    facts.set_global(
+        fre_facts::DIALOGUE_PENDING_CHANNEL,
+        FactValue::String(fre_facts::DIALOGUE_DEFAULT_CHANNEL.to_string()),
+    );
 
     // Auto-pause default state (enabled by default; disabled if no config loaded)
     // 自动停顿默认状态（默认启用；若无配置加载则不激活）
@@ -167,6 +173,7 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
     // To start a dialogue via FRE rules, set these facts in modifications:
     // 要通过 FRE 规则启动对话，在 modifications 中设置这些 facts：
     //   - dialogue:pending_start = true (trigger)
+    //   - dialogue:pending_channel = "main" (optional channel)
     //   - dialogue:pending_mortar_path = "path/to/file.mortar" (without locale prefix)
     //   - dialogue:pending_mortar_node = "node_name"
     //   - dialogue:pending_view = "path/to/view.ron" (optional, for spawning new view)

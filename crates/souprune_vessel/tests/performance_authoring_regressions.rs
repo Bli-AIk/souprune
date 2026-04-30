@@ -101,3 +101,20 @@ fn explicit_performance_authoring_supports_composed_parts() {
         [BulletBehavior::Stationary()]
     ));
 }
+
+#[test]
+fn timeline_event_can_author_custom_cue_without_spawn() {
+    let event = TimelineEvent::absolute_cue(
+        1.25,
+        "battle:speech_bubble",
+        [
+            ("advance_mode", "Timed"),
+            ("bubble_profile", "mad_dummy_wide"),
+        ],
+    );
+
+    assert!(event.spawn.is_none());
+    let cue = event.cue.as_ref().expect("cue should be present");
+    assert_eq!(cue.action_type, "battle:speech_bubble");
+    assert_eq!(cue.params.get("advance_mode"), Some(&"Timed".to_string()));
+}
