@@ -44,10 +44,12 @@ name = "souprune_sdk"
 [[package]]
 name = "souprune_mock_host"
 release = false
+souprune_editor = false
 
 [[package]]
 name = "souprune_editor"
 release = false
+changelog_update = false
 
 [[package]]
 name = "souprune_schema"
@@ -71,16 +73,24 @@ changelog_update = false
 [[package]]
 name = "bevy_ecs_typewriter"
 release = false
+changelog_update = false
 
 [[package]]
 name = "bevy_fact_rule_event"
 release = false
+changelog_update = false
 
 [[package]]
 name = "bevy_mortar_bond"
 release = false
+changelog_update = false
 
 [[package]]
 name = "bevy_mortar_bond_macros"
 release = false
+changelog_update = false
 
+[[package]]
+name = "vessel"
+release = false
+changelog_update = false
