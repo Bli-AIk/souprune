@@ -28,7 +28,7 @@ use bevy_mortar_bond::MortarGameEvent;
 use std::time::Duration;
 
 use super::auto_pause::AutoPauseTimer;
-use super::components::MortarController;
+use super::components::{DialogueChannel, MortarController};
 use crate::core::fre_facts;
 
 /// Handles Mortar game events that control typewriter behavior.
@@ -58,6 +58,7 @@ pub fn handle_typewriter_mortar_events(
     mut commands: Commands,
     glyph_query: Query<(Entity, &GlyphEntity, &ChildOf)>,
     mut facts: ResMut<LayeredFactDatabase>,
+    channel_query: Query<&DialogueChannel>,
 ) {
     let Some(mut events) = events else {
         return;
@@ -81,10 +82,10 @@ pub fn handle_typewriter_mortar_events(
                 handle_apply_wave(event, &mut commands, &typewriters, &glyph_query);
             }
             "set_voice_enabled" => {
-                handle_set_voice_enabled(event, &mut facts);
+                handle_set_voice_enabled(event, &mut facts, &channel_query);
             }
             "set_voice_preset" => {
-                handle_set_voice_preset(event, &mut facts);
+                handle_set_voice_preset(event, &mut facts, &channel_query);
             }
             _ => {
                 // Other events handled by other systems
@@ -262,7 +263,11 @@ fn handle_apply_wave(
     }
 }
 
-fn handle_set_voice_enabled(event: &MortarGameEvent, facts: &mut ResMut<LayeredFactDatabase>) {
+fn handle_set_voice_enabled(
+    event: &MortarGameEvent,
+    facts: &mut ResMut<LayeredFactDatabase>,
+    channel_query: &Query<&DialogueChannel>,
+) {
     let Some(arg) = event.args.first() else {
         warn!("set_voice_enabled: missing bool argument");
         return;
@@ -273,15 +278,47 @@ fn handle_set_voice_enabled(event: &MortarGameEvent, facts: &mut ResMut<LayeredF
         return;
     };
 
+    if let Some(entity) = event.source
+        && let Ok(channel) = channel_query.get(entity)
+    {
+        facts.set_local(
+            fre_facts::dialogue_channel_key(&channel.name, "voice_enabled"),
+            FactValue::Bool(enabled),
+        );
+        debug!(
+            "Voice enabled set to {} for channel '{}'",
+            enabled, channel.name
+        );
+        return;
+    }
+
     facts.set_local(fre_facts::DIALOGUE_VOICE_ENABLED, FactValue::Bool(enabled));
     debug!("Voice enabled set to {}", enabled);
 }
 
-fn handle_set_voice_preset(event: &MortarGameEvent, facts: &mut ResMut<LayeredFactDatabase>) {
+fn handle_set_voice_preset(
+    event: &MortarGameEvent,
+    facts: &mut ResMut<LayeredFactDatabase>,
+    channel_query: &Query<&DialogueChannel>,
+) {
     let Some(preset) = event.args.first() else {
         warn!("set_voice_preset: missing preset name argument");
         return;
     };
+
+    if let Some(entity) = event.source
+        && let Ok(channel) = channel_query.get(entity)
+    {
+        facts.set_local(
+            fre_facts::dialogue_channel_key(&channel.name, "voice_preset"),
+            FactValue::String(preset.clone()),
+        );
+        debug!(
+            "Voice preset set to '{}' for channel '{}'",
+            preset, channel.name
+        );
+        return;
+    }
 
     facts.set_local(
         fre_facts::DIALOGUE_VOICE_PRESET,

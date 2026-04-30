@@ -78,6 +78,7 @@ fn chapter_category(chapter: &Chapter) -> ChapterCategory {
         Chapter::AlightMotionPerformance { .. } => ChapterCategory::Combat,
         Chapter::SpawnBehavior { .. } => ChapterCategory::Combat,
         Chapter::PickEnemyTurn { .. } => ChapterCategory::Combat,
+        Chapter::BattleSpeechBubble(_) => ChapterCategory::Combat,
 
         Chapter::SetBgm { .. } => ChapterCategory::Audio,
         Chapter::Custom { .. } => ChapterCategory::Flow,
@@ -124,6 +125,7 @@ pub fn chapter_icon(chapter: &Chapter) -> &'static str {
         Chapter::Break => "[BK]",
         Chapter::RandomPick { .. } => "[RP]",
         Chapter::PickEnemyTurn { .. } => "[ET]",
+        Chapter::BattleSpeechBubble(_) => "[ES]",
         Chapter::Log { .. } => "[L]",
     }
 }
@@ -162,6 +164,7 @@ pub(crate) fn chapter_i18n_key(chapter: &Chapter) -> &'static str {
         Chapter::Break => "chapter-break",
         Chapter::RandomPick { .. } => "chapter-random-pick",
         Chapter::PickEnemyTurn { .. } => "chapter-pick-enemy-turn",
+        Chapter::BattleSpeechBubble(_) => "chapter-battle-speech-bubble",
         Chapter::Log { .. } => "chapter-log",
     }
 }
@@ -231,6 +234,7 @@ pub fn chapter_summary(chapter: &Chapter) -> String {
             .or(group.as_deref())
             .unwrap_or("(auto)")
             .to_string(),
+        Chapter::BattleSpeechBubble(bubble) => bubble.mortar_node.clone(),
         Chapter::Log { text, .. } => text.clone(),
     }
 }
@@ -369,6 +373,7 @@ pub fn chapter_type_name(chapter: &Chapter) -> &'static str {
         Chapter::Break => "Break",
         Chapter::RandomPick { .. } => "RandomPick",
         Chapter::PickEnemyTurn { .. } => "PickEnemyTurn",
+        Chapter::BattleSpeechBubble(_) => "BattleSpeechBubble",
         Chapter::Log { .. } => "Log",
     }
 }

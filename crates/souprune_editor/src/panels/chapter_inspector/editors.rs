@@ -23,6 +23,8 @@ use crate::i18n::{t, t_args};
 use crate::widgets;
 use crate::widgets::property_editors::*;
 
+mod battle_speech_bubble;
+
 /// 渲染章节属性编辑器。返回 true 如果有修改。
 pub(super) fn render_chapter_properties(
     ui: &mut egui::Ui,
@@ -341,6 +343,9 @@ pub(super) fn render_chapter_properties(
             changed |= edit_option_string(ui, &t(world, "prop-enemy-id-fact"), enemy_id_fact);
             changed |= edit_option_string(ui, &t(world, "prop-group"), group);
             changed |= edit_option_string(ui, &t(world, "prop-group-fact"), group_fact);
+        }
+        Chapter::BattleSpeechBubble(bubble) => {
+            changed |= battle_speech_bubble::edit_battle_speech_bubble(ui, bubble, world);
         }
     }
 

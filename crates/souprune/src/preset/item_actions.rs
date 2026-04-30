@@ -193,9 +193,21 @@ fn start_item_dialogue_with_path(
     );
     global_facts.set_local(fre_facts::DIALOGUE_HAS_TYPEWRITER, FactValue::Bool(true));
     global_facts.set_local(fre_facts::DIALOGUE_HAS_FOCUS, FactValue::Bool(true));
+    global_facts.set_local(
+        fre_facts::dialogue_channel_key(fre_facts::DIALOGUE_DEFAULT_CHANNEL, "has_typewriter"),
+        FactValue::Bool(true),
+    );
+    global_facts.set_local(
+        fre_facts::dialogue_channel_key(fre_facts::DIALOGUE_DEFAULT_CHANNEL, "has_focus"),
+        FactValue::Bool(true),
+    );
     if !dialogue_voice_default.is_empty() {
         global_facts.set_local(
             fre_facts::DIALOGUE_VOICE,
+            FactValue::String(dialogue_voice_default.to_string()),
+        );
+        global_facts.set_local(
+            fre_facts::dialogue_channel_key(fre_facts::DIALOGUE_DEFAULT_CHANNEL, "voice"),
             FactValue::String(dialogue_voice_default.to_string()),
         );
     }
@@ -508,4 +520,41 @@ pub(crate) fn execute_drop_item(
             item_value: compute_item_value(&item_id, &type_str, global_facts),
         },
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy_fact_rule_event::LayeredFactDatabase;
+
+    #[test]
+    fn item_dialogue_start_refreshes_default_channel_focus() {
+        let mut facts = LayeredFactDatabase::new();
+        facts.set_local(
+            fre_facts::dialogue_channel_key(fre_facts::DIALOGUE_DEFAULT_CHANNEL, "has_focus"),
+            FactValue::Bool(false),
+        );
+
+        start_item_dialogue_with_path(
+            "items/monster_candy.mortar",
+            "OnUse",
+            &mut facts,
+            "overworld/view/dialogue.view.ron",
+            "assets/audios/voice/voice_monster.wav",
+            ItemDialogueData {
+                locale_key: "items:MONSTER_CANDY".to_string(),
+                description: "Monster Candy".to_string(),
+                heal_amount: 0,
+                item_value: 10,
+            },
+        );
+
+        assert_eq!(
+            facts.get_bool(&fre_facts::dialogue_channel_key(
+                fre_facts::DIALOGUE_DEFAULT_CHANNEL,
+                "has_focus"
+            )),
+            Some(true)
+        );
+    }
 }

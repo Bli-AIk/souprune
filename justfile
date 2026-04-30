@@ -153,7 +153,7 @@ soup_debug_tracy: prepare-assets-release
     cargo run -p {{project}} --release --features "trace_tracy,debug"
 
 editor:
-    cargo run -p souprune_editor
+    cargo run --manifest-path crates/souprune_editor/Cargo.toml
 
 # WASM Mod 构建（编译测试 mod 为 WASM 组件）
 wasm-build:

@@ -71,6 +71,7 @@ impl Plugin for CoreDanmakuPlugin {
             .init_resource::<PendingPerformanceLoads>()
             .init_resource::<DanmakuSpawnContext>()
             .add_message::<PlayPerformanceEvent>()
+            .add_message::<DanmakuTimelineCueEvent>()
             .add_systems(
                 schedule,
                 (

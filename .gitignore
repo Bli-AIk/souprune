@@ -1,6 +1,8 @@
 /target
 **/target/
 .codex
+.agent/
+.agents/
 
 # JetBrains Rider
 *.sln.iml

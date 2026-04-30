@@ -27,6 +27,7 @@ pub mod alight_motion_integration;
 pub mod collision;
 pub mod danmaku;
 pub mod fre;
+pub mod speech_bubble;
 
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::mode::{ModeChanged, ModeScoped, is_mode};
@@ -81,6 +82,7 @@ impl Plugin for BattlePlugin {
                 DanmakuPlugin,
                 AlightMotionBattlePlugin,
                 BattleFREPlugin,
+                speech_bubble::BattleSpeechBubblePlugin,
             ))
             .add_systems(
                 schedule,
