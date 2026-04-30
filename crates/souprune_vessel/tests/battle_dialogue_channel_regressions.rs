@@ -12,7 +12,7 @@ use std::path::Path;
 
 #[test]
 fn demo_turn_narration_targets_battle_narration_channel() {
-    let sequence = read_project_sequence(
+    let sequence = read_fixture_sequence(
         "example_mod",
         "battle/chapters/demo_turn_narration.sequence.ron",
     );
@@ -60,7 +60,7 @@ fn demo_turn_narration_targets_battle_narration_channel() {
 
 #[test]
 fn narrative_dialogue_rules_advance_enemy_speech_channel() {
-    let rules = read_project_fre("undertale_preset", "narrative/dialogue.fre.ron");
+    let rules = read_fixture_fre("undertale_preset", "narrative/dialogue.fre.ron");
 
     let has_enemy_advance = rules.rules.iter().any(|rule| {
         matches!(
@@ -108,7 +108,7 @@ fn narrative_dialogue_rules_advance_enemy_speech_channel() {
 
 #[test]
 fn narrative_dialogue_rules_advance_default_dialogue_channel() {
-    let rules = read_project_fre("undertale_preset", "narrative/dialogue.fre.ron");
+    let rules = read_fixture_fre("undertale_preset", "narrative/dialogue.fre.ron");
 
     let has_default_advance = rules.rules.iter().any(|rule| {
         matches!(
@@ -180,7 +180,7 @@ fn narrative_dialogue_rules_advance_default_dialogue_channel() {
 
 #[test]
 fn enemy_speech_confirm_skips_typewriter_before_advancing() {
-    let rules = read_project_fre("undertale_preset", "narrative/dialogue.fre.ron");
+    let rules = read_fixture_fre("undertale_preset", "narrative/dialogue.fre.ron");
 
     let has_enemy_confirm_skip = rules.rules.iter().any(|rule| {
         matches!(
@@ -207,7 +207,7 @@ fn enemy_speech_confirm_skips_typewriter_before_advancing() {
 
 #[test]
 fn overworld_dialogue_view_reads_main_channel_text() {
-    let view = read_project_view("undertale_preset", "overworld/view/dialogue.view.ron");
+    let view = read_fixture_view("undertale_preset", "overworld/view/dialogue.view.ron");
     let node = view
         .roots
         .iter()
@@ -235,7 +235,7 @@ fn overworld_dialogue_view_reads_main_channel_text() {
 #[test]
 fn cotton_first_turn_uses_typed_battle_speech_bubble_chapters() {
     let sequence =
-        read_project_sequence("example_mod", "battle/turns/cotton_first_turn.sequence.ron");
+        read_fixture_sequence("example_mod", "battle/turns/cotton_first_turn.sequence.ron");
 
     let bubbles: Vec<_> = sequence
         .chapters
@@ -269,7 +269,7 @@ fn cotton_first_turn_uses_typed_battle_speech_bubble_chapters() {
 
 #[test]
 fn cotton_first_turn_performance_does_not_embed_enemy_speech_bubble() {
-    let performance = read_project_performance(
+    let performance = read_fixture_performance(
         "example_mod",
         "battle/danmaku/cotton_first_turn.performance.ron",
     );
@@ -284,7 +284,7 @@ fn cotton_first_turn_performance_does_not_embed_enemy_speech_bubble() {
 
 #[test]
 fn undertale_view_renders_enemy_bubble_text_from_container() {
-    let view = read_project_view("undertale_preset", "battle/view/undertale.view.ron");
+    let view = read_fixture_view("undertale_preset", "battle/view/undertale.view.ron");
     let node = view
         .roots
         .iter()
@@ -322,20 +322,20 @@ fn undertale_view_renders_enemy_bubble_text_from_container() {
     assert_eq!(text.font, "speechbubble");
 }
 
-fn read_project_sequence(project: &str, relative_path: &str) -> SequenceAsset {
-    read_project_ron(project, relative_path)
+fn read_fixture_sequence(project: &str, relative_path: &str) -> SequenceAsset {
+    read_fixture_ron(project, relative_path)
 }
 
-fn read_project_fre(project: &str, relative_path: &str) -> FreAsset {
-    read_project_ron(project, relative_path)
+fn read_fixture_fre(project: &str, relative_path: &str) -> FreAsset {
+    read_fixture_ron(project, relative_path)
 }
 
-fn read_project_performance(project: &str, relative_path: &str) -> DanmakuPerformance {
-    read_project_ron(project, relative_path)
+fn read_fixture_performance(project: &str, relative_path: &str) -> DanmakuPerformance {
+    read_fixture_ron(project, relative_path)
 }
 
-fn read_project_view(project: &str, relative_path: &str) -> ViewLayoutAsset {
-    read_project_ron(project, relative_path)
+fn read_fixture_view(project: &str, relative_path: &str) -> ViewLayoutAsset {
+    read_fixture_ron(project, relative_path)
 }
 
 fn assert_static_float(value: &souprune_schema::val::Val<f32>, expected: f32) {
@@ -348,18 +348,28 @@ fn assert_static_float(value: &souprune_schema::val::Val<f32>, expected: f32) {
     );
 }
 
-fn read_project_ron<T>(project: &str, relative_path: &str) -> T
+fn read_fixture_ron<T>(project: &str, relative_path: &str) -> T
 where
     T: serde::de::DeserializeOwned,
 {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../projects")
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let regression_path = manifest_dir
+        .join("tests/fixtures/battle_dialogue_channel_regressions")
         .join(project)
         .join(relative_path);
+    let baseline_path = manifest_dir
+        .join("tests/fixtures/project_ron_baselines")
+        .join(project)
+        .join(relative_path);
+    let path = if regression_path.exists() {
+        regression_path
+    } else {
+        baseline_path
+    };
     let ron_text = fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("project RON should be readable: {}: {err}", path.display()));
+        .unwrap_or_else(|err| panic!("fixture RON should be readable: {}: {err}", path.display()));
     ron::Options::default()
         .with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
         .from_str(&ron_text)
-        .unwrap_or_else(|err| panic!("project RON should parse: {}: {err}", path.display()))
+        .unwrap_or_else(|err| panic!("fixture RON should parse: {}: {err}", path.display()))
 }
