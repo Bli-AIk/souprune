@@ -14,6 +14,9 @@
 
 use egui::Color32;
 use souprune_schema::Val as Value;
+use souprune_schema::battle::{
+    BattleSpeechBubbleAdvance, BattleSpeechBubbleDef, BattleSpeechBubbleFrame,
+};
 use souprune_schema::sequence::{
     CameraAction, Chapter, EaseKindRepr, ElementModification, ElementSelector, FactCondition,
     FactValueMatch, GapPolicy, LogLevel, PlayerAction, SplitAxis, TweenTarget, UIAction,
@@ -223,6 +226,22 @@ fn all_categories() -> Vec<CategoryDef> {
                     icon: "[LE]",
                     create: || Chapter::LoadEnemies {
                         enemies: vec![String::new()],
+                    },
+                },
+                ChapterTemplate {
+                    name: "BattleSpeechBubble",
+                    icon: "[ES]",
+                    create: || {
+                        Chapter::BattleSpeechBubble(BattleSpeechBubbleDef {
+                            channel: "battle_enemy_speech".into(),
+                            mortar_path: String::new(),
+                            mortar_node: String::new(),
+                            frame: BattleSpeechBubbleFrame::MadDummyWide,
+                            advance: BattleSpeechBubbleAdvance::Manual,
+                            hide_on_finish: true,
+                            voice: None,
+                            typewriter_speed: None,
+                        })
                     },
                 },
                 ChapterTemplate {

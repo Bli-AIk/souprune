@@ -140,4 +140,24 @@ mod tests {
             other => panic!("unexpected chapter parsed: {other:?}"),
         }
     }
+
+    #[test]
+    fn parses_battle_speech_bubble_chapter() {
+        let ron = r#"BattleSpeechBubble((
+            mortar_path: "battle/enemies/mad_dummy.mortar",
+            mortar_node: "enemy_speech_manual_intro",
+            frame: MadDummyWide,
+            advance: Manual,
+        ))"#;
+
+        let chapter: Chapter = ron::from_str(ron).expect("BattleSpeechBubble should parse");
+
+        match chapter {
+            Chapter::BattleSpeechBubble(request) => {
+                assert_eq!(request.channel, "battle_enemy_speech");
+                assert_eq!(request.mortar_node, "enemy_speech_manual_intro");
+            }
+            other => panic!("unexpected chapter parsed: {other:?}"),
+        }
+    }
 }

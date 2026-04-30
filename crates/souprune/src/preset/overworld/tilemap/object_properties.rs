@@ -268,6 +268,7 @@ impl DialogueProps {
 
     fn to_action(&self) -> GameActionDef {
         GameActionDef::StartDialogue {
+            channel: None,
             mortar: self.mortar.clone(),
             node: self.node.clone(),
             view: self.view.clone(),

@@ -2,8 +2,12 @@
 //!
 //! 显式弹幕演出编写方式的回归测试。
 
+use souprune_schema::battle::{
+    BattleSpeechBubbleAdvance, BattleSpeechBubbleDef, BattleSpeechBubbleFrame,
+};
 use souprune_schema::danmaku::{
-    BulletBehavior, BulletPrototype, DanmakuPerformance, SpawnPattern, TimeMode, TimelineEvent,
+    BulletBehavior, BulletPrototype, DanmakuPerformance, SpawnPattern, TimeMode, TimelineCueDef,
+    TimelineEvent,
 };
 use std::collections::HashMap;
 
@@ -99,5 +103,28 @@ fn explicit_performance_authoring_supports_composed_parts() {
     assert!(matches!(
         performance.timeline[1].behaviors.as_slice(),
         [BulletBehavior::Stationary()]
+    ));
+}
+
+#[test]
+fn timeline_event_can_author_typed_battle_speech_bubble_cue_without_spawn() {
+    let event = TimelineEvent::absolute_battle_speech_bubble(
+        1.25,
+        BattleSpeechBubbleDef {
+            channel: "battle_enemy_speech".into(),
+            mortar_path: "battle/enemies/mad_dummy.mortar".into(),
+            mortar_node: "enemy_speech_timed_wave".into(),
+            frame: BattleSpeechBubbleFrame::MadDummyWide,
+            advance: BattleSpeechBubbleAdvance::Timed { duration: 2.0 },
+            hide_on_finish: true,
+            voice: None,
+            typewriter_speed: None,
+        },
+    );
+
+    assert!(event.spawn.is_none());
+    assert!(matches!(
+        event.cue,
+        Some(TimelineCueDef::BattleSpeechBubble(_))
     ));
 }

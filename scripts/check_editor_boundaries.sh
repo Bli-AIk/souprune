@@ -8,6 +8,11 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 cd "$ROOT_DIR"
 
+if [ -f scripts/workspace_ignore.txt ] && grep -qx 'souprune_editor' scripts/workspace_ignore.txt; then
+    echo "Editor boundary skipped: souprune_editor is ignored by scripts/workspace_ignore.txt."
+    exit 0
+fi
+
 hits="$(rg -n 'souprune::(core|app_state|extra)::' crates/souprune_editor/src -g '*.rs' || true)"
 
 if [ -n "$hits" ]; then

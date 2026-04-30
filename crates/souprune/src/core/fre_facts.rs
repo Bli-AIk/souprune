@@ -24,6 +24,14 @@ pub const DIALOGUE_ALL_TYPEWRITERS_FINISHED: &str = "dialogue:all_typewriters_fi
 pub const DIALOGUE_ANY_TYPEWRITER_FINISHED: &str = "dialogue:any_typewriter_finished";
 /// 是否使用打字机效果
 pub const DIALOGUE_HAS_TYPEWRITER: &str = "dialogue:has_typewriter";
+/// Pending dialogue channel.
+///
+/// 待启动对话通道。
+pub const DIALOGUE_PENDING_CHANNEL: &str = "dialogue:pending_channel";
+/// Default dialogue channel used when callers do not provide one.
+///
+/// 调用方未提供通道时使用的默认对话通道。
+pub const DIALOGUE_DEFAULT_CHANNEL: &str = "main";
 /// 触发对话启动的待处理标志
 pub const DIALOGUE_PENDING_START: &str = "dialogue:pending_start";
 /// 待处理的 Mortar 脚本路径
@@ -61,6 +69,25 @@ pub const DIALOGUE_REPLAY_ON_RESUME: &str = "dialogue:replay_on_resume";
 /// 停止打字机事件前缀（匹配 "dialogue:stop*"）
 pub const DIALOGUE_STOP_PREFIX: &str = "dialogue:stop";
 
+/// Normalize a dialogue channel name.
+///
+/// 规范化对话通道名。
+pub fn normalize_dialogue_channel(channel: &str) -> &str {
+    let trimmed = channel.trim();
+    if trimmed.is_empty() {
+        DIALOGUE_DEFAULT_CHANNEL
+    } else {
+        trimmed
+    }
+}
+
+/// Build a dialogue channel fact key: `dialogue:<channel>:<field>`.
+///
+/// 构造对话通道 fact key：`dialogue:<channel>:<field>`。
+pub fn dialogue_channel_key(channel: &str, field: &str) -> String {
+    format!("dialogue:{}:{}", normalize_dialogue_channel(channel), field)
+}
+
 // ── State facts (synced from Bevy states) ──────────────────────────
 
 /// 当前 SequenceSubState 名称
@@ -74,3 +101,21 @@ pub const STATE_APP_STATE: &str = "state:app_state";
 pub const VIEW_CLOSE_REQUESTED: &str = "view:close_requested";
 /// 请求切换状态的局部标志（值为目标状态名）
 pub const VIEW_SWITCH_STATE: &str = "view:switch_state";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dialogue_channel_key_namespaces_the_field() {
+        assert_eq!(
+            dialogue_channel_key("battle_enemy_speech", "text"),
+            "dialogue:battle_enemy_speech:text"
+        );
+    }
+
+    #[test]
+    fn empty_dialogue_channel_uses_main() {
+        assert_eq!(normalize_dialogue_channel(""), "main");
+    }
+}

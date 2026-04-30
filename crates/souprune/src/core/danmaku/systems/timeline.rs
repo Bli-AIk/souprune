@@ -18,6 +18,17 @@ use bevy_rand::prelude::GlobalRng;
 use bevy_rand::prelude::WyRand;
 use rand::RngExt;
 
+/// Generic cue emitted when a danmaku timeline reaches a non-bullet event.
+///
+/// 弹幕时间线到达非子弹事件时发出的通用 cue。
+#[derive(Message, Debug, Clone)]
+pub struct DanmakuTimelineCueEvent {
+    /// Typed cue payload.
+    ///
+    /// 类型化的 cue 载荷。
+    pub cue: TimelineCueDef,
+}
+
 /// A computed spawn point for a bullet within a pattern.
 struct SpawnPoint {
     /// World position where the bullet should spawn.
@@ -39,6 +50,7 @@ pub fn advance_performance_timeline(
     pattern_registry: Res<SpawnPatternRegistry>,
     mut loaded_mods: NonSendMut<LoadedMods>,
     spawn_context: Res<DanmakuSpawnContext>,
+    mut cue_writer: MessageWriter<DanmakuTimelineCueEvent>,
     mut query: Query<(Entity, &mut PerformancePlayer, &PerformanceHandle)>,
     player_query: Query<&Transform, (With<BulletTarget>, Without<Bullet>)>,
     viewbox_query: Query<(
@@ -77,6 +89,10 @@ pub fn advance_performance_timeline(
 
             if trigger_time > player.elapsed {
                 break;
+            }
+
+            if let Some(cue) = &event.cue {
+                cue_writer.write(DanmakuTimelineCueEvent { cue: cue.clone() });
             }
 
             spawn_bullets_from_timeline_event(
@@ -144,8 +160,11 @@ fn spawn_bullets_from_timeline_event(
     asset_server: &AssetServer,
     rng: &mut WyRand,
 ) {
-    let Some(prototype) = performance.prototypes.get(&event.spawn) else {
-        warn!("Prototype not found: {}", event.spawn);
+    let Some(spawn_id) = event.spawn.as_deref() else {
+        return;
+    };
+    let Some(prototype) = performance.prototypes.get(spawn_id) else {
+        warn!("Prototype not found: {}", spawn_id);
         return;
     };
 

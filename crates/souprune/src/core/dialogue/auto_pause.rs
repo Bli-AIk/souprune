@@ -22,7 +22,7 @@ use souprune_schema::dialogue::{
     AutoPauseConfig as SchemaAutoPauseConfig, DialogueConfig as SchemaDialogueConfig,
 };
 
-use super::components::MortarController;
+use super::components::{DialogueChannel, MortarController};
 use crate::core::fre_facts;
 
 /// Configuration resource for automatic punctuation pausing.
@@ -148,6 +148,7 @@ pub fn auto_pause_scan_system(
     mut query: Query<
         (
             Entity,
+            Option<&DialogueChannel>,
             &mut Typewriter,
             &mut AutoPauseState,
             Option<&AutoPauseTimer>,
@@ -156,19 +157,33 @@ pub fn auto_pause_scan_system(
     >,
     mut commands: Commands,
 ) {
-    let enabled = facts
-        .get_bool(fre_facts::DIALOGUE_AUTO_PAUSE_ENABLED)
-        .unwrap_or(true);
-    if !enabled {
-        return;
-    }
+    for (entity, channel, mut typewriter, mut state, existing_timer) in &mut query {
+        let enabled = channel
+            .and_then(|c| {
+                facts.get_bool(&fre_facts::dialogue_channel_key(
+                    &c.name,
+                    "auto_pause_enabled",
+                ))
+            })
+            .or_else(|| facts.get_bool(fre_facts::DIALOGUE_AUTO_PAUSE_ENABLED))
+            .unwrap_or(true);
+        if !enabled {
+            state.last_char_index = typewriter.current_char_index;
+            continue;
+        }
 
-    let preset_name = facts.get_string(fre_facts::DIALOGUE_AUTO_PAUSE_PRESET);
-    let Some(rules) = config.active_rules(preset_name) else {
-        return;
-    };
+        let preset_name = channel
+            .and_then(|c| {
+                facts.get_string(&fre_facts::dialogue_channel_key(
+                    &c.name,
+                    "auto_pause_preset",
+                ))
+            })
+            .or_else(|| facts.get_string(fre_facts::DIALOGUE_AUTO_PAUSE_PRESET));
+        let Some(rules) = config.active_rules(preset_name) else {
+            continue;
+        };
 
-    for (entity, mut typewriter, mut state, existing_timer) in &mut query {
         if typewriter.state != TypewriterState::Playing {
             state.last_char_index = typewriter.current_char_index;
             continue;

@@ -274,6 +274,7 @@ pub fn chapter_type_label(chapter: &Chapter) -> &'static str {
         Chapter::Break => "Break",
         Chapter::RandomPick { .. } => "RandomPick",
         Chapter::PickEnemyTurn { .. } => "PickEnemyTurn",
+        Chapter::BattleSpeechBubble(_) => "BattleSpeechBubble",
         Chapter::Log { .. } => "Log",
     }
 }

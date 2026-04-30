@@ -30,4 +30,4 @@ mod timeline;
 pub use lifecycle::{cleanup_dead_bullets, cleanup_empty_containers, update_bullet_lifetime};
 pub use motion::update_bullet_motion;
 pub use performance_loading::{process_play_performance_events, spawn_performance_players};
-pub use timeline::advance_performance_timeline;
+pub use timeline::{DanmakuTimelineCueEvent, advance_performance_timeline};

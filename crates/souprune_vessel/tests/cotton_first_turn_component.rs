@@ -53,7 +53,7 @@ fn cotton_first_turn_component_build_matches_reference_asset() {
     let summary = vessel::build_component(&component_path, &output_dir)
         .expect("vessel host should build cotton_first_turn from the guest component");
     assert_eq!(
-        summary.written_files, 23,
+        summary.written_files, 24,
         "expected all example_mod managed RON assets to be generated"
     );
 
