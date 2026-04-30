@@ -20,14 +20,27 @@ workspace_mode_requested() {
     [[ "${1:-}" == "--workspace" || "${1:-}" == "workspace" ]]
 }
 
+ignore_file() {
+    local modern="$SCRIPT_DIR/workspace_ignore.txt"
+    local legacy="$SCRIPT_DIR/lint_ignore.txt"
+
+    if [ -f "$modern" ]; then
+        echo "$modern"
+    elif [ -f "$legacy" ]; then
+        echo "$legacy"
+    fi
+}
+
 build_ignored_crate_map() {
     local map_file
+    local ignored_file
     map_file="$(mktemp)"
-    if [ -f "$SCRIPT_DIR/lint_ignore.txt" ]; then
+    ignored_file="$(ignore_file)"
+    if [ -n "$ignored_file" ]; then
         while IFS= read -r crate; do
             [[ "$crate" =~ ^#.*$ || -z "$crate" ]] && continue
             printf '%s\n' "$crate" >> "$map_file"
-        done < "$SCRIPT_DIR/lint_ignore.txt"
+        done < "$ignored_file"
     fi
     echo "$map_file"
 }
@@ -115,15 +128,16 @@ for sub in $(git config --file "$SCRIPT_DIR/.gitmodules" --get-regexp path | awk
     TOKEI_EXCLUDE="$TOKEI_EXCLUDE -e $sub"
 done
 
-# lint_ignore.txt lists third-party crates excluded from ALL checks.
+# workspace_ignore.txt lists crates excluded from root workspace quality gates.
 FIND_PRUNE=""
-if [ -f "$SCRIPT_DIR/lint_ignore.txt" ]; then
+IGNORED_FILE="$(ignore_file)"
+if [ -n "$IGNORED_FILE" ]; then
     while IFS= read -r crate; do
         [[ "$crate" =~ ^#.*$ || -z "$crate" ]] && continue
         SUBMODULE_EXCLUDES="$SUBMODULE_EXCLUDES --exclude-dir=$crate"
         FIND_PRUNE="$FIND_PRUNE -path */$crate -prune -o"
         TOKEI_EXCLUDE="$TOKEI_EXCLUDE -e $SEARCH_DIR$crate"
-    done < "$SCRIPT_DIR/lint_ignore.txt"
+    done < "$IGNORED_FILE"
 fi
 
 # --- Check 1: No mod.rs files (Rust 2018+ module style) ---

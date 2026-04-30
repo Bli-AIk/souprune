@@ -13,7 +13,6 @@ members = [
     "crates/souprune_mock_host",
     "crates/flambe",
     "crates/bevy_workbench",
-    "crates/souprune_editor",
     "crates/souprune_schema",
     "crates/souprune_lint",
     "crates/vessel",
@@ -25,6 +24,7 @@ members = [
 exclude = [
     "crates/mortar",
     "crates/iyes_perf_ui",
+    "crates/souprune_editor",
     "crates/souprune_mod_test",
     "crates/souprune_builtins",
 ]
