@@ -44,7 +44,6 @@ name = "souprune_sdk"
 [[package]]
 name = "souprune_mock_host"
 release = false
-souprune_editor = false
 
 [[package]]
 name = "souprune_editor"
