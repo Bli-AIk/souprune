@@ -20,6 +20,61 @@ use crate::core::game_action::{
     GameActionDef, GameActionHandlerRegistry, GameRule, GameRuleRegistry,
 };
 
+struct StartDialogueFacts<'a> {
+    channel: &'a str,
+    mortar: &'a str,
+    node: &'a str,
+    view: Option<&'a str>,
+    typewriter: bool,
+    focus: bool,
+    voice: Option<&'a str>,
+}
+
+fn set_start_dialogue_facts(fact_db: &mut LayeredFactDatabase, facts: StartDialogueFacts<'_>) {
+    fact_db.set_local(
+        fre_facts::DIALOGUE_PENDING_CHANNEL,
+        FactValue::String(facts.channel.to_string()),
+    );
+    fact_db.set_local(
+        fre_facts::DIALOGUE_PENDING_MORTAR_PATH,
+        FactValue::String(facts.mortar.to_string()),
+    );
+    fact_db.set_local(
+        fre_facts::DIALOGUE_PENDING_MORTAR_NODE,
+        FactValue::String(facts.node.to_string()),
+    );
+    if let Some(view_path) = facts.view {
+        fact_db.set_local(
+            fre_facts::DIALOGUE_PENDING_VIEW,
+            FactValue::String(view_path.to_string()),
+        );
+    }
+    fact_db.set_local(
+        fre_facts::DIALOGUE_HAS_TYPEWRITER,
+        FactValue::Bool(facts.typewriter),
+    );
+    fact_db.set_local(
+        fre_facts::dialogue_channel_key(facts.channel, "has_typewriter"),
+        FactValue::Bool(facts.typewriter),
+    );
+    fact_db.set_local(fre_facts::DIALOGUE_HAS_FOCUS, FactValue::Bool(facts.focus));
+    fact_db.set_local(
+        fre_facts::dialogue_channel_key(facts.channel, "has_focus"),
+        FactValue::Bool(facts.focus),
+    );
+    if let Some(voice_path) = facts.voice {
+        fact_db.set_local(
+            fre_facts::DIALOGUE_VOICE,
+            FactValue::String(voice_path.to_string()),
+        );
+        fact_db.set_local(
+            fre_facts::dialogue_channel_key(facts.channel, "voice"),
+            FactValue::String(voice_path.to_string()),
+        );
+    }
+    fact_db.set_local(fre_facts::DIALOGUE_PENDING_START, FactValue::Bool(true));
+}
+
 fn dispatch_single_custom_action(
     action: &GameActionDef,
     rule: &GameRule,
@@ -46,36 +101,18 @@ fn dispatch_single_custom_action(
                 "FRE: StartDialogue(channel: {}, mortar: {}, node: {}) from rule '{}'",
                 channel, mortar, node, rule.id
             );
-            fact_db.set_local(
-                fre_facts::DIALOGUE_PENDING_CHANNEL,
-                FactValue::String(channel.to_string()),
+            set_start_dialogue_facts(
+                fact_db,
+                StartDialogueFacts {
+                    channel,
+                    mortar,
+                    node,
+                    view: view.as_deref(),
+                    typewriter: *typewriter,
+                    focus: *focus,
+                    voice: voice.as_deref(),
+                },
             );
-            fact_db.set_local(
-                fre_facts::DIALOGUE_PENDING_MORTAR_PATH,
-                FactValue::String(mortar.clone()),
-            );
-            fact_db.set_local(
-                fre_facts::DIALOGUE_PENDING_MORTAR_NODE,
-                FactValue::String(node.clone()),
-            );
-            if let Some(view_path) = view {
-                fact_db.set_local(
-                    fre_facts::DIALOGUE_PENDING_VIEW,
-                    FactValue::String(view_path.clone()),
-                );
-            }
-            fact_db.set_local(
-                fre_facts::DIALOGUE_HAS_TYPEWRITER,
-                FactValue::Bool(*typewriter),
-            );
-            fact_db.set_local(fre_facts::DIALOGUE_HAS_FOCUS, FactValue::Bool(*focus));
-            if let Some(voice_path) = voice {
-                fact_db.set_local(
-                    fre_facts::DIALOGUE_VOICE,
-                    FactValue::String(voice_path.clone()),
-                );
-            }
-            fact_db.set_local(fre_facts::DIALOGUE_PENDING_START, FactValue::Bool(true));
         }
         GameActionDef::Custom {
             action_type,
@@ -176,6 +213,56 @@ pub fn dispatch_custom_actions_system(
             &enum_registry,
             &mut event_trace,
             &time,
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn start_dialogue_refreshes_channel_scoped_facts() {
+        let mut facts = LayeredFactDatabase::new();
+        let channel = fre_facts::DIALOGUE_DEFAULT_CHANNEL;
+
+        facts.set_local(
+            fre_facts::dialogue_channel_key(channel, "has_focus"),
+            FactValue::Bool(false),
+        );
+        facts.set_local(
+            fre_facts::dialogue_channel_key(channel, "has_typewriter"),
+            FactValue::Bool(false),
+        );
+        facts.set_local(
+            fre_facts::dialogue_channel_key(channel, "voice"),
+            FactValue::String("old.wav".to_string()),
+        );
+
+        set_start_dialogue_facts(
+            &mut facts,
+            StartDialogueFacts {
+                channel,
+                mortar: "overworld/dialogue.mortar",
+                node: "demo_talk",
+                view: Some("overworld/view/dialogue.view.ron"),
+                typewriter: true,
+                focus: true,
+                voice: Some("new.wav"),
+            },
+        );
+
+        assert_eq!(
+            facts.get_bool(&fre_facts::dialogue_channel_key(channel, "has_focus")),
+            Some(true)
+        );
+        assert_eq!(
+            facts.get_bool(&fre_facts::dialogue_channel_key(channel, "has_typewriter")),
+            Some(true)
+        );
+        assert_eq!(
+            facts.get_string(&fre_facts::dialogue_channel_key(channel, "voice")),
+            Some("new.wav")
         );
     }
 }

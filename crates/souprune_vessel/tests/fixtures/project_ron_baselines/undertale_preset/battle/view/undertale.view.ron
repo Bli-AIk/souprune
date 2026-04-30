@@ -15,7 +15,7 @@
 //    structure globally, please edit the Vessel source schema/configuration
 //    instead of modifying this file directly.
 // =============================================================================
-// Generated at: 2026-04-27 22:00:21 +08:00
+// Generated at: 2026-04-30 17:14:33 +08:00
 
 (
     roots: [
@@ -323,28 +323,13 @@
             background_color: None,
             border_color: None,
             image: None,
-            sprite: Some((
-                visual: "battle/speech_bubble/mad_dummy_wide.png",
-                initial_state: None,
-                color: None,
-                flip_x: false,
-                flip_y: false,
-                transform: Some((
-                    translation: Some((0.0, 0.0, 0.0)),
-                    rotation: None,
-                    scale: Some((1.0, 1.0, 1.0)),
-                )),
-                pivot: Some((0.0, 0.0)),
-                frame_duration: None,
-                visible_when: None,
-                material: None,
-            )),
+            sprite: None,
             state_sprite: None,
             texts: [
                 (
                     id: "EnemySpeechText",
                     content: Some("{{dialogue:battle_enemy_speech:text}}"),
-                    font: "DTM-Mono",
+                    font: "speechbubble",
                     align: None,
                     anchor: None,
                     world_scale: (13.0, 13.0),
@@ -362,7 +347,49 @@
                 ),
             ],
             view_box: None,
-            children: [],
+            children: [
+                (
+                    name: "EnemySpeechBubbleSprite",
+                    tags: [],
+                    style: (
+                        width: None,
+                        height: None,
+                        left: None,
+                        right: None,
+                        top: None,
+                        bottom: None,
+                        position_type: None,
+                        flex_direction: None,
+                        justify_content: None,
+                        align_items: None,
+                    ),
+                    visible_when: None,
+                    background_color: None,
+                    border_color: None,
+                    image: None,
+                    sprite: Some((
+                        visual: "battle/speech_bubble/mad_dummy_wide.png",
+                        initial_state: None,
+                        color: None,
+                        flip_x: false,
+                        flip_y: false,
+                        transform: Some((
+                            translation: Some((0.0, 0.0, 0.0)),
+                            rotation: None,
+                            scale: Some((0.5, 0.5, 1.0)),
+                        )),
+                        pivot: Some((0.0, 0.0)),
+                        frame_duration: None,
+                        visible_when: None,
+                        material: None,
+                    )),
+                    state_sprite: None,
+                    texts: [],
+                    view_box: None,
+                    children: [],
+                    repeat: None,
+                ),
+            ],
             repeat: None,
         ),
         (

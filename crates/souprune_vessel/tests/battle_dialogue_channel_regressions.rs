@@ -107,6 +107,78 @@ fn narrative_dialogue_rules_advance_enemy_speech_channel() {
 }
 
 #[test]
+fn narrative_dialogue_rules_advance_default_dialogue_channel() {
+    let rules = read_project_fre("undertale_preset", "narrative/dialogue.fre.ron");
+
+    let has_default_advance = rules.rules.iter().any(|rule| {
+        matches!(
+            &rule.event,
+            RuleEventDef::ActionEvent {
+                action,
+                kind: souprune_schema::fre::ActionEventKind::JustPressed,
+            } if action == "Confirm"
+        ) && rule
+            .conditions
+            .iter()
+            .any(|condition| condition == "$dialogue:has_focus == true")
+            && rule
+                .conditions
+                .iter()
+                .any(|condition| condition == "$dialogue:typewriter_playing == false")
+            && rule
+                .outputs
+                .iter()
+                .any(|output| output == "dialogue_advance")
+    });
+
+    let has_default_confirm_skip = rules.rules.iter().any(|rule| {
+        matches!(
+            &rule.event,
+            RuleEventDef::ActionEvent {
+                action,
+                kind: souprune_schema::fre::ActionEventKind::JustPressed,
+            } if action == "Confirm"
+        ) && rule
+            .conditions
+            .iter()
+            .any(|condition| condition == "$dialogue:has_focus == true")
+            && rule
+                .conditions
+                .iter()
+                .any(|condition| condition == "$dialogue:typewriter_playing == true")
+            && rule
+                .outputs
+                .iter()
+                .any(|output| output == "dialogue_skip_typewriter")
+    });
+
+    let has_default_cancel_skip = rules.rules.iter().any(|rule| {
+        matches!(
+            &rule.event,
+            RuleEventDef::ActionEvent {
+                action,
+                kind: souprune_schema::fre::ActionEventKind::JustPressed,
+            } if action == "Cancel"
+        ) && rule
+            .conditions
+            .iter()
+            .any(|condition| condition == "$dialogue:has_focus == true")
+            && rule
+                .conditions
+                .iter()
+                .any(|condition| condition == "$dialogue:typewriter_playing == true")
+            && rule
+                .outputs
+                .iter()
+                .any(|output| output == "dialogue_skip_typewriter")
+    });
+
+    assert!(has_default_advance);
+    assert!(has_default_confirm_skip);
+    assert!(has_default_cancel_skip);
+}
+
+#[test]
 fn enemy_speech_confirm_skips_typewriter_before_advancing() {
     let rules = read_project_fre("undertale_preset", "narrative/dialogue.fre.ron");
 
@@ -131,6 +203,33 @@ fn enemy_speech_confirm_skips_typewriter_before_advancing() {
     });
 
     assert!(has_enemy_confirm_skip);
+}
+
+#[test]
+fn overworld_dialogue_view_reads_main_channel_text() {
+    let view = read_project_view("undertale_preset", "overworld/view/dialogue.view.ron");
+    let node = view
+        .roots
+        .iter()
+        .find(|node| node.name == "DialogueBox")
+        .expect("overworld dialogue view should define DialogueBox");
+    let text = node
+        .texts
+        .iter()
+        .find(|text| text.id == "DialogueText")
+        .expect("DialogueBox should define DialogueText");
+
+    assert_eq!(
+        node.visible_when.as_deref(),
+        Some("$dialogue:active == true")
+    );
+    assert_eq!(text.content.as_deref(), Some("{{dialogue:main:text}}"));
+    assert!(
+        view.facts
+            .as_ref()
+            .is_none_or(|facts| !facts.contains_key("dialogue_text")),
+        "overworld dialogue text should come from the dialogue main channel"
+    );
 }
 
 #[test]
