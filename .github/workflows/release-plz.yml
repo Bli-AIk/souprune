@@ -45,7 +45,9 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run release-plz release
-        run: release-plz release
+        run: release-plz release --git-token "$GITHUB_TOKEN"
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
 
   release-plz-pr:
     name: Release-plz PR
@@ -87,7 +89,9 @@ jobs:
 
       - name: Run release-plz release-pr
         id: release-plz-pr
-        run: release-plz release-pr
+        run: release-plz release-pr --git-token "$GITHUB_TOKEN"
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
         continue-on-error: true
 
       - name: Warn on release-plz failure
