@@ -1,6 +1,6 @@
-//! # souprune_vessel — SoupRune extension for Vessel
+//! # souprune_cauld_ron — SoupRune extension for Cauld-ron
 //!
-//! # souprune_vessel — Vessel 的 SoupRune 扩展
+//! # souprune_cauld_ron — Cauld-ron 的 SoupRune 扩展
 //!
 //! Provides export support and authoring helpers for generating SoupRune
 //! RON files from Rust code.
@@ -20,9 +20,9 @@ pub mod prelude;
 #[cfg(not(target_arch = "wasm32"))]
 pub use host::{build_component, write_generated_files};
 
-/// Export a Rust guest as a Vessel build-time WASM component.
+/// Export a Rust guest as a Cauld-ron build-time WASM component.
 ///
-/// 将一个 Rust guest 导出为 Vessel 构建期 WASM component。
+/// 将一个 Rust guest 导出为 Cauld-ron 构建期 WASM component。
 ///
 /// # Arguments
 /// - `$reg`: Identifier for the registry instance.
@@ -34,21 +34,21 @@ pub use host::{build_component, write_generated_files};
 /// - `$reg_ty`: 注册表类型（通常为 `Registry`）。
 /// - `$body`: 填充注册表的构建逻辑。
 #[macro_export]
-macro_rules! vessel_guest {
+macro_rules! cauld_ron_guest {
     (fn build($reg:ident : &mut $reg_ty:ty) -> $ret:ty $body:block) => {
-        struct VesselContentModule;
+        struct Cauld-ronContentModule;
 
-        impl $crate::guest::wit::Guest for VesselContentModule {
+        impl $crate::guest::wit::Guest for Cauld-ronContentModule {
             fn build() -> ::std::vec::Vec<$crate::guest::wit::GeneratedFile> {
                 let mut $reg: $reg_ty = <$reg_ty>::new();
                 let build_result: $ret = (|| -> $ret { $body })();
                 if let Err(err) = build_result {
-                    panic!("[vessel_guest] build failed: {err}");
+                    panic!("[cauld_ron_guest] build failed: {err}");
                 }
                 $reg.into_generated_files()
             }
         }
 
-        $crate::guest::wit::export!(VesselContentModule with_types_in $crate::guest);
+        $crate::guest::wit::export!(Cauld-ronContentModule with_types_in $crate::guest);
     };
 }

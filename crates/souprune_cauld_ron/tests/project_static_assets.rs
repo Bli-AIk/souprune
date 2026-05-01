@@ -56,8 +56,8 @@ fn project_generated_assets_canonicalize_against_selected_baselines() {
 
         checked_projects += 1;
         let component_path = build_content_component(project_name);
-        let generated_files = vessel::load_component_files(&component_path)
-            .expect("project content guest should load through vessel host");
+        let generated_files = cauld_ron::load_component_files(&component_path)
+            .expect("project content guest should load through cauld-ron host");
         assert!(
             !generated_files.is_empty(),
             "content guest should emit at least one file"

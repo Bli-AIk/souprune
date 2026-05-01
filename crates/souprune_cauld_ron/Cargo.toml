@@ -1,9 +1,9 @@
 [package]
-name = "souprune_vessel"
+name = "souprune_cauld_ron"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "SoupRune extension for Vessel — danmaku performance constructors"
+description = "SoupRune extension for Cauld-ron — danmaku performance constructors"
 
 [dependencies]
 anyhow = "1"
@@ -16,10 +16,10 @@ wit-bindgen = "0.57"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 serde_json = "1"
-vessel = { path = "../vessel", version = "0.1" }
+cauld-ron = { path = "../cauld-ron", version = "0.1" }
 
 [[bin]]
-name = "vessel-deps"
+name = "cauld-ron-deps"
 path = "src/bin/deps/main.rs"
 required-features = ["deps-cli"]
 
