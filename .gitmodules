@@ -28,7 +28,7 @@
 	path = crates/bevy_bitmap_text
 	url = git@github.com:Bli-AIk/bevy_bitmap_text.git
 	branch = feat/init
-[submodule "crates/vessel"]
-	path = crates/vessel
-	url = git@github.com:Bli-AIk/vessel.git
-	branch = feat/init
+[submodule "crates/cauld-ron"]
+	path = crates/cauld-ron
+	url = git@github.com:Bli-AIk/cauld-ron.git
+	branch = main

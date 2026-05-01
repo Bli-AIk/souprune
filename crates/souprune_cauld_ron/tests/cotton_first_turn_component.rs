@@ -1,6 +1,6 @@
-//! End-to-end test for `cotton_first_turn` through a real Vessel guest component.
+//! End-to-end test for `cotton_first_turn` through a real Cauld-ron guest component.
 //!
-//! `cotton_first_turn` 通过真实 Vessel guest component 的端到端测试。
+//! `cotton_first_turn` 通过真实 Cauld-ron guest component 的端到端测试。
 
 #[path = "support/cotton_first_turn_assertions.rs"]
 mod cotton_first_turn_assertions;
@@ -47,11 +47,11 @@ fn cotton_first_turn_component_build_matches_reference_asset() {
         .duration_since(UNIX_EPOCH)
         .expect("system clock should be after unix epoch")
         .as_nanos();
-    let output_dir = std::env::temp_dir().join(format!("vessel_cotton_first_turn_{unique}"));
+    let output_dir = std::env::temp_dir().join(format!("cauld_ron_cotton_first_turn_{unique}"));
     let _ = fs::remove_dir_all(&output_dir);
 
-    let summary = vessel::build_component(&component_path, &output_dir)
-        .expect("vessel host should build cotton_first_turn from the guest component");
+    let summary = cauld_ron::build_component(&component_path, &output_dir)
+        .expect("cauld-ron host should build cotton_first_turn from the guest component");
     assert_eq!(
         summary.written_files, 24,
         "expected all example_mod managed RON assets to be generated"

@@ -68,7 +68,7 @@ pub fn generate_content_registry(config: &ContentRegistryConfig) -> io::Result<P
     collect_asset_modules(&source_root, &source_root, config, &mut modules)?;
     modules.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
 
-    let registry_path = out_dir.join("vessel_content_registry.rs");
+    let registry_path = out_dir.join("cauld_ron_content_registry.rs");
     fs::write(&registry_path, render_registry(&modules))?;
     Ok(registry_path)
 }

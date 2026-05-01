@@ -7,7 +7,7 @@ use clap::Parser;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
-#[command(name = "vessel-deps")]
+#[command(name = "cauld-ron-deps")]
 #[command(about = "Resolve mod dependency tree for build ordering")]
 struct Cli {
     /// Name of the target mod.
@@ -19,7 +19,7 @@ struct Cli {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    let order = souprune_vessel::deps::resolve_deps(&cli.projects_root, &cli.mod_name)?;
+    let order = souprune_cauld_ron::deps::resolve_deps(&cli.projects_root, &cli.mod_name)?;
     for name in &order {
         println!("{name}");
     }

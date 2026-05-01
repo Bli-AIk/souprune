@@ -1,6 +1,6 @@
-//! Guest-side helpers for Vessel content modules.
+//! Guest-side helpers for Cauld-ron content modules.
 //!
-//! Vessel 内容模块的 guest 侧辅助工具。
+//! Cauld-ron 内容模块的 guest 侧辅助工具。
 
 use anyhow::{Result, anyhow, bail};
 use serde::Serialize;
@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use crate::float_output::{FloatOutputConfig, normalize_ron_floats};
 
 wit_bindgen::generate!({
-    path: "../vessel/wit",
+    path: "../cauld-ron/wit",
     world: "content-module",
     pub_export_macro: true,
 });
@@ -21,7 +21,7 @@ wit_bindgen::generate!({
 pub mod wit {
     pub use super::Guest;
     pub use super::export;
-    pub use super::vessel::build::types::GeneratedFile;
+    pub use super::cauld_ron::build::types::GeneratedFile;
 }
 
 /// Guest-side registry that collects generated RON files before export.
