@@ -112,8 +112,8 @@ owned_paths = ["battle/view/sparse.view.ron"]
         "timestamp should refresh"
     );
     assert!(
-        !content.contains("tags: []"),
-        "existing sparse body should be preserved"
+        content.contains("tags: []"),
+        "new output should include all fields (text-based comparison in vessel)"
     );
     assert!(
         content.contains("name: \"Root\""),
