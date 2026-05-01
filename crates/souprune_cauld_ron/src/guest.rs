@@ -20,8 +20,8 @@ wit_bindgen::generate!({
 /// WIT guest 侧生成项的重导出。
 pub mod wit {
     pub use super::Guest;
-    pub use super::export;
     pub use super::cauld_ron::build::types::GeneratedFile;
+    pub use super::export;
 }
 
 /// Guest-side registry that collects generated RON files before export.
