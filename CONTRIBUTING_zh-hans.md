@@ -80,7 +80,9 @@ SoupRune 是为创作 Deltarune / Undertale 风格同人游戏而生的框架。
 - **关卡设计** — 使用 [Tiled](https://www.mapeditor.org/) 地图编辑器创建地图
 - **WASM Mod** — 用任何能编译到 WebAssembly 的语言来构建 Mod
 
-📚 **入门指南**：参见 官方文档 与 [示例 Mod 仓库](https://github.com/Bli-AIk/souprune_example_mods)。
+📚 **入门指南**：参见官方文档，以及维护中的示例仓库：
+[`souprune_undertale_preset`](https://github.com/Bli-AIk/souprune_undertale_preset) 和
+[`souprune_mad_dummy_example`](https://github.com/Bli-AIk/souprune_mad_dummy_example)。
 
 ### A2. 贡献社区 Mod
 

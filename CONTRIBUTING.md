@@ -86,8 +86,9 @@ SoupRune is built for creating Deltarune/Undertale-style fangames. Here's what y
 - **Level design** — Create maps with the [Tiled](https://www.mapeditor.org/) map editor
 - **WASM Mods** — Build Mods in any language that compiles to WebAssembly
 
-📚 **Getting started**: See official documentation
-or [example mods repository](https://github.com/Bli-AIk/souprune_example_mods).
+📚 **Getting started**: See official documentation and the maintained example repositories:
+[`souprune_undertale_preset`](https://github.com/Bli-AIk/souprune_undertale_preset) and
+[`souprune_mad_dummy_example`](https://github.com/Bli-AIk/souprune_mad_dummy_example).
 
 ### A2. Contribute to Community Mods
 

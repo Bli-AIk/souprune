@@ -32,7 +32,7 @@
 cargo run -p souprune-lint -- check path/to/file.view.ron
 
 # 递归检查目录
-cargo run -p souprune-lint -- check projects/example_mod/
+cargo run -p souprune-lint -- check projects/mad_dummy_example/
 
 # 指定输出格式
 cargo run -p souprune-lint -- check --format jetbrains projects/

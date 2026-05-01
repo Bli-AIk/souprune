@@ -32,7 +32,7 @@
 cargo run -p souprune-lint -- check path/to/file.view.ron
 
 # Lint a directory recursively
-cargo run -p souprune-lint -- check projects/example_mod/
+cargo run -p souprune-lint -- check projects/mad_dummy_example/
 
 # Specify output format
 cargo run -p souprune-lint -- check --format jetbrains projects/

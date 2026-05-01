@@ -66,7 +66,7 @@ projects/**/code/**/Cargo.lock
 crates/**/tests/fixtures/**/Cargo.lock
 
 
-# Mod repo worktree manager
+# Legacy local mod repository cache
 .mod-repo/
 # Android build artifacts
 android/.gradle/
@@ -74,9 +74,11 @@ android/app/build/
 android/app/src/main/jniLibs/
 android/build/
 
-# Project mods (each is its own repo/branch, only config.toml tracked)
+# Project mods (local user projects are ignored; maintained examples are git submodules)
 projects/*/
 !projects/config.toml
+!projects/undertale_preset/
+!projects/mad_dummy_example/
 
 # Local work directories
 .workbench/

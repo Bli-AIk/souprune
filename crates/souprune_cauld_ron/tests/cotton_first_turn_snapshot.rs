@@ -11,7 +11,7 @@ use souprune_schema::danmaku::DanmakuPerformance;
 #[test]
 fn cotton_first_turn_fixture_round_trips_through_schema() {
     let original_ron = include_str!(
-        "fixtures/project_ron_baselines/example_mod/battle/danmaku/cotton_first_turn.performance.ron"
+        "fixtures/project_ron_baselines/mad_dummy_example/battle/danmaku/cotton_first_turn.performance.ron"
     );
     let original: DanmakuPerformance =
         ron::from_str(original_ron).expect("hand-written cotton_first_turn should parse");

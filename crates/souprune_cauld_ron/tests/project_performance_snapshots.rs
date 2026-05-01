@@ -41,7 +41,7 @@ fn sort_value(value: Value) -> Value {
 #[test]
 fn tracked_performance_fixtures_parse_and_canonicalize() {
     assert_fixture_canonicalizes(
-        "crates/souprune_cauld_ron/tests/fixtures/project_ron_baselines/example_mod/battle/danmaku/cotton_first_turn.performance.ron",
+        "crates/souprune_cauld_ron/tests/fixtures/project_ron_baselines/mad_dummy_example/battle/danmaku/cotton_first_turn.performance.ron",
     );
 }
 
