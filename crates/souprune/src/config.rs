@@ -63,9 +63,9 @@ pub struct SoupruneConfig {
     #[serde(skip)]
     pub mod_library: ModLibraryConfig,
 
-    /// Content library configuration for build-time Vessel guests.
+    /// Content library configuration for build-time Cauld-ron guests.
     ///
-    /// 构建期 Vessel guest 的内容库配置。
+    /// 构建期 Cauld-ron guest 的内容库配置。
     #[serde(skip)]
     pub content_library: ContentLibraryConfig,
 
@@ -118,10 +118,10 @@ pub struct ContentLibraryConfig {
     pub wasm: String,
 
     /// Optional file header prepended to generated content files.
-    /// When absent, Vessel uses its default bootstrap warning block.
+    /// When absent, Cauld-ron uses its default bootstrap warning block.
     ///
     /// 生成内容文件时附加的可选文件头。
-    /// 未设置时，Vessel 使用默认的 bootstrap 警告块。
+    /// 未设置时，Cauld-ron 使用默认的 bootstrap 警告块。
     pub generated_file_header: Option<String>,
 }
 

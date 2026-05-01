@@ -66,8 +66,8 @@ fn cotton_first_turn_component_build_matches_reference_asset() {
     let generated_ron = fs::read_to_string(&output_path)
         .expect("generated cotton_first_turn output should be readable");
     assert!(
-        generated_ron.contains("BOOTSTRAPPED BY VESSEL"),
-        "generated output should contain the Vessel bootstrap header"
+        generated_ron.contains("BOOTSTRAPPED BY CAULD-RON"),
+        "generated output should contain the Cauld-ron bootstrap header"
     );
     assert!(
         generated_ron.contains("// Generated at: "),

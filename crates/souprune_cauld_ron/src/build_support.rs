@@ -136,7 +136,7 @@ fn normalize_path(path: &Path) -> String {
 
 fn sanitize_module_name(relative_path: &str) -> String {
     let without_extension = relative_path.strip_suffix(".rs").unwrap_or(relative_path);
-    let mut module_name = String::from("__cauld-ron_content_");
+    let mut module_name = String::from("__cauld_ron_content_");
     for ch in without_extension.chars() {
         if ch.is_ascii_alphanumeric() {
             module_name.push(ch);

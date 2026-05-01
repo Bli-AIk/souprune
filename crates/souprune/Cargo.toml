@@ -12,6 +12,7 @@ readme = "../../readme.md"
 keywords = ["game-framework", "deltarune", "undertale", "game-engine", "bevy"]
 categories = ["game-development", "game-engines"]
 exclude = [
+    ".cargo/",
     "target/*",
     ".github/*",
     "assets/fonts/*",

@@ -36,9 +36,9 @@ pub use host::{build_component, write_generated_files};
 #[macro_export]
 macro_rules! cauld_ron_guest {
     (fn build($reg:ident : &mut $reg_ty:ty) -> $ret:ty $body:block) => {
-        struct Cauld-ronContentModule;
+        struct CauldRonContentModule;
 
-        impl $crate::guest::wit::Guest for Cauld-ronContentModule {
+        impl $crate::guest::wit::Guest for CauldRonContentModule {
             fn build() -> ::std::vec::Vec<$crate::guest::wit::GeneratedFile> {
                 let mut $reg: $reg_ty = <$reg_ty>::new();
                 let build_result: $ret = (|| -> $ret { $body })();
@@ -49,6 +49,6 @@ macro_rules! cauld_ron_guest {
             }
         }
 
-        $crate::guest::wit::export!(Cauld-ronContentModule with_types_in $crate::guest);
+        $crate::guest::wit::export!(CauldRonContentModule with_types_in $crate::guest);
     };
 }
