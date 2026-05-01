@@ -14,12 +14,12 @@ fn temp_output_dir(prefix: &str) -> PathBuf {
 
 #[test]
 fn souprune_wrapper_preserves_sparse_semantically_equal_view_body() {
-    let output_dir = temp_output_dir("souprune_vessel_semantic_preserve");
+    let output_dir = temp_output_dir("souprune_cauld_ron_semantic_preserve");
 
     fs::create_dir_all(output_dir.join("battle/view")).expect("should create output directory");
     fs::create_dir_all(output_dir.join(".build")).expect("should create build directory");
     fs::write(
-        output_dir.join(".build/vessel-output-manifest.toml"),
+        output_dir.join(".build/cauld-ron-output-manifest.toml"),
         r#"version = 1
 owned_paths = ["battle/view/sparse.view.ron"]
 "#,
@@ -61,8 +61,8 @@ owned_paths = ["battle/view/sparse.view.ron"]
     )
     .expect("should write sparse existing output");
 
-    souprune_vessel::write_generated_files(
-        &[vessel::GeneratedRonFile {
+    souprune_cauld_ron::write_generated_files(
+        &[cauld_ron::GeneratedRonFile {
             path: PathBuf::from("battle/view/sparse.view.ron"),
             ron_text: r#"(
     roots: [
