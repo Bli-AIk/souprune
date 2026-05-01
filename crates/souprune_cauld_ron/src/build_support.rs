@@ -136,7 +136,7 @@ fn normalize_path(path: &Path) -> String {
 
 fn sanitize_module_name(relative_path: &str) -> String {
     let without_extension = relative_path.strip_suffix(".rs").unwrap_or(relative_path);
-    let mut module_name = String::from("__vessel_content_");
+    let mut module_name = String::from("__cauld-ron_content_");
     for ch in without_extension.chars() {
         if ch.is_ascii_alphanumeric() {
             module_name.push(ch);
@@ -149,8 +149,8 @@ fn sanitize_module_name(relative_path: &str) -> String {
 
 fn render_registry(modules: &[AssetModule]) -> String {
     let mut output = String::from(
-        "// Auto-generated Vessel content registry.\n\
-         // 自动生成的 Vessel content registry。\n\n",
+        "// Auto-generated Cauld-ron content registry.\n\
+         // 自动生成的 Cauld-ron content registry。\n\n",
     );
 
     for module in modules {
@@ -165,7 +165,7 @@ fn render_registry(modules: &[AssetModule]) -> String {
         "\n/// Emit all auto-discovered content assets.\n\
          ///\n\
          /// 生成全部自动发现的内容资源。\n\
-         pub fn emit_all(reg: &mut souprune_vessel::prelude::Registry) -> anyhow::Result<()> {\n",
+         pub fn emit_all(reg: &mut souprune_cauld_ron::prelude::Registry) -> anyhow::Result<()> {\n",
     );
 
     for module in modules {
@@ -193,7 +193,8 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("clock drift")
             .as_nanos();
-        let sandbox_root = env::temp_dir().join(format!("souprune_vessel_build_support_{unique}"));
+        let sandbox_root =
+            env::temp_dir().join(format!("souprune_cauld_ron_build_support_{unique}"));
         let source_root = sandbox_root.join("src");
         let helper_root = source_root.join("support");
         let out_dir = sandbox_root.join("out");
@@ -205,7 +206,7 @@ mod tests {
         fs::write(helper_root.join("helpers.rs"), "// helper").expect("write helper");
         fs::write(
             source_root.join("battle/view/battle_bg.rs"),
-            "pub fn emit(_: &mut souprune_vessel::prelude::Registry) -> anyhow::Result<()> { Ok(()) }",
+            "pub fn emit(_: &mut souprune_cauld_ron::prelude::Registry) -> anyhow::Result<()> { Ok(()) }",
         )
         .expect("write asset");
 
