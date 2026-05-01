@@ -46,6 +46,10 @@ name = "souprune_mock_host"
 release = false
 
 [[package]]
+name = "souprune_cauld_ron"
+release = false
+
+[[package]]
 name = "souprune_schema"
 
 [[package]]
