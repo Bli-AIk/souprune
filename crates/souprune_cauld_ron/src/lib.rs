@@ -49,6 +49,6 @@ macro_rules! cauld_ron_guest {
             }
         }
 
-        $crate::guest::wit::export!(CauldRonContentModule with_types_in $crate::guest);
+        $crate::guest::wit::export!(CauldRonContentModule with_types_in cauld_ron::guest);
     };
 }

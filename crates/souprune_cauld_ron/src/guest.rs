@@ -9,19 +9,11 @@ use std::collections::HashMap;
 
 use crate::float_output::{FloatOutputConfig, normalize_ron_floats};
 
-wit_bindgen::generate!({
-    path: "../cauld-ron/wit",
-    world: "content-module",
-    pub_export_macro: true,
-});
-
 /// Re-exports of generated WIT guest-side items.
 ///
 /// WIT guest 侧生成项的重导出。
 pub mod wit {
-    pub use super::Guest;
-    pub use super::cauld_ron::build::types::GeneratedFile;
-    pub use super::export;
+    pub use cauld_ron::guest::wit::{GeneratedFile, Guest, export};
 }
 
 /// Guest-side registry that collects generated RON files before export.
