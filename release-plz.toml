@@ -46,11 +46,6 @@ name = "souprune_mock_host"
 release = false
 
 [[package]]
-name = "souprune_editor"
-release = false
-changelog_update = false
-
-[[package]]
 name = "souprune_schema"
 
 [[package]]
