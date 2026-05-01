@@ -7,6 +7,10 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/Bli-AIk/souprune"
 readme = "readme.md"
 keywords = ["game-framework", "modding", "sdk", "wasm"]
+exclude = [
+    ".cargo/",
+    ".github/"
+]
 
 [dependencies]
 wit-bindgen = "0.57"

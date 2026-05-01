@@ -37,7 +37,7 @@ build-mods: builtin-build
 
 # 构建目标 mod 及其依赖 mod 的 content guest，并直接生成正式内容文件
 content-build-deps:
-    @for mod_name in $(CARGO_TARGET_DIR={{workspace_root}}/target/vessel-cli cargo run -p souprune_vessel --features deps-cli -- {{mod}}); do \
+    @for mod_name in $(CARGO_TARGET_DIR={{workspace_root}}/target/cauld-ron-deps cargo run -p souprune_cauld_ron --features deps-cli --bin cauld-ron-deps -- {{mod}}); do \
         just content-build "$mod_name" || exit $?; \
     done
     @echo "Built content for {{mod}} and its dependencies"
@@ -133,8 +133,8 @@ clean:
 clean-all:
     cargo clean
     @find crates projects -type d -name target -prune -exec rm -rf {} +
-    @find projects -depth -path '*/.build/*' ! -name 'vessel-output-manifest.toml' -exec rm -rf {} +
-    @echo "Cleaned workspace, nested crate targets, and mod build artifacts (preserved Vessel manifests)"
+    @find projects -depth -path '*/.build/*' ! -name 'cauld-ron-output-manifest.toml' -exec rm -rf {} +
+    @echo "Cleaned workspace, nested crate targets, and mod build artifacts (preserved Cauld-ron manifests)"
 
 # Release 构建运行（静态链接，最终性能）
 release: prepare-assets-release
@@ -204,7 +204,7 @@ content-build mod_name:
     CARGO_TARGET_DIR={{workspace_root}}/target/content-wasm/{{mod_name}} cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2
     mkdir -p projects/{{mod_name}}/.build
     cp {{workspace_root}}/target/content-wasm/{{mod_name}}/wasm32-wasip2/debug/content.wasm projects/{{mod_name}}/.build/content.wasm
-    CARGO_TARGET_DIR={{workspace_root}}/target/vessel-cli cargo run -p vessel -- build projects/{{mod_name}}/.build/content.wasm --output projects/{{mod_name}}
+    CARGO_TARGET_DIR={{workspace_root}}/target/cauld-ron-cli cargo run -p cauld-ron -- build projects/{{mod_name}}/.build/content.wasm --output projects/{{mod_name}}
     @echo "Built content: projects/{{mod_name}}/.build/content.wasm"
 
 # 构建所有 mod 的 content guest，并直接生成正式内容文件
@@ -220,7 +220,7 @@ content-build-release mod_name:
     CARGO_TARGET_DIR={{workspace_root}}/target/content-wasm/{{mod_name}} cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2 --release
     mkdir -p projects/{{mod_name}}/.build
     cp {{workspace_root}}/target/content-wasm/{{mod_name}}/wasm32-wasip2/release/content.wasm projects/{{mod_name}}/.build/content.wasm
-    CARGO_TARGET_DIR={{workspace_root}}/target/vessel-cli cargo run -p vessel -- build projects/{{mod_name}}/.build/content.wasm --output projects/{{mod_name}}
+    CARGO_TARGET_DIR={{workspace_root}}/target/cauld-ron-cli cargo run -p cauld-ron -- build projects/{{mod_name}}/.build/content.wasm --output projects/{{mod_name}}
     @echo "Built content: projects/{{mod_name}}/.build/content.wasm"
 
 # 构建项目的 runtime 和 content 两条主线

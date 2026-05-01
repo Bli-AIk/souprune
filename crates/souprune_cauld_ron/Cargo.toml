@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "SoupRune extension for Cauld-ron — danmaku performance constructors"
+exclude = [
+    ".cargo/",
+    ".github/"
+]
 
 [dependencies]
 anyhow = "1"

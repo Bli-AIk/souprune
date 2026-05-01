@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Pure data schema types for SoupRune RON files. No Bevy dependency."
+exclude = [
+    ".cargo/",
+    ".github/"
+]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
