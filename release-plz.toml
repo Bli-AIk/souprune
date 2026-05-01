@@ -47,7 +47,6 @@ release = false
 
 [[package]]
 name = "souprune_cauld_ron"
-release = false
 
 [[package]]
 name = "souprune_schema"
@@ -92,4 +91,3 @@ changelog_update = false
 name = "cauld-ron"
 release = false
 changelog_update = false
-publish = false
