@@ -11,10 +11,10 @@ default: prepare-assets
     cargo build -p {{project}} --features debug
 
 # 构建运行主程序前所需的内置 WASM 与 mod RON 内容
-prepare-assets: builtin-build content-build-deps
+prepare-assets: builtin-build runtime-build-deps content-build-deps
 
 # release 构建运行主程序前所需的内置 WASM 与 mod RON 内容
-prepare-assets-release: builtin-build-release content-build-deps
+prepare-assets-release: builtin-build-release runtime-build-deps-release content-build-deps-release
 
 # 格式化
 fmt:
@@ -41,6 +41,27 @@ content-build-deps:
         just content-build "$mod_name" || exit $?; \
     done
     @echo "Built content for {{mod}} and its dependencies"
+
+# 构建目标 mod 及其依赖 mod 的 runtime WASM
+runtime-build-deps:
+    @for mod_name in $(CARGO_TARGET_DIR={{workspace_root}}/target/cauld-ron-deps cargo run -p souprune_cauld_ron --features deps-cli --bin cauld-ron-deps -- {{mod}}); do \
+        just runtime-build "$mod_name" || exit $?; \
+    done
+    @echo "Built runtime for {{mod}} and its dependencies"
+
+# release 构建目标 mod 及其依赖 mod 的 runtime WASM
+runtime-build-deps-release:
+    @for mod_name in $(CARGO_TARGET_DIR={{workspace_root}}/target/cauld-ron-deps cargo run -p souprune_cauld_ron --features deps-cli --bin cauld-ron-deps -- {{mod}}); do \
+        just runtime-build-release "$mod_name" || exit $?; \
+    done
+    @echo "Built release runtime for {{mod}} and its dependencies"
+
+# release 构建目标 mod 及其依赖 mod 的 content guest，并直接生成正式内容文件
+content-build-deps-release:
+    @for mod_name in $(CARGO_TARGET_DIR={{workspace_root}}/target/cauld-ron-deps cargo run -p souprune_cauld_ron --features deps-cli --bin cauld-ron-deps -- {{mod}}); do \
+        just content-build-release "$mod_name" || exit $?; \
+    done
+    @echo "Built release content for {{mod}} and its dependencies"
 
 alias generate-mods := build-mods
 
@@ -179,7 +200,7 @@ builtin-build-release:
 
 # 构建项目 runtime WASM 组件并安装到 .build/runtime.wasm
 runtime-build mod_name:
-    CARGO_TARGET_DIR={{workspace_root}}/target/runtime-wasm/{{mod_name}} cargo build --manifest-path projects/{{mod_name}}/runtime/Cargo.toml --target wasm32-wasip2
+    CARGO_TARGET_DIR={{workspace_root}}/target/runtime-wasm/{{mod_name}} cargo build --manifest-path projects/{{mod_name}}/runtime/Cargo.toml --target wasm32-wasip2 --locked
     mkdir -p projects/{{mod_name}}/.build
     cp {{workspace_root}}/target/runtime-wasm/{{mod_name}}/wasm32-wasip2/debug/runtime.wasm projects/{{mod_name}}/.build/runtime.wasm
     @echo "Built runtime: projects/{{mod_name}}/.build/runtime.wasm"
@@ -194,14 +215,14 @@ runtime-build-mods:
 
 # release 构建项目 runtime WASM 组件并安装到 .build/runtime.wasm
 runtime-build-release mod_name:
-    CARGO_TARGET_DIR={{workspace_root}}/target/runtime-wasm/{{mod_name}} cargo build --manifest-path projects/{{mod_name}}/runtime/Cargo.toml --target wasm32-wasip2 --release
+    CARGO_TARGET_DIR={{workspace_root}}/target/runtime-wasm/{{mod_name}} cargo build --manifest-path projects/{{mod_name}}/runtime/Cargo.toml --target wasm32-wasip2 --release --locked
     mkdir -p projects/{{mod_name}}/.build
     cp {{workspace_root}}/target/runtime-wasm/{{mod_name}}/wasm32-wasip2/release/runtime.wasm projects/{{mod_name}}/.build/runtime.wasm
     @echo "Built runtime: projects/{{mod_name}}/.build/runtime.wasm"
 
 # 构建项目 content guest，安装到 .build/content.wasm，并直接生成正式内容文件
 content-build mod_name:
-    CARGO_TARGET_DIR={{workspace_root}}/target/content-wasm/{{mod_name}} cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2
+    CARGO_TARGET_DIR={{workspace_root}}/target/content-wasm/{{mod_name}} cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2 --locked
     mkdir -p projects/{{mod_name}}/.build
     cp {{workspace_root}}/target/content-wasm/{{mod_name}}/wasm32-wasip2/debug/content.wasm projects/{{mod_name}}/.build/content.wasm
     CARGO_TARGET_DIR={{workspace_root}}/target/cauld-ron-cli cargo run -p cauld-ron -- build projects/{{mod_name}}/.build/content.wasm --output projects/{{mod_name}}
@@ -217,7 +238,7 @@ content-build-mods:
 
 # release 构建项目 content guest，安装到 .build/content.wasm，并直接生成正式内容文件
 content-build-release mod_name:
-    CARGO_TARGET_DIR={{workspace_root}}/target/content-wasm/{{mod_name}} cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2 --release
+    CARGO_TARGET_DIR={{workspace_root}}/target/content-wasm/{{mod_name}} cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2 --release --locked
     mkdir -p projects/{{mod_name}}/.build
     cp {{workspace_root}}/target/content-wasm/{{mod_name}}/wasm32-wasip2/release/content.wasm projects/{{mod_name}}/.build/content.wasm
     CARGO_TARGET_DIR={{workspace_root}}/target/cauld-ron-cli cargo run -p cauld-ron -- build projects/{{mod_name}}/.build/content.wasm --output projects/{{mod_name}}
