@@ -12,6 +12,7 @@
     <mapping directory="$PROJECT_DIR$/crates/flambe" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/crates/iyes_perf_ui" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/crates/mortar" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/projects/deltarune_preset" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/projects/mad_dummy_example" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/projects/undertale_preset" vcs="Git" />
   </component>
