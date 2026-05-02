@@ -718,7 +718,7 @@ pub fn load_config() -> SoupruneConfig {
             let mut config = read_config_from_disk(&config_path).unwrap_or_else(|err| {
                 error!(
                     "{}
-Falling back to default configuration (example_mod)",
+Falling back to default configuration (mad_dummy_example)",
                     err
                 );
                 default_config()
@@ -770,7 +770,7 @@ Falling back to default configuration (example_mod)",
 fn default_config() -> SoupruneConfig {
     SoupruneConfig {
         project: ProjectConfig {
-            mod_name: "example_mod".to_string(),
+            mod_name: "mad_dummy_example".to_string(),
             language: "en-US".to_string(),
         },
         window: WindowConfig {

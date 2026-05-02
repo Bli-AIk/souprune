@@ -15,7 +15,7 @@
 #
 # The script:
 #   1. Builds a release binary (unless --skip-build)
-#   2. Copies only mods listed in mods.toml (whitelist)
+#   2. Copies maintained project submodules from an explicit allowlist
 #   3. Copies only git-tracked files per mod + root-level .wasm files
 #   4. Creates a distributable archive in dist/
 
@@ -23,8 +23,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-MODS_TOML="$REPO_ROOT/mods.toml"
 PROJECT="souprune"
+PROJECT_MODS=("undertale_preset" "mad_dummy_example")
 
 # --- Target resolution ---
 resolve_target() {
@@ -153,28 +153,24 @@ fi
 # Copy projects config
 cp projects/config.toml "dist/${DIST}/projects/"
 
-# Copy whitelisted mods (only git-tracked files + root .wasm)
-if [ ! -f "$MODS_TOML" ]; then
-    echo "⚠️  mods.toml not found, skipping mod packaging"
-else
-    for mod_name in $(grep -oP '^\[mods\.\K[^]]+' "$MODS_TOML"); do
-        mod_dir="projects/${mod_name}"
-        if [ ! -d "${mod_dir}" ]; then
-            echo "⚠️  Mod not installed: ${mod_name}"
-            continue
-        fi
-        echo "📦 Including mod: ${mod_name}"
-        mkdir -p "dist/${DIST}/${mod_dir}"
-        # Copy git-tracked files
-        git -C "${mod_dir}" ls-files -z | while IFS= read -r -d '' file; do
-            dir_part=$(dirname "${file}")
-            mkdir -p "dist/${DIST}/${mod_dir}/${dir_part}"
-            cp "${mod_dir}/${file}" "dist/${DIST}/${mod_dir}/${file}"
-        done
-        # Also copy .wasm files (gitignored but needed at runtime)
-        find "${mod_dir}" -maxdepth 1 -name '*.wasm' -exec cp {} "dist/${DIST}/${mod_dir}/" \;
+# Copy maintained project mods (only git-tracked files + root .wasm)
+for mod_name in "${PROJECT_MODS[@]}"; do
+    mod_dir="projects/${mod_name}"
+    if [ ! -d "${mod_dir}" ]; then
+        echo "⚠️  Mod submodule not initialized: ${mod_name}"
+        continue
+    fi
+    echo "📦 Including mod: ${mod_name}"
+    mkdir -p "dist/${DIST}/${mod_dir}"
+    # Copy git-tracked files
+    git -C "${mod_dir}" ls-files -z | while IFS= read -r -d '' file; do
+        dir_part=$(dirname "${file}")
+        mkdir -p "dist/${DIST}/${mod_dir}/${dir_part}"
+        cp "${mod_dir}/${file}" "dist/${DIST}/${mod_dir}/${file}"
     done
-fi
+    # Also copy .wasm files (gitignored but needed at runtime)
+    find "${mod_dir}" -maxdepth 1 -name '*.wasm' -exec cp {} "dist/${DIST}/${mod_dir}/" \;
+done
 
 # --- Archive ---
 echo "📦 Creating archive..."

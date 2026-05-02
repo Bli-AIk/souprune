@@ -26,6 +26,7 @@ use crate::init_game_state;
 use bevy::asset::io::file::{FileAssetReader, FileWatcher};
 use bevy::asset::io::{AssetSourceBuilder, AssetSourceId};
 use bevy::prelude::*;
+use std::path::{Path, PathBuf};
 
 pub fn run() {
     #[cfg(target_os = "android")]
@@ -124,10 +125,7 @@ pub fn run() {
                     let config = config::load_config();
                     let project_root =
                         config::get_projects_base_path().join(&config.project.mod_name);
-                    let watch_paths = vec![
-                        project_root.clone(),
-                        dunce::canonicalize(&project_root).unwrap_or(project_root.clone()),
-                    ];
+                    let watch_paths = project_watch_paths(&project_root);
 
                     for path in &watch_paths {
                         if !path.exists() {
@@ -217,4 +215,27 @@ pub fn run() {
     });
 
     app.add_plugins(get_game_plugins()).run();
+}
+
+fn project_watch_paths(project_root: &Path) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    if project_root.exists() {
+        paths
+            .push(dunce::canonicalize(project_root).unwrap_or_else(|_| project_root.to_path_buf()));
+    }
+    paths
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn project_watch_paths_use_canonical_existing_path() {
+        let project_root = PathBuf::from(".");
+        let paths = project_watch_paths(&project_root);
+
+        assert_eq!(paths.len(), 1);
+        assert!(paths[0].is_absolute());
+    }
 }

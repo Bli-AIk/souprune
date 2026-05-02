@@ -19,9 +19,8 @@ static WORKSPACE_ROOT: Lazy<PathBuf> = Lazy::new(|| {
         .expect("workspace root")
 });
 
-static PROJECT_ROOT: Lazy<PathBuf> = Lazy::new(|| WORKSPACE_ROOT.join("projects/example_mod"));
-static PROJECT_AM_ROOT: Lazy<PathBuf> =
-    Lazy::new(|| WORKSPACE_ROOT.join("projects/example_am_mod"));
+static PROJECT_ROOT: Lazy<PathBuf> =
+    Lazy::new(|| WORKSPACE_ROOT.join("projects/mad_dummy_example"));
 static PROJECT_PRESET_ROOT: Lazy<PathBuf> =
     Lazy::new(|| WORKSPACE_ROOT.join("projects/undertale_preset"));
 
@@ -43,8 +42,7 @@ pub fn project_root() -> &'static Path {
 /// Path to a named example project folder.
 pub fn named_project_root(project_name: &str) -> &'static Path {
     match project_name {
-        "example_mod" => PROJECT_ROOT.as_path(),
-        "example_am_mod" => PROJECT_AM_ROOT.as_path(),
+        "mad_dummy_example" => PROJECT_ROOT.as_path(),
         "undertale_preset" => PROJECT_PRESET_ROOT.as_path(),
         other => panic!("Unknown test project root: {other}"),
     }
@@ -81,7 +79,7 @@ pub fn parse_project_ron<T>(relative: &str) -> T
 where
     T: DeserializeOwned,
 {
-    parse_project_ron_from("example_mod", relative)
+    parse_project_ron_from("mad_dummy_example", relative)
 }
 
 /// Parse a RON file relative to a named project root.
@@ -117,7 +115,7 @@ pub fn ensure_project_asset_from(project_name: &str, relative: &str) {
 ///
 /// 递归列出 `relative_dir` 下以 `suffix` 结尾的项目文件。
 pub fn list_project_files_with_suffix(relative_dir: &str, suffix: &str) -> Vec<String> {
-    list_project_files_with_suffix_from("example_mod", relative_dir, suffix)
+    list_project_files_with_suffix_from("mad_dummy_example", relative_dir, suffix)
 }
 
 /// Recursively list project files for a named project.

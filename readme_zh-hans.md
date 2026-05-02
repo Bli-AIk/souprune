@@ -43,37 +43,24 @@ SoupRune 目前仍处于 **🚧 初始开发阶段**，但如果你渴望尝鲜�
 2. **克隆仓库**：`git clone https://github.com/Bli-AIk/souprune.git`
 3. **进入目录**：`cd souprune`
 4. **拉取子模块**：`git submodule update --init --recursive`
-5. **设置示例 Mod**：
-    - Linux/macOS：`./scripts/setup_mods.sh`
-    - Windows：`.\scripts\setup_mods.ps1`
-6. **在 Debug 模式下运行示例**：`cargo run --package souprune --bin souprune --features debug`
+5. **在 Debug 模式下运行示例**：`cargo run --package souprune --bin souprune --features debug`
 
 <details>
-<summary>Mod 设置选项</summary>
+<summary>维护中的示例项目</summary>
 
-```bash
-# 安装所有示例 mod
-# 示例 mod 位于 https://github.com/Bli-AIk/souprune_example_mods 仓库
-./scripts/setup_mods.sh
+维护中的示例内容会通过 Git 子模块包含在主仓库中：
 
-# 安装指定示例 mod
-./scripts/setup_mods.sh example_mod
+- [`souprune_undertale_preset`](https://github.com/Bli-AIk/souprune_undertale_preset) — 可复用的 Undertale 风格预设
+- [`souprune_mad_dummy_example`](https://github.com/Bli-AIk/souprune_mad_dummy_example) — 默认可运行的 Mad Dummy 示例项目
 
-# 列出可用 mod
-./scripts/setup_mods.sh --list
-
-# 从远程更新 mod
-./scripts/setup_mods.sh --update
-
-# 移除所有 mod worktree
-./scripts/setup_mods.sh --clean
-```
+旧的 [`souprune_example_mods`](https://github.com/Bli-AIk/souprune_example_mods) 仓库已归档，仅保留历史分支示例。
 
 在 `projects/config.toml` 中配置活动 mod：
 
 ```toml
 [project]
-mod_name = "example_mod"
+mod_name = "mad_dummy_example"
+language = "en-US"
 ```
 
 </details>
