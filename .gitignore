@@ -81,5 +81,6 @@ projects/*/
 !projects/mad_dummy_example/
 
 # Local work directories
+.worktrees/
 .workbench/
 .tmp/
