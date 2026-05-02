@@ -79,6 +79,7 @@ projects/*/
 !projects/config.toml
 !projects/undertale_preset/
 !projects/mad_dummy_example/
+!projects/deltarune_preset/
 
 # Local work directories
 .worktrees/
