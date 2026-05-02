@@ -38,3 +38,6 @@
 [submodule "projects/mad_dummy_example"]
 	path = projects/mad_dummy_example
 	url = https://github.com/Bli-AIk/souprune_mad_dummy_example.git
+[submodule "projects/deltarune_preset"]
+	path = projects/deltarune_preset
+	url = https://github.com/Bli-AIk/souprune_deltarune_preset.git
