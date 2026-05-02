@@ -13,7 +13,7 @@ use std::path::Path;
 #[test]
 fn demo_turn_narration_targets_battle_narration_channel() {
     let sequence = read_fixture_sequence(
-        "example_mod",
+        "mad_dummy_example",
         "battle/chapters/demo_turn_narration.sequence.ron",
     );
 
@@ -234,8 +234,10 @@ fn overworld_dialogue_view_reads_main_channel_text() {
 
 #[test]
 fn cotton_first_turn_uses_typed_battle_speech_bubble_chapters() {
-    let sequence =
-        read_fixture_sequence("example_mod", "battle/turns/cotton_first_turn.sequence.ron");
+    let sequence = read_fixture_sequence(
+        "mad_dummy_example",
+        "battle/turns/cotton_first_turn.sequence.ron",
+    );
 
     let bubbles: Vec<_> = sequence
         .chapters
@@ -270,7 +272,7 @@ fn cotton_first_turn_uses_typed_battle_speech_bubble_chapters() {
 #[test]
 fn cotton_first_turn_performance_does_not_embed_enemy_speech_bubble() {
     let performance = read_fixture_performance(
-        "example_mod",
+        "mad_dummy_example",
         "battle/danmaku/cotton_first_turn.performance.ron",
     );
 

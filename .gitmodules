@@ -32,3 +32,12 @@
 	path = crates/cauld-ron
 	url = git@github.com:Bli-AIk/cauld-ron.git
 	branch = main
+[submodule "projects/undertale_preset"]
+	path = projects/undertale_preset
+	url = https://github.com/Bli-AIk/souprune_undertale_preset.git
+[submodule "projects/mad_dummy_example"]
+	path = projects/mad_dummy_example
+	url = https://github.com/Bli-AIk/souprune_mad_dummy_example.git
+[submodule "projects/deltarune_preset"]
+	path = projects/deltarune_preset
+	url = https://github.com/Bli-AIk/souprune_deltarune_preset.git

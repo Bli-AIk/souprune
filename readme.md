@@ -51,37 +51,25 @@ these steps:
 2. **Clone Repository**: `git clone https://github.com/Bli-AIk/souprune.git`
 3. **Enter Directory**: `cd souprune`
 4. **Update Submodules**: `git submodule update --init --recursive`
-5. **Setup Example Mods**:
-    - Linux/macOS: `./scripts/setup_mods.sh`
-    - Windows: `.\scripts\setup_mods.ps1`
-6. **Run Example (Debug Mode)**: `cargo run --package souprune --bin souprune --features debug`
+5. **Run Example (Debug Mode)**: `cargo run --package souprune --bin souprune --features debug`
 
 <details>
-<summary>Setup Mods Options</summary>
+<summary>Maintained Example Projects</summary>
 
-```bash
-# Install all example mods
-# The example mod is located in the https://github.com/Bli-AIk/souprune_example_mods repository
-./scripts/setup_mods.sh
+Maintained example content is included as Git submodules:
 
-# Install specific example mod
-./scripts/setup_mods.sh example_mod
+- [`souprune_undertale_preset`](https://github.com/Bli-AIk/souprune_undertale_preset) — reusable Undertale-style preset
+- [`souprune_mad_dummy_example`](https://github.com/Bli-AIk/souprune_mad_dummy_example) — default runnable Mad Dummy example project
 
-# List available mods
-./scripts/setup_mods.sh --list
-
-# Update mods from remote
-./scripts/setup_mods.sh --update
-
-# Remove all mod worktrees
-./scripts/setup_mods.sh --clean
-```
+The old [`souprune_example_mods`](https://github.com/Bli-AIk/souprune_example_mods) repository is archived and preserved
+only for historical branch-based examples.
 
 Configure active mod in `projects/config.toml`:
 
 ```toml
 [project]
-mod_name = "example_mod"
+mod_name = "mad_dummy_example"
+language = "en-US"
 ```
 
 </details>

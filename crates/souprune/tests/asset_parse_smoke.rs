@@ -14,15 +14,12 @@ fn read_project_file(project_name: &str, relative: &str) -> String {
 
 #[test]
 fn input_config_assets_parse() {
-    let project_names = test_support::available_project_names(&[
-        "example_mod",
-        "undertale_preset",
-        "example_am_mod",
-    ]);
+    let project_names =
+        test_support::available_project_names(&["mad_dummy_example", "undertale_preset"]);
     if project_names.is_empty() {
         test_support::warn_missing_projects(
             "input_config_assets_parse",
-            "example project worktrees are absent from this checkout",
+            "example project submodules are absent from this checkout",
         );
         return;
     }
@@ -46,15 +43,12 @@ fn input_config_assets_parse() {
 
 #[test]
 fn state_config_assets_parse() {
-    let project_names = test_support::available_project_names(&[
-        "example_mod",
-        "undertale_preset",
-        "example_am_mod",
-    ]);
+    let project_names =
+        test_support::available_project_names(&["mad_dummy_example", "undertale_preset"]);
     if project_names.is_empty() {
         test_support::warn_missing_projects(
             "state_config_assets_parse",
-            "example project worktrees are absent from this checkout",
+            "example project submodules are absent from this checkout",
         );
         return;
     }
@@ -78,18 +72,21 @@ fn state_config_assets_parse() {
 
 #[test]
 fn sequence_assets_parse_via_schema_and_runtime() {
-    if test_support::available_project_root("example_mod").is_none() {
+    if test_support::available_project_root("mad_dummy_example").is_none() {
         test_support::warn_missing_projects(
             "sequence_assets_parse_via_schema_and_runtime",
-            "example_mod worktree is absent from this checkout",
+            "mad_dummy_example submodule is absent from this checkout",
         );
         return;
     }
 
-    let mut files =
-        test_support::list_project_files_with_suffix_from("example_mod", "battle", ".sequence.ron");
+    let mut files = test_support::list_project_files_with_suffix_from(
+        "mad_dummy_example",
+        "battle",
+        ".sequence.ron",
+    );
     files.extend(test_support::list_project_files_with_suffix_from(
-        "example_mod",
+        "mad_dummy_example",
         "overworld",
         ".sequence.ron",
     ));
@@ -97,11 +94,11 @@ fn sequence_assets_parse_via_schema_and_runtime() {
     files.dedup();
     assert!(
         !files.is_empty(),
-        "example_mod should contain sequence assets"
+        "mad_dummy_example should contain sequence assets"
     );
 
     for relative in files {
-        let contents = read_project_file("example_mod", &relative);
+        let contents = read_project_file("mad_dummy_example", &relative);
         let schema: souprune_schema::sequence::SequenceAsset =
             souprune_schema::from_ron_str(&contents)
                 .unwrap_or_else(|err| panic!("Failed to parse schema {relative}: {err}"));
@@ -116,7 +113,7 @@ fn sequence_assets_parse_via_schema_and_runtime() {
 
 #[test]
 fn view_assets_parse_via_schema_and_runtime() {
-    let candidates = ["undertale_preset", "example_mod"];
+    let candidates = ["undertale_preset", "mad_dummy_example"];
     let project_name = candidates
         .iter()
         .find(|name| {
@@ -171,13 +168,10 @@ fn view_assets_parse_via_schema_and_runtime() {
 fn danmaku_performance_assets_parse() {
     let mut ran_any = false;
 
-    for (project_name, relative) in [
-        ("example_mod", "battle/danmaku/demo_attack.performance.ron"),
-        (
-            "example_am_mod",
-            "battle/danmaku/demo_attack.performance.ron",
-        ),
-    ] {
+    for (project_name, relative) in [(
+        "mad_dummy_example",
+        "battle/danmaku/demo_attack.performance.ron",
+    )] {
         if test_support::available_project_root(project_name).is_none() {
             continue;
         }
@@ -208,7 +202,7 @@ fn danmaku_performance_assets_parse() {
     if !ran_any {
         test_support::warn_missing_projects(
             "danmaku_performance_assets_parse",
-            "example project worktrees are absent from this checkout",
+            "example project submodules are absent from this checkout",
         );
     }
 }

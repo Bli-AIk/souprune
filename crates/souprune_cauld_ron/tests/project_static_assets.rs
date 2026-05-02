@@ -31,6 +31,7 @@ const EXPECTED_BASELINE_KINDS: &[&str] = &[
     "TouchLayout",
     "View",
 ];
+const GENERATED_ASSET_PROJECTS: &[&str] = &["mad_dummy_example", "undertale_preset"];
 
 #[derive(Debug)]
 struct RonBaseline {
@@ -45,11 +46,15 @@ fn project_generated_assets_canonicalize_against_selected_baselines() {
     assert_baselines_cover_each_ron_kind_once(&baselines);
     assert_baseline_assets_parse(&baselines);
 
+    let grouped_baselines = baselines_by_project(&baselines);
     let mut checked_projects = 0usize;
-    for (project_name, project_baselines) in baselines_by_project(&baselines) {
+    for project_name in GENERATED_ASSET_PROJECTS.iter().copied() {
+        let Some(project_baselines) = grouped_baselines.get(project_name) else {
+            continue;
+        };
         if !project_content_manifest_path(project_name).exists() {
             eprintln!(
-                "skipping generated asset check for {project_name}; project worktree is not checked out"
+                "skipping generated asset check for {project_name}; project submodule is not checked out"
             );
             continue;
         }
@@ -76,13 +81,13 @@ fn project_generated_assets_canonicalize_against_selected_baselines() {
         assert_generated_assets_parse(project_name, &generated_by_path);
         assert_generated_assets_semantically_match_baselines(
             project_name,
-            &project_baselines,
+            project_baselines,
             &generated_by_path,
         );
     }
 
     if checked_projects == 0 {
-        eprintln!("skipping generated asset checks; no local project worktrees are checked out");
+        eprintln!("skipping generated asset checks; no local project submodules are checked out");
     }
 }
 
