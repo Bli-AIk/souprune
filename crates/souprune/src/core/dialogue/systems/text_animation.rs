@@ -4,19 +4,33 @@
 //! 文本动画系统 — 桥接 TextBlock 实体到对话通道，对可见字形应用抖动和波浪效果。
 
 use bevy::prelude::*;
-use bevy_bitmap_text::{GlyphBaseOffset, GlyphEntity, ShakeEffect};
+use bevy_bitmap_text::{
+    GlyphBaseOffset, GlyphEntity, GlyphReveal, ShakeEffect, TextBlock, TwitchEffect,
+};
+use bevy_ecs_typewriter::Typewriter;
 use bevy_fact_rule_event::LayeredFactDatabase;
 use souprune_schema::dialogue::TextShakeModeDef;
+
+mod twitch;
 
 use crate::core::dialogue::components::TextBlockDialogueChannel;
 use crate::core::dialogue::text_animation_config::TextAnimationConfig;
 use crate::core::view::components::text::{ViewTextAnimationStyle, ViewTextTemplate};
+use crate::core::view::sdf_view_shape::parse_text_preserving_whitespace;
+
+use super::lifecycle::DialogueControllerEntity;
 
 /// System set for text animation systems (runs after TypewriterSystemSet).
 ///
 /// 文本动画系统集（在 TypewriterSystemSet 之后运行）。
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TextAnimationSystemSet;
+
+/// System set for dialogue text-block synchronization.
+///
+/// 对话文本块同步系统集。
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TextBlockSyncSystemSet;
 
 /// Links [`TextBlock`](bevy_bitmap_text::TextBlock) entities to their dialogue channels.
 ///
@@ -36,6 +50,52 @@ pub fn link_textblock_dialogue_channel_system(
             commands
                 .entity(entity)
                 .insert(TextBlockDialogueChannel(channel_name));
+        }
+    }
+}
+
+/// Mirrors typewriter source text and reveal progress into linked text blocks.
+///
+/// 将打字机源文本与揭示进度镜像到已链接的文本块。
+pub fn sync_typewriter_reveal_to_textblocks_system(
+    mut commands: Commands,
+    typewriter_query: Query<
+        (&crate::core::dialogue::DialogueChannel, &Typewriter),
+        With<DialogueControllerEntity>,
+    >,
+    mut text_query: Query<(
+        Entity,
+        &TextBlockDialogueChannel,
+        &mut TextBlock,
+        Option<&mut GlyphReveal>,
+    )>,
+) {
+    for (entity, text_channel, mut text_block, reveal) in text_query.iter_mut() {
+        let Some((_channel, typewriter)) = typewriter_query
+            .iter()
+            .find(|(channel, _typewriter)| channel.name == text_channel.0)
+        else {
+            if reveal.is_some() {
+                commands.entity(entity).remove::<GlyphReveal>();
+            }
+            continue;
+        };
+
+        if text_block.full_text() != typewriter.source_text {
+            *text_block = parse_text_preserving_whitespace(&typewriter.source_text);
+        }
+
+        match reveal {
+            Some(mut reveal) => {
+                if reveal.visible_count != typewriter.current_char_index {
+                    reveal.visible_count = typewriter.current_char_index;
+                }
+            }
+            None => {
+                commands.entity(entity).insert(GlyphReveal {
+                    visible_count: typewriter.current_char_index,
+                });
+            }
         }
     }
 }
@@ -118,6 +178,21 @@ pub fn typewriter_shake_system(
                     &mut commands,
                 );
             }
+            TextShakeModeDef::Twitch {
+                average_frames,
+                frame_variation,
+            } => {
+                twitch::apply_twitch_shake(
+                    entity,
+                    time.elapsed_secs(),
+                    average_frames,
+                    frame_variation,
+                    children,
+                    &glyph_query,
+                    shake_def.intensity,
+                    &mut commands,
+                );
+            }
         }
     }
 }
@@ -132,6 +207,7 @@ fn apply_continuous_shake(
         if glyph_query.get(child).is_ok()
             && let Ok(mut entity_commands) = commands.get_entity(child)
         {
+            entity_commands.remove::<TwitchEffect>();
             entity_commands.try_insert(ShakeEffect { intensity });
         }
     }
@@ -175,6 +251,7 @@ fn apply_random_single_shake(
         let Ok(mut entity_commands) = commands.get_entity(child) else {
             continue;
         };
+        entity_commands.remove::<TwitchEffect>();
         if index == target_index {
             entity_commands.try_insert(ShakeEffect { intensity });
         } else {
@@ -234,6 +311,7 @@ fn remove_shake_effects(
             && let Ok(mut entity_commands) = commands.get_entity(child)
         {
             entity_commands.remove::<ShakeEffect>();
+            entity_commands.remove::<TwitchEffect>();
         }
     }
 }
@@ -357,7 +435,10 @@ fn apply_spatial_wave(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy_bitmap_text::{GlyphBaseOffset, GlyphEntity, ShakeEffect};
+    use bevy_bitmap_text::{
+        GlyphBaseOffset, GlyphEntity, GlyphReveal, ShakeEffect, TextBlock, TwitchEffect,
+    };
+    use bevy_ecs_typewriter::Typewriter;
     use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
     use souprune_schema::dialogue::{
         TextAnimationConfigDef, TextAnimationPresetDef, TextDisplayDef, TextShakeDef,
@@ -390,6 +471,50 @@ mod tests {
             .spawn(TextBlockDialogueChannel("main".into()))
             .id();
         app.world_mut().entity_mut(glyph).insert(ChildOf(parent));
+    }
+
+    #[test]
+    fn typewriter_reveal_system_keeps_full_text_while_advancing_visible_count() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, sync_typewriter_reveal_to_textblocks_system);
+
+        let mut typewriter = Typewriter::new("hello", 0.03);
+        typewriter.current_text = "h".to_string();
+        typewriter.current_char_index = 1;
+        let controller = app
+            .world_mut()
+            .spawn((
+                DialogueControllerEntity,
+                crate::core::dialogue::DialogueChannel::new("main"),
+                typewriter,
+            ))
+            .id();
+
+        let text_entity = app
+            .world_mut()
+            .spawn((TextBlockDialogueChannel("main".into()), TextBlock::new("h")))
+            .id();
+
+        app.update();
+
+        let text_block = app.world().get::<TextBlock>(text_entity).unwrap();
+        assert_eq!(text_block.full_text(), "hello");
+        let reveal = app.world().get::<GlyphReveal>(text_entity).unwrap();
+        assert_eq!(reveal.visible_count, 1);
+
+        {
+            let mut typewriter = app.world_mut().get_mut::<Typewriter>(controller).unwrap();
+            typewriter.current_text = "he".to_string();
+            typewriter.current_char_index = 2;
+        }
+
+        app.update();
+
+        let text_block = app.world().get::<TextBlock>(text_entity).unwrap();
+        assert_eq!(text_block.full_text(), "hello");
+        let reveal = app.world().get::<GlyphReveal>(text_entity).unwrap();
+        assert_eq!(reveal.visible_count, 2);
     }
 
     #[test]
@@ -432,6 +557,48 @@ mod tests {
         app.update();
 
         assert!(app.world().get::<ShakeEffect>(glyph).is_none());
+    }
+
+    #[test]
+    fn shake_system_removes_stale_twitch_when_preset_has_no_shake() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(TextAnimationConfig(TextAnimationConfigDef {
+            default_preset: "calm".into(),
+            presets: [(
+                "calm".into(),
+                TextAnimationPresetDef {
+                    display: TextDisplayDef::Normal,
+                    shake: None,
+                    wave: None,
+                },
+            )]
+            .into_iter()
+            .collect(),
+        }));
+        let mut facts = LayeredFactDatabase::new();
+        facts.set_global(
+            fre_facts::DIALOGUE_TEXT_STYLE,
+            FactValue::String("calm".into()),
+        );
+        app.insert_resource(facts);
+        app.add_systems(Update, typewriter_shake_system);
+
+        let glyph = app
+            .world_mut()
+            .spawn((
+                GlyphEntity {
+                    char_index: 0,
+                    character: 'A',
+                },
+                TwitchEffect { offset: Vec2::ONE },
+            ))
+            .id();
+        spawn_text_block_parent(&mut app, glyph);
+
+        app.update();
+
+        assert!(app.world().get::<TwitchEffect>(glyph).is_none());
     }
 
     #[test]
@@ -592,5 +759,62 @@ mod tests {
             .filter(|glyph| app.world().get::<ShakeEffect>(**glyph).is_some())
             .count();
         assert_eq!(marked, 1);
+    }
+
+    #[test]
+    fn random_single_shake_removes_stale_twitch_from_all_visible_glyphs() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(TextAnimationConfig(TextAnimationConfigDef {
+            default_preset: "random".into(),
+            presets: [(
+                "random".into(),
+                TextAnimationPresetDef {
+                    display: TextDisplayDef::Normal,
+                    shake: Some(TextShakeDef {
+                        intensity: 1.0,
+                        mode: TextShakeModeDef::RandomSingle {
+                            interval_seconds: 1.0,
+                            chance: 1.0,
+                            duration_seconds: 0.5,
+                        },
+                    }),
+                    wave: None,
+                },
+            )]
+            .into_iter()
+            .collect(),
+        }));
+        app.insert_resource(LayeredFactDatabase::new());
+        app.add_systems(Update, typewriter_shake_system);
+
+        let parent = app
+            .world_mut()
+            .spawn(ViewTextAnimationStyle("random".into()))
+            .id();
+        let glyphs = (0..3)
+            .map(|char_index| {
+                app.world_mut()
+                    .spawn((
+                        GlyphEntity {
+                            char_index,
+                            character: 'A',
+                        },
+                        TwitchEffect { offset: Vec2::ONE },
+                    ))
+                    .id()
+            })
+            .collect::<Vec<_>>();
+        for glyph in &glyphs {
+            app.world_mut().entity_mut(*glyph).insert(ChildOf(parent));
+        }
+
+        app.update();
+
+        assert!(
+            glyphs
+                .iter()
+                .all(|glyph| app.world().get::<TwitchEffect>(*glyph).is_none())
+        );
     }
 }

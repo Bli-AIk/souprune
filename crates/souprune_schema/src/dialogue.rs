@@ -89,6 +89,19 @@ pub enum TextShakeModeDef {
         /// 被选中字形保留抖动效果的秒数。
         duration_seconds: f32,
     },
+    /// Occasionally offsets one visible glyph for one frame.
+    ///
+    /// 偶发地将一个可见字形偏移一帧。
+    Twitch {
+        /// Average frames between twitch attempts.
+        ///
+        /// 抖动尝试之间的平均帧数。
+        average_frames: u32,
+        /// Random frame variation around the average.
+        ///
+        /// 平均值附近的随机帧变化量。
+        frame_variation: u32,
+    },
 }
 
 /// Per-character wave or orbiting distortion.
@@ -197,5 +210,22 @@ mod tests {
         assert!(ron.contains("interval_seconds"));
         assert!(ron.contains("chance"));
         assert!(ron.contains("duration_seconds"));
+    }
+
+    #[test]
+    fn twitch_shake_mode_deserializes_frame_window() {
+        let mode: TextShakeModeDef =
+            ron::from_str("Twitch(average_frames: 48, frame_variation: 16)").unwrap();
+
+        match mode {
+            TextShakeModeDef::Twitch {
+                average_frames,
+                frame_variation,
+            } => {
+                assert_eq!(average_frames, 48);
+                assert_eq!(frame_variation, 16);
+            }
+            other => panic!("expected Twitch mode, got {other:?}"),
+        }
     }
 }

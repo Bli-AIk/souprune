@@ -59,6 +59,13 @@ impl Plugin for DialoguePlugin {
             systems::text_animation::TextAnimationSystemSet
                 .after(bevy_ecs_typewriter::TypewriterSystemSet),
         );
+        app.configure_sets(
+            schedule,
+            systems::text_animation::TextBlockSyncSystemSet
+                .after(bevy_ecs_typewriter::TypewriterSystemSet)
+                .after(crate::core::view::ron_view::update_dynamic_text_system)
+                .before(systems::text_animation::TextAnimationSystemSet),
+        );
 
         app.init_resource::<DialogueInputConfig>()
             .init_resource::<auto_pause::AutoPauseConfig>()
@@ -112,8 +119,12 @@ impl Plugin for DialoguePlugin {
             // 桥接系统 — 将 TextBlock 实体链接到其对话通道
             .add_systems(
                 schedule,
-                systems::text_animation::link_textblock_dialogue_channel_system
-                    .in_set(systems::text_animation::TextAnimationSystemSet),
+                (
+                    systems::text_animation::link_textblock_dialogue_channel_system,
+                    systems::text_animation::sync_typewriter_reveal_to_textblocks_system,
+                )
+                    .chain()
+                    .in_set(systems::text_animation::TextBlockSyncSystemSet),
             )
             // Text animation systems — apply shake/wave/ghost after sync but before voice
             // 文本动画系统 — 在同步之后、语音之前应用抖动/波浪/幽灵
