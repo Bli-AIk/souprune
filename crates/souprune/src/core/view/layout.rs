@@ -93,6 +93,7 @@ mod tests {
                     line_height: Some(12.0),
                     char_spacing: Some(1.5),
                     word_spacing: Some(3.0),
+                    text_style: Some("battle_narration".to_string()),
                     conditional_style: None,
                     visible_when: Some("$show_label".to_string()),
                 }],
@@ -122,6 +123,7 @@ mod tests {
         assert!(runtime.world_space);
         assert_eq!(text.char_spacing, Some(1.5));
         assert_eq!(text.word_spacing, Some(3.0));
+        assert_eq!(text.text_style.as_deref(), Some("battle_narration"));
         assert!(matches!(text.align, Some(TextAlignDef::Center)));
         assert!(matches!(text.anchor, Some(TextAnchorDef::TopLeft)));
         assert!(matches!(text.world_scale.1, Value::Expr(ref expr) if expr == "$ui_scale"));

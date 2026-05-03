@@ -379,6 +379,11 @@ pub struct TextDef {
     pub char_spacing: Option<f32>,
     #[serde(default)]
     pub word_spacing: Option<f32>,
+    /// Text animation style preset applied directly to this text block.
+    ///
+    /// 直接应用到此文本块的文本动画风格预设。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text_style: Option<String>,
     #[serde(default)]
     pub conditional_style: Option<ConditionalStyleDef>,
     /// Expression-based visibility control.

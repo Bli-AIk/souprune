@@ -324,6 +324,39 @@ fn undertale_view_renders_enemy_bubble_text_from_container() {
     assert_eq!(text.font, "speechbubble");
 }
 
+#[test]
+fn undertale_battle_player_texts_use_battle_narration_style() {
+    let view = read_fixture_view("undertale_preset", "battle/view/undertale.view.ron");
+    let node = view
+        .roots
+        .iter()
+        .find(|node| node.name == "BattleBox")
+        .expect("undertale battle view should define BattleBox");
+
+    let player_text_ids = [
+        "BattleDialogue",
+        "EnemyNames",
+        "ActOptionsLeft",
+        "ActOptionsRight",
+        "MercyOptions",
+        "ItemGridLeft",
+        "ItemGridRight",
+        "ItemPageText",
+        "NarrationText",
+    ];
+
+    for text_id in player_text_ids {
+        let text = node
+            .texts
+            .iter()
+            .find(|text| text.id == text_id)
+            .unwrap_or_else(|| panic!("BattleBox should define {text_id}"));
+
+        assert_eq!(text.font, "DTM-Mono");
+        assert_eq!(text.text_style.as_deref(), Some("battle_narration"));
+    }
+}
+
 fn read_fixture_sequence(project: &str, relative_path: &str) -> SequenceAsset {
     read_fixture_ron(project, relative_path)
 }

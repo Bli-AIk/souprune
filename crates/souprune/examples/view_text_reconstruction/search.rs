@@ -1389,6 +1389,7 @@ fn build_isolated_view_layout(
                 } else {
                     Some(parameters.word_spacing)
                 },
+                text_style: None,
                 conditional_style: None,
                 visible_when: None,
             }],
@@ -2162,6 +2163,7 @@ mod tests {
             line_height: Some(1.0),
             char_spacing: Some(0.0),
             word_spacing: Some(0.0),
+            text_style: None,
             conditional_style: None,
             visible_when: None,
         }

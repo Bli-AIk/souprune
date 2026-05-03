@@ -92,6 +92,11 @@ pub struct BattleSpeechBubbleDef {
     /// 可选的打字机速度覆盖。
     #[serde(default)]
     pub typewriter_speed: Option<f32>,
+    /// Optional text animation style preset override.
+    ///
+    /// 可选的文本动画风格预设覆盖。
+    #[serde(default)]
+    pub text_style: Option<String>,
 }
 
 /// Battle speech bubble visual frame.
@@ -257,5 +262,32 @@ mod tests {
             BattleSpeechBubbleAdvance::Timed { duration: 2.0 }
         );
         assert!(request.hide_on_finish);
+    }
+
+    #[test]
+    fn parses_battle_speech_bubble_text_style_as_explicit_override() {
+        let ron = r#"(
+            mortar_path: "battle/enemies/mad_dummy.mortar",
+            mortar_node: "enemy_speech_manual_intro",
+            text_style: Some("mad_dummy"),
+        )"#;
+
+        let request: BattleSpeechBubbleDef =
+            ron::from_str(ron).expect("battle speech bubble should parse");
+
+        assert_eq!(request.text_style.as_deref(), Some("mad_dummy"));
+    }
+
+    #[test]
+    fn battle_speech_bubble_text_style_defaults_to_none() {
+        let ron = r#"(
+            mortar_path: "battle/enemies/mad_dummy.mortar",
+            mortar_node: "enemy_speech_manual_intro",
+        )"#;
+
+        let request: BattleSpeechBubbleDef =
+            ron::from_str(ron).expect("battle speech bubble should parse");
+
+        assert_eq!(request.text_style, None);
     }
 }

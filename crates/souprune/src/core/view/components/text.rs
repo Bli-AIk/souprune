@@ -73,6 +73,7 @@ pub struct ViewTextConfig {
     /// Expression-based visibility control (e.g., "$depth == 1").
     /// 基于表达式的可见性控制（例如 "$depth == 1"）。
     pub(crate) visible_when: Option<String>,
+    pub(crate) text_style: Option<String>,
 }
 
 impl Default for ViewTextConfig {
@@ -92,6 +93,7 @@ impl Default for ViewTextConfig {
             word_spacing: 0.0,
             initial_visibility: Visibility::Inherited,
             visible_when: None,
+            text_style: None,
         }
     }
 }
@@ -102,3 +104,10 @@ impl Default for ViewTextConfig {
 #[derive(Component, Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub struct ViewTextTemplate(pub(crate) String);
+
+/// Text animation style preset applied directly to a view text block.
+///
+/// 直接应用到 View 文本块的文本动画风格预设。
+#[derive(Component, Debug, Clone, PartialEq, Eq, Reflect)]
+#[reflect(Component)]
+pub struct ViewTextAnimationStyle(pub String);

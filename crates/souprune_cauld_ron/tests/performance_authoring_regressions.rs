@@ -119,6 +119,7 @@ fn timeline_event_can_author_typed_battle_speech_bubble_cue_without_spawn() {
             hide_on_finish: true,
             voice: None,
             typewriter_speed: None,
+            text_style: Some("mad_dummy".into()),
         },
     );
 

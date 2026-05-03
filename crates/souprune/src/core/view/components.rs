@@ -18,7 +18,9 @@ pub(crate) mod view_element;
 pub(crate) use box_components::{ViewBox, ViewBoxAnchor, ViewBoxFiller, ViewContainer};
 pub use shader_material::ShaderMaterial;
 pub(crate) use state_sprite::StateSpriteState;
-pub(crate) use text::{ViewAnimationState, ViewFont, ViewTextConfig, ViewTextTemplate};
+pub(crate) use text::{
+    ViewAnimationState, ViewFont, ViewTextAnimationStyle, ViewTextConfig, ViewTextTemplate,
+};
 
 // Public exports (used outside core::ui)
 pub use hpbar::{DynamicViewElement, TimeDependentTransform};

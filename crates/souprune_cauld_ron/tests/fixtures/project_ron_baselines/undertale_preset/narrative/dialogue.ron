@@ -15,7 +15,7 @@
 //    structure globally, please edit the Cauld-ron source schema/configuration
 //    instead of modifying this file directly.
 // =============================================================================
-// Generated at: 2026-05-03 14:52:10 +08:00
+// Generated at: 2026-05-03 19:14:54 +08:00
 
 (
     auto_pause: (
@@ -108,6 +108,11 @@
                 display: Normal,
                 shake: Some((
                     intensity: 1.0,
+                    mode: RandomSingle(
+                        interval_seconds: 0.08,
+                        chance: 0.45,
+                        duration_seconds: 0.035,
+                    ),
                 )),
                 wave: None,
             ),
@@ -120,6 +125,7 @@
                 display: Normal,
                 shake: Some((
                     intensity: 3.0,
+                    mode: Continuous,
                 )),
                 wave: None,
             ),

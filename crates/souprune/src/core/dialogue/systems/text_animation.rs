@@ -6,10 +6,11 @@
 use bevy::prelude::*;
 use bevy_bitmap_text::{GlyphBaseOffset, GlyphEntity, ShakeEffect};
 use bevy_fact_rule_event::LayeredFactDatabase;
+use souprune_schema::dialogue::TextShakeModeDef;
 
 use crate::core::dialogue::components::TextBlockDialogueChannel;
 use crate::core::dialogue::text_animation_config::TextAnimationConfig;
-use crate::core::view::components::text::ViewTextTemplate;
+use crate::core::view::components::text::{ViewTextAnimationStyle, ViewTextTemplate};
 
 /// System set for text animation systems (runs after TypewriterSystemSet).
 ///
@@ -52,24 +53,37 @@ fn extract_dialogue_channel(template: &str) -> Option<String> {
     }
 }
 
-/// For visible glyphs in a text block with an active shake preset, inserts or updates
-/// [`ShakeEffect`] on each glyph entity.
+/// Applies the active shake preset to visible glyphs in a text block.
 ///
-/// 对于有活跃抖动预设的文本块中的可见字形，在每个字形实体上插入或更新 `ShakeEffect`。
+/// 对文本块中的可见字形应用当前启用的抖动预设。
 ///
-/// Applies to ALL visible glyph children unconditionally (not just recently-revealed ones),
-/// matching full-line per-frame shake behavior.
+/// Continuous mode marks every visible glyph; random-single mode marks at most one glyph
+/// during each successful interval pulse.
 ///
-/// 无条件应用于所有可见子字形（不仅仅是最近揭示的），与整行逐帧抖动行为一致。
+/// 连续模式会标记每个可见字形；随机单字符模式只会在成功触发的间隔脉冲中
+/// 标记至多一个字形。
 pub fn typewriter_shake_system(
+    time: Res<Time>,
     config: Res<TextAnimationConfig>,
     facts: Res<LayeredFactDatabase>,
-    text_block_query: Query<(&TextBlockDialogueChannel, &Children)>,
+    text_block_query: Query<
+        (
+            Entity,
+            Option<&TextBlockDialogueChannel>,
+            Option<&ViewTextAnimationStyle>,
+            &Children,
+        ),
+        Or<(With<TextBlockDialogueChannel>, With<ViewTextAnimationStyle>)>,
+    >,
     glyph_query: Query<&GlyphEntity>,
     mut commands: Commands,
 ) {
-    for (channel, children) in text_block_query.iter() {
-        let Some(preset) = config.resolve_channel_preset(&facts, &channel.0) else {
+    for (entity, channel, text_style, children) in text_block_query.iter() {
+        let preset = text_style
+            .map(|style| config.resolve_preset(Some(&style.0)))
+            .or_else(|| channel.map(|channel| config.resolve_channel_preset(&facts, &channel.0)))
+            .flatten();
+        let Some(preset) = preset else {
             remove_shake_effects(children, &glyph_query, &mut commands);
             continue;
         };
@@ -83,16 +97,131 @@ pub fn typewriter_shake_system(
             continue;
         }
 
-        for child in children.iter() {
-            if glyph_query.get(child).is_ok()
-                && let Ok(mut entity_commands) = commands.get_entity(child)
-            {
-                entity_commands.try_insert(ShakeEffect {
-                    intensity: shake_def.intensity,
-                });
+        match shake_def.mode {
+            TextShakeModeDef::Continuous => {
+                apply_continuous_shake(children, &glyph_query, shake_def.intensity, &mut commands);
+            }
+            TextShakeModeDef::RandomSingle {
+                interval_seconds,
+                chance,
+                duration_seconds,
+            } => {
+                apply_random_single_shake(
+                    entity,
+                    time.elapsed_secs(),
+                    interval_seconds,
+                    chance,
+                    duration_seconds,
+                    children,
+                    &glyph_query,
+                    shake_def.intensity,
+                    &mut commands,
+                );
             }
         }
     }
+}
+
+fn apply_continuous_shake(
+    children: &Children,
+    glyph_query: &Query<&GlyphEntity>,
+    intensity: f32,
+    commands: &mut Commands,
+) {
+    for child in children.iter() {
+        if glyph_query.get(child).is_ok()
+            && let Ok(mut entity_commands) = commands.get_entity(child)
+        {
+            entity_commands.try_insert(ShakeEffect { intensity });
+        }
+    }
+}
+
+fn apply_random_single_shake(
+    entity: Entity,
+    elapsed: f32,
+    interval_seconds: f32,
+    chance: f32,
+    duration_seconds: f32,
+    children: &Children,
+    glyph_query: &Query<&GlyphEntity>,
+    intensity: f32,
+    commands: &mut Commands,
+) {
+    let mut glyph_children = children
+        .iter()
+        .filter_map(|child| {
+            glyph_query
+                .get(child)
+                .ok()
+                .map(|glyph| (child, glyph.char_index))
+        })
+        .collect::<Vec<_>>();
+    glyph_children.sort_by_key(|(_entity, char_index)| *char_index);
+
+    let Some(target_index) = random_single_target_index(
+        elapsed,
+        interval_seconds,
+        chance,
+        duration_seconds,
+        entity.to_bits(),
+        glyph_children.len(),
+    ) else {
+        remove_shake_effects(children, glyph_query, commands);
+        return;
+    };
+
+    for (index, (child, _char_index)) in glyph_children.into_iter().enumerate() {
+        let Ok(mut entity_commands) = commands.get_entity(child) else {
+            continue;
+        };
+        if index == target_index {
+            entity_commands.try_insert(ShakeEffect { intensity });
+        } else {
+            entity_commands.remove::<ShakeEffect>();
+        }
+    }
+}
+
+fn random_single_target_index(
+    elapsed: f32,
+    interval_seconds: f32,
+    chance: f32,
+    duration_seconds: f32,
+    seed: u64,
+    glyph_count: usize,
+) -> Option<usize> {
+    if glyph_count == 0 || interval_seconds <= 0.0 || chance <= 0.0 || duration_seconds <= 0.0 {
+        return None;
+    }
+
+    let elapsed = elapsed.max(0.0);
+    let interval_position = elapsed % interval_seconds;
+    if interval_position > duration_seconds.min(interval_seconds) {
+        return None;
+    }
+
+    let tick = (elapsed / interval_seconds).floor() as u64;
+    let roll = random_unit(hash_u64(seed ^ tick ^ 0xa5a5_5a5a_c3c3_3c3c));
+    if roll >= chance.min(1.0) {
+        return None;
+    }
+
+    let index_hash = hash_u64(seed ^ tick ^ 0x517c_c1b7_2722_0a95);
+    Some((index_hash % glyph_count as u64) as usize)
+}
+
+#[inline]
+fn random_unit(value: u64) -> f32 {
+    (value as f64 / u64::MAX as f64) as f32
+}
+
+#[inline]
+fn hash_u64(x: u64) -> u64 {
+    let mut z = x.wrapping_add(0x9e37_79b9_7f4a_7c15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+    z ^ (z >> 31)
 }
 
 fn remove_shake_effects(
@@ -127,13 +256,24 @@ pub fn typewriter_wave_system(
     time: Res<Time>,
     config: Res<TextAnimationConfig>,
     facts: Res<LayeredFactDatabase>,
-    text_block_query: Query<(&TextBlockDialogueChannel, &Children)>,
+    text_block_query: Query<
+        (
+            Option<&TextBlockDialogueChannel>,
+            Option<&ViewTextAnimationStyle>,
+            &Children,
+        ),
+        Or<(With<TextBlockDialogueChannel>, With<ViewTextAnimationStyle>)>,
+    >,
     mut glyph_query: Query<(&GlyphEntity, &GlyphBaseOffset, &mut Transform)>,
 ) {
     let elapsed = time.elapsed_secs();
 
-    for (channel, children) in text_block_query.iter() {
-        let Some(preset) = config.resolve_channel_preset(&facts, &channel.0) else {
+    for (channel, text_style, children) in text_block_query.iter() {
+        let preset = text_style
+            .map(|style| config.resolve_preset(Some(&style.0)))
+            .or_else(|| channel.map(|channel| config.resolve_channel_preset(&facts, &channel.0)))
+            .flatten();
+        let Some(preset) = preset else {
             reset_wave_transforms(children, &mut glyph_query);
             continue;
         };
@@ -220,10 +360,12 @@ mod tests {
     use bevy_bitmap_text::{GlyphBaseOffset, GlyphEntity, ShakeEffect};
     use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
     use souprune_schema::dialogue::{
-        TextAnimationConfigDef, TextAnimationPresetDef, TextDisplayDef, TextWaveDef,
+        TextAnimationConfigDef, TextAnimationPresetDef, TextDisplayDef, TextShakeDef,
+        TextShakeModeDef, TextWaveDef,
     };
 
     use crate::core::fre_facts;
+    use crate::core::view::ViewTextAnimationStyle;
 
     #[test]
     fn extracts_dialogue_channel_from_template() {
@@ -253,6 +395,7 @@ mod tests {
     #[test]
     fn shake_system_removes_stale_shake_when_preset_has_no_shake() {
         let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
         app.insert_resource(TextAnimationConfig(TextAnimationConfigDef {
             default_preset: "calm".into(),
             presets: [(
@@ -376,5 +519,78 @@ mod tests {
 
         let transform = app.world().get::<Transform>(glyph).unwrap();
         assert_ne!(transform.translation.truncate(), Vec2::new(4.0, 8.0));
+    }
+
+    #[test]
+    fn random_single_shake_can_skip_intervals() {
+        let seed = 7;
+        let skipped = (0..16)
+            .any(|tick| random_single_target_index(tick as f32, 1.0, 0.35, 0.5, seed, 4).is_none());
+
+        assert!(skipped);
+    }
+
+    #[test]
+    fn random_single_shake_does_not_walk_glyphs_sequentially() {
+        let seed = 7;
+        let selected = (0..8)
+            .filter_map(|tick| random_single_target_index(tick as f32, 1.0, 1.0, 0.5, seed, 4))
+            .collect::<Vec<_>>();
+
+        assert_ne!(selected, vec![0, 1, 2, 3, 0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn random_single_shake_only_marks_one_visible_glyph_per_interval() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(TextAnimationConfig(TextAnimationConfigDef {
+            default_preset: "random".into(),
+            presets: [(
+                "random".into(),
+                TextAnimationPresetDef {
+                    display: TextDisplayDef::Normal,
+                    shake: Some(TextShakeDef {
+                        intensity: 1.0,
+                        mode: TextShakeModeDef::RandomSingle {
+                            interval_seconds: 1.0,
+                            chance: 1.0,
+                            duration_seconds: 0.5,
+                        },
+                    }),
+                    wave: None,
+                },
+            )]
+            .into_iter()
+            .collect(),
+        }));
+        app.insert_resource(LayeredFactDatabase::new());
+        app.add_systems(Update, typewriter_shake_system);
+
+        let parent = app
+            .world_mut()
+            .spawn(ViewTextAnimationStyle("random".into()))
+            .id();
+        let glyphs = (0..3)
+            .map(|char_index| {
+                app.world_mut()
+                    .spawn(GlyphEntity {
+                        char_index,
+                        character: 'A',
+                    })
+                    .id()
+            })
+            .collect::<Vec<_>>();
+        for glyph in &glyphs {
+            app.world_mut().entity_mut(*glyph).insert(ChildOf(parent));
+        }
+
+        app.update();
+
+        let marked = glyphs
+            .iter()
+            .filter(|glyph| app.world().get::<ShakeEffect>(**glyph).is_some())
+            .count();
+        assert_eq!(marked, 1);
     }
 }

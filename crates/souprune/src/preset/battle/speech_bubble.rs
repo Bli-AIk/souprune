@@ -59,10 +59,6 @@ pub struct BattleSpeechBubbleProfile {
     ///
     /// 默认打字机速度。
     pub typewriter_speed: f64,
-    /// Text animation preset name (resolved from [`TextAnimationConfig`]).
-    ///
-    /// 文本动画预设名称（从 [`TextAnimationConfig`] 解析）。
-    pub animation_preset: &'static str,
 }
 
 impl BattleSpeechBubbleProfile {
@@ -76,7 +72,6 @@ impl BattleSpeechBubbleProfile {
             text_width: 190.0,
             voice: "assets/audios/voice/voice_typewriter_default.wav",
             typewriter_speed: 0.03,
-            animation_preset: "mad_dummy",
         }
     }
 }
@@ -249,10 +244,14 @@ fn start_battle_speech_bubble_requests(
             fre_facts::dialogue_channel_key(&channel, "typewriter_speed"),
             FactValue::Float(typewriter_speed),
         );
-        if !profile.animation_preset.is_empty() {
+        if let Some(text_style) = bubble
+            .text_style
+            .as_deref()
+            .filter(|style| !style.is_empty())
+        {
             facts.set(
                 fre_facts::dialogue_channel_key(&channel, fre_facts::DIALOGUE_TEXT_STYLE_FIELD),
-                FactValue::String(profile.animation_preset.to_string()),
+                FactValue::String(text_style.to_string()),
             );
         }
 
@@ -312,4 +311,71 @@ fn update_battle_speech_bubble_runtime(
     }
 
     runtime.active = None;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn speech_bubble(text_style: Option<&str>) -> BattleSpeechBubbleDef {
+        BattleSpeechBubbleDef {
+            channel: BATTLE_ENEMY_SPEECH_CHANNEL.into(),
+            mortar_path: "battle/enemies/mad_dummy.mortar".into(),
+            mortar_node: "enemy_speech_manual_intro".into(),
+            frame: BattleSpeechBubbleFrame::MadDummyWide,
+            advance: BattleSpeechBubbleAdvance::Manual,
+            hide_on_finish: true,
+            voice: None,
+            typewriter_speed: None,
+            text_style: text_style.map(str::to_string),
+        }
+    }
+
+    fn app_with_speech_bubble(text_style: Option<&str>) -> App {
+        let mut app = App::new();
+        app.add_message::<BattleSpeechBubbleRequest>();
+        app.init_resource::<BattleSpeechBubbleRuntime>();
+        app.insert_resource(LayeredFactDatabase::new());
+        app.world_mut().spawn((
+            ViewRoot::new("battle/view/undertale.view.ron".into()),
+            ActiveView,
+        ));
+        app.world_mut().write_message(BattleSpeechBubbleRequest {
+            bubble: speech_bubble(text_style),
+        });
+        app.add_systems(Update, start_battle_speech_bubble_requests);
+        app
+    }
+
+    #[test]
+    fn default_speech_bubble_does_not_apply_mad_dummy_text_style() {
+        let mut app = app_with_speech_bubble(None);
+
+        app.update();
+
+        let facts = app.world().resource::<LayeredFactDatabase>();
+        assert_eq!(
+            facts.get_string(&fre_facts::dialogue_channel_key(
+                BATTLE_ENEMY_SPEECH_CHANNEL,
+                fre_facts::DIALOGUE_TEXT_STYLE_FIELD,
+            )),
+            None,
+        );
+    }
+
+    #[test]
+    fn speech_bubble_applies_explicit_text_style() {
+        let mut app = app_with_speech_bubble(Some("mad_dummy"));
+
+        app.update();
+
+        let facts = app.world().resource::<LayeredFactDatabase>();
+        assert_eq!(
+            facts.get_string(&fre_facts::dialogue_channel_key(
+                BATTLE_ENEMY_SPEECH_CHANNEL,
+                fre_facts::DIALOGUE_TEXT_STYLE_FIELD,
+            )),
+            Some("mad_dummy"),
+        );
+    }
 }

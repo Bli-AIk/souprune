@@ -58,6 +58,37 @@ pub enum TextDisplayDef {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TextShakeDef {
     pub intensity: f32,
+    #[serde(default)]
+    pub mode: TextShakeModeDef,
+}
+
+/// Per-character shake selection mode.
+///
+/// 逐字符抖动选择模式。
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub enum TextShakeModeDef {
+    /// Every visible glyph shakes continuously.
+    ///
+    /// 所有可见字形持续抖动。
+    #[default]
+    Continuous,
+    /// At interval boundaries, one visible glyph may shake briefly.
+    ///
+    /// 每个间隔边界处，可能让一个可见字形短暂抖动。
+    RandomSingle {
+        /// Seconds between shake attempts.
+        ///
+        /// 抖动尝试之间的秒数。
+        interval_seconds: f32,
+        /// Probability that an interval produces a shake.
+        ///
+        /// 每个间隔实际产生抖动的概率。
+        chance: f32,
+        /// Seconds that the selected glyph keeps the shake effect.
+        ///
+        /// 被选中字形保留抖动效果的秒数。
+        duration_seconds: f32,
+    },
 }
 
 /// Per-character wave or orbiting distortion.
@@ -150,5 +181,21 @@ mod tests {
         assert!(!ron.contains(",w:"));
         assert!(!ron.contains("(h:"));
         assert!(!ron.contains(",h:"));
+    }
+
+    #[test]
+    fn random_single_shake_mode_serializes_timing_fields() {
+        let mode = TextShakeModeDef::RandomSingle {
+            interval_seconds: 0.08,
+            chance: 0.4,
+            duration_seconds: 0.03,
+        };
+
+        let ron = ron::to_string(&mode).unwrap();
+
+        assert!(ron.contains("RandomSingle"));
+        assert!(ron.contains("interval_seconds"));
+        assert!(ron.contains("chance"));
+        assert!(ron.contains("duration_seconds"));
     }
 }

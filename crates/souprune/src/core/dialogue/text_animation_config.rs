@@ -109,6 +109,7 @@ mod tests {
                 ("default".into(), preset(TextDisplayDef::Normal)),
                 ("global".into(), preset(TextDisplayDef::Normal)),
                 ("channel".into(), preset(TextDisplayDef::Normal)),
+                ("direct".into(), preset(TextDisplayDef::Normal)),
             ]
             .into_iter()
             .collect(),
