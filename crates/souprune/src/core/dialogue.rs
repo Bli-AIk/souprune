@@ -24,6 +24,7 @@ mod auto_pause;
 mod components;
 mod config;
 mod systems;
+mod text_animation_config;
 mod typewriter_bridge;
 mod voice_config;
 
@@ -33,6 +34,7 @@ pub use components::{DialogueChannel, MortarController};
 pub use config::DialogueInputConfig;
 pub use systems::DialogueControllerEntity;
 pub use systems::MortarFactBindings;
+pub use text_animation_config::TextAnimationConfig;
 pub use voice_config::VoiceConfig;
 
 use bevy::prelude::*;
@@ -52,14 +54,24 @@ impl Plugin for DialoguePlugin {
         // 添加 TypewriterPlugin 作为依赖
         app.add_plugins(bevy_ecs_typewriter::TypewriterPlugin);
 
+        app.configure_sets(
+            schedule,
+            systems::text_animation::TextAnimationSystemSet
+                .after(bevy_ecs_typewriter::TypewriterSystemSet),
+        );
+
         app.init_resource::<DialogueInputConfig>()
             .init_resource::<auto_pause::AutoPauseConfig>()
             .init_resource::<voice_config::VoiceConfig>()
+            .init_resource::<text_animation_config::TextAnimationConfig>()
             .init_resource::<bevy_mortar_bond::MortarDialogueVariables>()
             .add_message::<systems::DialogueStartRequest>()
             .register_type::<DialogueChannel>()
             .register_type::<MortarController>()
             .register_type::<TypewriterVoice>()
+            .register_type::<components::TextBlockDialogueChannel>()
+            .register_type::<systems::ghost_text::GhostFade>()
+            .register_type::<systems::ghost_text::GhostTextState>()
             .add_systems(
                 Startup,
                 (init_dialogue_facts, auto_pause::load_dialogue_config_system),
@@ -105,6 +117,24 @@ impl Plugin for DialoguePlugin {
                     typewriter_bridge::handle_typewriter_mortar_events,
                 )
                     .chain(),
+            )
+            // Bridge system — links TextBlock entities to their dialogue channels
+            // 桥接系统 — 将 TextBlock 实体链接到其对话通道
+            .add_systems(
+                schedule,
+                systems::text_animation::link_textblock_dialogue_channel_system,
+            )
+            // Text animation systems — apply shake/wave/ghost after sync but before voice
+            // 文本动画系统 — 在同步之后、语音之前应用抖动/波浪/幽灵
+            .add_systems(
+                schedule,
+                (
+                    systems::text_animation::typewriter_shake_system,
+                    systems::text_animation::typewriter_wave_system,
+                    systems::text_animation::text_shake_system,
+                    systems::ghost_text::ghost_text_spawn_system,
+                    systems::ghost_text::ghost_fade_system,
+                ),
             );
     }
 }
@@ -161,6 +191,13 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
     // Voice default state (enabled by default; disabled if no config loaded)
     // 语音默认状态（默认启用；若无配置加载则不激活）
     facts.set_global(fre_facts::DIALOGUE_VOICE_ENABLED, FactValue::Bool(true));
+
+    // Text animation default state (empty string = use default_preset from config)
+    // 文本动画默认状态（空字符串 = 使用配置中的 default_preset）
+    facts.set_global(
+        "dialogue:text_style",
+        FactValue::String(String::new()),
+    );
 
     // NOTE: dialogue_text is now managed by View's local_facts, not LayeredFactDatabase.
     // Views that use {{dialogue_text}} should define it in their `facts:` section.

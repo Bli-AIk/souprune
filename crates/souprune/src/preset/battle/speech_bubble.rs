@@ -59,6 +59,10 @@ pub struct BattleSpeechBubbleProfile {
     ///
     /// 默认打字机速度。
     pub typewriter_speed: f64,
+    /// Text animation preset name (resolved from [`TextAnimationConfig`]).
+    ///
+    /// 文本动画预设名称（从 [`TextAnimationConfig`] 解析）。
+    pub animation_preset: &'static str,
 }
 
 impl BattleSpeechBubbleProfile {
@@ -72,6 +76,7 @@ impl BattleSpeechBubbleProfile {
             text_width: 190.0,
             voice: "assets/audios/voice/voice_typewriter_default.wav",
             typewriter_speed: 0.03,
+            animation_preset: "mad_dummy",
         }
     }
 }
@@ -244,6 +249,12 @@ fn start_battle_speech_bubble_requests(
             fre_facts::dialogue_channel_key(&channel, "typewriter_speed"),
             FactValue::Float(typewriter_speed),
         );
+        if !profile.animation_preset.is_empty() {
+            facts.set(
+                fre_facts::dialogue_channel_key(&channel, fre_facts::DIALOGUE_TEXT_STYLE),
+                FactValue::String(profile.animation_preset.to_string()),
+            );
+        }
 
         runtime.active = Some(BattleSpeechBubbleActive {
             channel,

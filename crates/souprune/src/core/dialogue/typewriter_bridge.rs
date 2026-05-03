@@ -10,6 +10,7 @@
 //! - `apply_wave(amplitude?, frequency?)` - Add wave effect to the current glyph
 //! - `set_voice_enabled(enabled: Bool)` - Enable/disable voice playback
 //! - `set_voice_preset(preset: String)` - Switch voice preset
+//! - `set_text_style(name: String)` - Switch text animation preset
 //!
 //! 处理打字机相关的 `MortarGameEvent`：
 //! - `set_typewriter_speed(speed: Number)` - 更改打字速度
@@ -19,6 +20,7 @@
 //! - `apply_wave(amplitude?, frequency?)` - 为当前字形添加波浪效果
 //! - `set_voice_enabled(enabled: Bool)` - 启用/禁用语音播放
 //! - `set_voice_preset(preset: String)` - 切换语音预设
+//! - `set_text_style(name: String)` - 切换文本动画预设
 
 use bevy::prelude::*;
 use bevy_bitmap_text::{GlyphEntity, ShakeEffect, WaveEffect};
@@ -86,6 +88,9 @@ pub fn handle_typewriter_mortar_events(
             }
             "set_voice_preset" => {
                 handle_set_voice_preset(event, &mut facts, &channel_query);
+            }
+            "set_text_style" => {
+                handle_set_text_style(event, &mut facts, &channel_query);
             }
             _ => {
                 // Other events handled by other systems
@@ -217,7 +222,6 @@ fn handle_apply_shake(
     if let Some(entity) = find_glyph_at_index(char_index, typewriters, glyph_query) {
         commands.entity(entity).insert(ShakeEffect {
             intensity,
-            elapsed: 0.0,
         });
         debug!(
             "Applied shake effect (intensity={}) to glyph at index {}",
@@ -325,4 +329,35 @@ fn handle_set_voice_preset(
         FactValue::String(preset.clone()),
     );
     debug!("Voice preset set to '{}'", preset);
+}
+
+fn handle_set_text_style(
+    event: &MortarGameEvent,
+    facts: &mut ResMut<LayeredFactDatabase>,
+    channel_query: &Query<&DialogueChannel>,
+) {
+    let Some(style_name) = event.args.first() else {
+        warn!("set_text_style: missing style name argument");
+        return;
+    };
+
+    if let Some(entity) = event.source
+        && let Ok(channel) = channel_query.get(entity)
+    {
+        facts.set_local(
+            fre_facts::dialogue_channel_key(&channel.name, fre_facts::DIALOGUE_TEXT_STYLE),
+            FactValue::String(style_name.clone()),
+        );
+        debug!(
+            "Text style set to '{}' for channel '{}'",
+            style_name, channel.name
+        );
+        return;
+    }
+
+    facts.set_local(
+        "dialogue:text_style",
+        FactValue::String(style_name.clone()),
+    );
+    debug!("Text style set to '{}' (broadcast)", style_name);
 }
