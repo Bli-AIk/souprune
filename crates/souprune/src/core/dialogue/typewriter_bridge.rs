@@ -220,9 +220,7 @@ fn handle_apply_shake(
         .unwrap_or(0);
 
     if let Some(entity) = find_glyph_at_index(char_index, typewriters, glyph_query) {
-        commands.entity(entity).insert(ShakeEffect {
-            intensity,
-        });
+        commands.entity(entity).insert(ShakeEffect { intensity });
         debug!(
             "Applied shake effect (intensity={}) to glyph at index {}",
             intensity, char_index
@@ -345,7 +343,7 @@ fn handle_set_text_style(
         && let Ok(channel) = channel_query.get(entity)
     {
         facts.set_local(
-            fre_facts::dialogue_channel_key(&channel.name, fre_facts::DIALOGUE_TEXT_STYLE),
+            fre_facts::dialogue_channel_key(&channel.name, fre_facts::DIALOGUE_TEXT_STYLE_FIELD),
             FactValue::String(style_name.clone()),
         );
         debug!(
@@ -356,7 +354,7 @@ fn handle_set_text_style(
     }
 
     facts.set_local(
-        "dialogue:text_style",
+        fre_facts::DIALOGUE_TEXT_STYLE,
         FactValue::String(style_name.clone()),
     );
     debug!("Text style set to '{}' (broadcast)", style_name);

@@ -15,7 +15,7 @@
 //    structure globally, please edit the Cauld-ron source schema/configuration
 //    instead of modifying this file directly.
 // =============================================================================
-// Generated at: 2026-05-03 13:37:19 +08:00
+// Generated at: 2026-05-03 14:52:10 +08:00
 
 (
     auto_pause: (
@@ -133,12 +133,12 @@
                 )),
             ),
             "mad_dummy": (
-                display: Ghost(
+                display: Floating(
                     spawn_area: (
                         x: 0.0,
                         y: 0.0,
-                        w: 280.0,
-                        h: 200.0,
+                        width: 280.0,
+                        height: 200.0,
                     ),
                     linger_seconds: 0.8,
                 ),
@@ -150,12 +150,12 @@
                 )),
             ),
             "napstablook": (
-                display: Ghost(
+                display: Floating(
                     spawn_area: (
                         x: 0.0,
                         y: 0.0,
-                        w: 280.0,
-                        h: 200.0,
+                        width: 280.0,
+                        height: 200.0,
                     ),
                     linger_seconds: 1.5,
                 ),

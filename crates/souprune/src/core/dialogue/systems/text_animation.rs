@@ -9,7 +9,6 @@ use bevy_fact_rule_event::LayeredFactDatabase;
 
 use crate::core::dialogue::components::TextBlockDialogueChannel;
 use crate::core::dialogue::text_animation_config::TextAnimationConfig;
-use crate::core::fre_facts;
 use crate::core::view::components::text::ViewTextTemplate;
 
 /// System set for text animation systems (runs after TypewriterSystemSet).
@@ -59,9 +58,9 @@ fn extract_dialogue_channel(template: &str) -> Option<String> {
 /// 对于有活跃抖动预设的文本块中的可见字形，在每个字形实体上插入或更新 `ShakeEffect`。
 ///
 /// Applies to ALL visible glyph children unconditionally (not just recently-revealed ones),
-/// matching the original Undertale per-frame shake behavior.
+/// matching full-line per-frame shake behavior.
 ///
-/// 无条件应用于所有可见子字形（不仅仅是最近揭示的），与 Undertale 原始的逐帧抖动行为一致。
+/// 无条件应用于所有可见子字形（不仅仅是最近揭示的），与整行逐帧抖动行为一致。
 pub fn typewriter_shake_system(
     config: Res<TextAnimationConfig>,
     facts: Res<LayeredFactDatabase>,
@@ -70,21 +69,17 @@ pub fn typewriter_shake_system(
     mut commands: Commands,
 ) {
     for (channel, children) in text_block_query.iter() {
-        let preset_name = facts
-            .get_string(&fre_facts::dialogue_channel_key(
-                &channel.0,
-                fre_facts::DIALOGUE_TEXT_STYLE,
-            ))
-            .filter(|s| !s.is_empty());
-
-        let Some(preset) = config.resolve_preset(preset_name) else {
+        let Some(preset) = config.resolve_channel_preset(&facts, &channel.0) else {
+            remove_shake_effects(children, &glyph_query, &mut commands);
             continue;
         };
 
         let Some(shake_def) = &preset.shake else {
+            remove_shake_effects(children, &glyph_query, &mut commands);
             continue;
         };
         if shake_def.intensity <= 0.0 {
+            remove_shake_effects(children, &glyph_query, &mut commands);
             continue;
         }
 
@@ -100,21 +95,33 @@ pub fn typewriter_shake_system(
     }
 }
 
+fn remove_shake_effects(
+    children: &Children,
+    glyph_query: &Query<&GlyphEntity>,
+    commands: &mut Commands,
+) {
+    for child in children.iter() {
+        if glyph_query.get(child).is_ok()
+            && let Ok(mut entity_commands) = commands.get_entity(child)
+        {
+            entity_commands.remove::<ShakeEffect>();
+        }
+    }
+}
+
 /// Applies wave or orbiting distortion to visible glyphs.
 ///
 /// 对可见字形应用波浪或轨道扭曲。
 ///
 /// Two modes:
 /// - **Orbiting** (`orbit_angle_per_char_deg` is set): each glyph orbits its base position in a
-///   circle, with phase offset proportional to `char_index * angle`. This matches Undertale's
-///   `shake == 43` draw effect (Mad Dummy style).
+///   circle, with phase offset proportional to `char_index * angle`.
 /// - **Spatial wave** (`orbit_angle_per_char_deg` is None): traditional Y-position-based sine wave
 ///   distortion across the text area.
 ///
 /// 两种模式：
 /// - **轨道**（`orbit_angle_per_char_deg` 已设置）：每个字形围绕基位置做圆周运动，
-///   相位偏移与 `char_index * angle` 成正比。与 Undertale 的 `shake == 43` 绘制效果一致
-///   （Mad Dummy 风格）。
+///   相位偏移与 `char_index * angle` 成正比。
 /// - **空间波浪**（`orbit_angle_per_char_deg` 为 None）：传统的基于 Y 坐标的正弦波浪。
 pub fn typewriter_wave_system(
     time: Res<Time>,
@@ -126,18 +133,13 @@ pub fn typewriter_wave_system(
     let elapsed = time.elapsed_secs();
 
     for (channel, children) in text_block_query.iter() {
-        let preset_name = facts
-            .get_string(&fre_facts::dialogue_channel_key(
-                &channel.0,
-                fre_facts::DIALOGUE_TEXT_STYLE,
-            ))
-            .filter(|s| !s.is_empty());
-
-        let Some(preset) = config.resolve_preset(preset_name) else {
+        let Some(preset) = config.resolve_channel_preset(&facts, &channel.0) else {
+            reset_wave_transforms(children, &mut glyph_query);
             continue;
         };
 
         let Some(wave_def) = &preset.wave else {
+            reset_wave_transforms(children, &mut glyph_query);
             continue;
         };
 
@@ -149,23 +151,37 @@ pub fn typewriter_wave_system(
     }
 }
 
-/// Orbiting mode — each glyph orbits its base position (Undertale shake == 43).
+fn reset_wave_transforms(
+    children: &Children,
+    glyph_query: &mut Query<(&GlyphEntity, &GlyphBaseOffset, &mut Transform)>,
+) {
+    for child in children.iter() {
+        let Ok((_glyph, base_offset, mut transform)) = glyph_query.get_mut(child) else {
+            continue;
+        };
+        transform.translation.x = base_offset.0.x;
+        transform.translation.y = base_offset.0.y;
+    }
+}
+
+/// Orbiting mode — each glyph orbits its base position.
 ///
-/// 轨道模式 — 每个字形围绕基位置旋转（Undertale shake == 43）。
+/// 轨道模式 — 每个字形围绕基位置旋转。
 fn apply_orbiting_wave(
     elapsed: f32,
     wave_def: &souprune_schema::dialogue::TextWaveDef,
     children: &Children,
     glyph_query: &mut Query<(&GlyphEntity, &GlyphBaseOffset, &mut Transform)>,
 ) {
-    let angle_per_char_rad =
-        wave_def.orbit_angle_per_char_deg.unwrap_or(0.0).to_radians();
+    let angle_per_char_rad = wave_def
+        .orbit_angle_per_char_deg
+        .unwrap_or(0.0)
+        .to_radians();
     for child in children.iter() {
         let Ok((glyph, base_offset, mut transform)) = glyph_query.get_mut(child) else {
             continue;
         };
-        let phase =
-            elapsed * wave_def.frequency + glyph.char_index as f32 * angle_per_char_rad;
+        let phase = elapsed * wave_def.frequency + glyph.char_index as f32 * angle_per_char_rad;
         let orb_x = wave_def.amplitude * phase.cos();
         let orb_y = wave_def.amplitude * phase.sin();
         transform.translation.x = base_offset.0.x + orb_x;
@@ -188,8 +204,8 @@ fn apply_spatial_wave(
             continue;
         };
         let glyph_y = base_offset.0.y;
-        let x_off = (elapsed * wave_def.frequency + glyph_y * phase_scale).sin()
-            * wave_def.amplitude;
+        let x_off =
+            (elapsed * wave_def.frequency + glyph_y * phase_scale).sin() * wave_def.amplitude;
         let y_off = (elapsed * wave_def.frequency * 1.3 + glyph_y * phase_scale).cos()
             * wave_def.amplitude
             * 0.5;
@@ -198,49 +214,16 @@ fn apply_spatial_wave(
     }
 }
 
-// ── Shake system (moved from bevy_bitmap_text — UT/DR-specific algorithm) ──
-
-/// Animate glyphs with `ShakeEffect` using hash-based per-frame per-entity pseudo-random jitter.
-///
-/// 使用基于哈希的逐帧逐实体伪随机抖动，为 `ShakeEffect` 字形制作动画。
-///
-/// Matches Undertale's `shake = 1` draw behaviour: each character gets a uniformly-distributed
-/// random offset in `[-0.5, 0.5) × intensity` on each axis per frame via
-/// `random(shake) - shake/2`.
-///
-/// 匹配 Undertale 的 `shake = 1` 绘制行为：每帧每字符在每个轴上获得
-/// `[-0.5, 0.5) × intensity` 的均匀分布随机偏移。
-pub fn text_shake_system(
-    time: Res<Time>,
-    mut query: Query<(Entity, &ShakeEffect, &GlyphBaseOffset, &mut Transform)>,
-) {
-    let frame = (time.elapsed_secs() * 30.0) as u64;
-
-    for (entity, shake, base, mut transform) in query.iter_mut() {
-        let eid = entity.to_bits();
-        let hx = hash_u64(eid ^ frame ^ 0xdead_beef_cafe_babe);
-        let hy = hash_u64(eid ^ frame ^ 0x8bad_f00d_1ced_c0c0);
-        let dx = ((hx as f64 / u64::MAX as f64) as f32 - 0.5) * shake.intensity;
-        let dy = ((hy as f64 / u64::MAX as f64) as f32 - 0.5) * shake.intensity;
-        transform.translation.x = base.0.x + dx;
-        transform.translation.y = base.0.y + dy;
-    }
-}
-
-/// SplitMix64-style finalizer — avalanches bits for uniform pseudo-random distribution.
-///
-/// SplitMix64 风格终结器 — 对位进行雪崩混合以获得均匀伪随机分布。
-#[inline]
-fn hash_u64(x: u64) -> u64 {
-    let mut z = x.wrapping_add(0x9e37_79b9_7f4a_7c15);
-    z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
-    z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
-    z ^ (z >> 31)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy_bitmap_text::{GlyphBaseOffset, GlyphEntity, ShakeEffect};
+    use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
+    use souprune_schema::dialogue::{
+        TextAnimationConfigDef, TextAnimationPresetDef, TextDisplayDef, TextWaveDef,
+    };
+
+    use crate::core::fre_facts;
 
     #[test]
     fn extracts_dialogue_channel_from_template() {
@@ -257,5 +240,141 @@ mod tests {
             Some("main".into())
         );
         assert_eq!(extract_dialogue_channel("static text"), None);
+    }
+
+    fn spawn_text_block_parent(app: &mut App, glyph: Entity) {
+        let parent = app
+            .world_mut()
+            .spawn(TextBlockDialogueChannel("main".into()))
+            .id();
+        app.world_mut().entity_mut(glyph).insert(ChildOf(parent));
+    }
+
+    #[test]
+    fn shake_system_removes_stale_shake_when_preset_has_no_shake() {
+        let mut app = App::new();
+        app.insert_resource(TextAnimationConfig(TextAnimationConfigDef {
+            default_preset: "calm".into(),
+            presets: [(
+                "calm".into(),
+                TextAnimationPresetDef {
+                    display: TextDisplayDef::Normal,
+                    shake: None,
+                    wave: None,
+                },
+            )]
+            .into_iter()
+            .collect(),
+        }));
+        let mut facts = LayeredFactDatabase::new();
+        facts.set_global(
+            fre_facts::DIALOGUE_TEXT_STYLE,
+            FactValue::String("calm".into()),
+        );
+        app.insert_resource(facts);
+        app.add_systems(Update, typewriter_shake_system);
+
+        let glyph = app
+            .world_mut()
+            .spawn((
+                GlyphEntity {
+                    char_index: 0,
+                    character: 'A',
+                },
+                ShakeEffect { intensity: 2.0 },
+            ))
+            .id();
+        spawn_text_block_parent(&mut app, glyph);
+
+        app.update();
+
+        assert!(app.world().get::<ShakeEffect>(glyph).is_none());
+    }
+
+    #[test]
+    fn wave_system_resets_glyph_transform_when_preset_has_no_wave() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(TextAnimationConfig(TextAnimationConfigDef {
+            default_preset: "calm".into(),
+            presets: [(
+                "calm".into(),
+                TextAnimationPresetDef {
+                    display: TextDisplayDef::Normal,
+                    shake: None,
+                    wave: None,
+                },
+            )]
+            .into_iter()
+            .collect(),
+        }));
+        let mut facts = LayeredFactDatabase::new();
+        facts.set_global(
+            fre_facts::DIALOGUE_TEXT_STYLE,
+            FactValue::String("calm".into()),
+        );
+        app.insert_resource(facts);
+        app.add_systems(Update, typewriter_wave_system);
+
+        let glyph = app
+            .world_mut()
+            .spawn((
+                GlyphEntity {
+                    char_index: 0,
+                    character: 'A',
+                },
+                GlyphBaseOffset(Vec2::new(4.0, 8.0)),
+                Transform::from_xyz(99.0, 88.0, 0.0),
+            ))
+            .id();
+        spawn_text_block_parent(&mut app, glyph);
+
+        app.update();
+
+        let transform = app.world().get::<Transform>(glyph).unwrap();
+        assert_eq!(transform.translation.truncate(), Vec2::new(4.0, 8.0));
+    }
+
+    #[test]
+    fn wave_system_applies_configured_wave() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(TextAnimationConfig(TextAnimationConfigDef {
+            default_preset: "wave".into(),
+            presets: [(
+                "wave".into(),
+                TextAnimationPresetDef {
+                    display: TextDisplayDef::Normal,
+                    shake: None,
+                    wave: Some(TextWaveDef {
+                        amplitude: 2.0,
+                        frequency: 1.0,
+                        orbit_angle_per_char_deg: None,
+                    }),
+                },
+            )]
+            .into_iter()
+            .collect(),
+        }));
+        app.insert_resource(LayeredFactDatabase::new());
+        app.add_systems(Update, typewriter_wave_system);
+
+        let glyph = app
+            .world_mut()
+            .spawn((
+                GlyphEntity {
+                    char_index: 0,
+                    character: 'A',
+                },
+                GlyphBaseOffset(Vec2::new(4.0, 8.0)),
+                Transform::from_xyz(4.0, 8.0, 0.0),
+            ))
+            .id();
+        spawn_text_block_parent(&mut app, glyph);
+
+        app.update();
+
+        let transform = app.world().get::<Transform>(glyph).unwrap();
+        assert_ne!(transform.translation.truncate(), Vec2::new(4.0, 8.0));
     }
 }

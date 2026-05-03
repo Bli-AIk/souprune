@@ -251,7 +251,7 @@ fn start_battle_speech_bubble_requests(
         );
         if !profile.animation_preset.is_empty() {
             facts.set(
-                fre_facts::dialogue_channel_key(&channel, fre_facts::DIALOGUE_TEXT_STYLE),
+                fre_facts::dialogue_channel_key(&channel, fre_facts::DIALOGUE_TEXT_STYLE_FIELD),
                 FactValue::String(profile.animation_preset.to_string()),
             );
         }

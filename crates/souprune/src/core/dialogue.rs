@@ -70,8 +70,8 @@ impl Plugin for DialoguePlugin {
             .register_type::<MortarController>()
             .register_type::<TypewriterVoice>()
             .register_type::<components::TextBlockDialogueChannel>()
-            .register_type::<systems::ghost_text::GhostFade>()
-            .register_type::<systems::ghost_text::GhostTextState>()
+            .register_type::<systems::ghost_text::FloatingFade>()
+            .register_type::<systems::ghost_text::FloatingTextState>()
             .add_systems(
                 Startup,
                 (init_dialogue_facts, auto_pause::load_dialogue_config_system),
@@ -105,6 +105,31 @@ impl Plugin for DialoguePlugin {
                     auto_pause::auto_pause_resume_system,
                     auto_pause::auto_pause_scan_system,
                     auto_pause::auto_pause_cleanup_system,
+                )
+                    .chain(),
+            )
+            // Bridge system — links TextBlock entities to their dialogue channels
+            // 桥接系统 — 将 TextBlock 实体链接到其对话通道
+            .add_systems(
+                schedule,
+                systems::text_animation::link_textblock_dialogue_channel_system
+                    .in_set(systems::text_animation::TextAnimationSystemSet),
+            )
+            // Text animation systems — apply shake/wave/ghost after sync but before voice
+            // 文本动画系统 — 在同步之后、语音之前应用抖动/波浪/幽灵
+            .add_systems(
+                schedule,
+                (
+                    systems::text_animation::typewriter_shake_system,
+                    systems::text_animation::typewriter_wave_system,
+                    systems::ghost_text::ghost_text_spawn_system,
+                    systems::ghost_text::floating_fade_system,
+                )
+                    .in_set(systems::text_animation::TextAnimationSystemSet),
+            )
+            .add_systems(
+                schedule,
+                (
                     // Voice system - plays sound on char advance
                     systems::typewriter_voice_system,
                     // Input handling systems
@@ -116,25 +141,8 @@ impl Plugin for DialoguePlugin {
                     // Mortar event handling
                     typewriter_bridge::handle_typewriter_mortar_events,
                 )
-                    .chain(),
-            )
-            // Bridge system — links TextBlock entities to their dialogue channels
-            // 桥接系统 — 将 TextBlock 实体链接到其对话通道
-            .add_systems(
-                schedule,
-                systems::text_animation::link_textblock_dialogue_channel_system,
-            )
-            // Text animation systems — apply shake/wave/ghost after sync but before voice
-            // 文本动画系统 — 在同步之后、语音之前应用抖动/波浪/幽灵
-            .add_systems(
-                schedule,
-                (
-                    systems::text_animation::typewriter_shake_system,
-                    systems::text_animation::typewriter_wave_system,
-                    systems::text_animation::text_shake_system,
-                    systems::ghost_text::ghost_text_spawn_system,
-                    systems::ghost_text::ghost_fade_system,
-                ),
+                    .chain()
+                    .after(systems::text_animation::TextAnimationSystemSet),
             );
     }
 }
@@ -195,7 +203,7 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
     // Text animation default state (empty string = use default_preset from config)
     // 文本动画默认状态（空字符串 = 使用配置中的 default_preset）
     facts.set_global(
-        "dialogue:text_style",
+        fre_facts::DIALOGUE_TEXT_STYLE,
         FactValue::String(String::new()),
     );
 

@@ -25,15 +25,15 @@ pub struct VoiceConfig {
     pub presets: HashMap<String, HashMap<String, bool>>,
 }
 
-/// Rectangle definition for ghost text spawn area.
+/// Rectangle definition for text spawn areas.
 ///
-/// 幽灵文本生成区域的矩形定义。
+/// 文本生成区域的矩形定义。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RectDef {
     pub x: f32,
     pub y: f32,
-    pub w: f32,
-    pub h: f32,
+    pub width: f32,
+    pub height: f32,
 }
 
 /// How text characters appear on screen during typewriter playback.
@@ -44,9 +44,9 @@ pub enum TextDisplayDef {
     /// Standard left-to-right layout within a text block.
     /// 标准从左到右排列。
     Normal,
-    /// Ghost text — characters appear at random positions and fade out.
-    /// 幽灵文本 — 字符出现在随机位置并渐隐。
-    Ghost {
+    /// Floating text — characters appear at configured positions and fade out.
+    /// 浮动文本 — 字符出现在配置的位置并渐隐。
+    Floating {
         spawn_area: RectDef,
         linger_seconds: f32,
     },
@@ -71,11 +71,9 @@ pub struct TextWaveDef {
     ///
     /// 每字符相位角偏移，单位为度。
     ///
-    /// When set, glyphs orbit their base position with `char_index * angle` phase offset,
-    /// matching Undertale's `shake > 38` / `shake == 43` orbiting draw effect.
+    /// When set, glyphs orbit their base position with `char_index * angle` phase offset.
     ///
-    /// 设置后，字形围绕基位置以 `char_index * angle` 相位偏移进行轨道运动，
-    /// 匹配 Undertale 的 `shake > 38` / `shake == 43` 轨道绘制效果。
+    /// 设置后，字形围绕基位置以 `char_index * angle` 相位偏移进行轨道运动。
     ///
     /// When `None` (default), a traditional spatial Y-based sine wave is applied.
     ///
@@ -125,4 +123,32 @@ pub struct DialogueConfig {
     pub voice: VoiceConfig,
     #[serde(default)]
     pub text_animation: TextAnimationConfigDef,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn floating_display_serializes_full_area_field_names() {
+        let display = TextDisplayDef::Floating {
+            spawn_area: RectDef {
+                x: 1.0,
+                y: 2.0,
+                width: 3.0,
+                height: 4.0,
+            },
+            linger_seconds: 0.5,
+        };
+
+        let ron = ron::to_string(&display).unwrap();
+
+        assert!(ron.contains("Floating"));
+        assert!(ron.contains("width"));
+        assert!(ron.contains("height"));
+        assert!(!ron.contains("(w:"));
+        assert!(!ron.contains(",w:"));
+        assert!(!ron.contains("(h:"));
+        assert!(!ron.contains(",h:"));
+    }
 }

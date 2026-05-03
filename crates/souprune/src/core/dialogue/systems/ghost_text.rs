@@ -1,33 +1,32 @@
-//! Ghost text effect — UT/DR-specific ghost-mode text rendering.
+//! Floating text effect — detached glyph rendering for dialogue text styles.
 //!
-//! 幽灵文本效果 — UT/DR 特有的幽灵模式文本渲染。
+//! 浮动文本效果 — 对话文本风格使用的分离字形渲染。
 
 use bevy::prelude::*;
-use bevy_bitmap_text::{DynamicGlyphCache, FontId, GlyphBaseOffset, GlyphEntity, GlyphKey};
+use bevy_bitmap_text::{
+    DynamicGlyphCache, FontId, GlyphBaseOffset, GlyphEntity, GlyphKey, TextBlockStyling,
+};
 use bevy_ecs_typewriter::{Typewriter, TypewriterState};
 use bevy_fact_rule_event::LayeredFactDatabase;
 use souprune_schema::dialogue::TextDisplayDef;
 
-use crate::core::dialogue::components::DialogueChannel;
+use crate::core::dialogue::components::{DialogueChannel, TextBlockDialogueChannel};
 use crate::core::dialogue::systems::lifecycle::DialogueControllerEntity;
 use crate::core::dialogue::text_animation_config::TextAnimationConfig;
-use crate::core::fre_facts;
 
-// ── GhostFade component ────────────────────────────────────────────────
+// ── FloatingFade component ────────────────────────────────────────────────
 
-/// Ghost text fade-out effect — glyph fades and despawns after linger time.
+/// Floating text fade-out effect — glyph fades and despawns after linger time.
 ///
-/// 幽灵文本渐隐效果 — 字形在停留时间后渐隐并消失。
+/// 浮动文本渐隐效果 — 字形在停留时间后渐隐并消失。
 ///
-/// This is a UT/DR-specific component (Napstablook, Mad Dummy style).
 /// The fade begins after `linger_seconds` have elapsed since spawn;
 /// alpha decreases linearly over 2 seconds, then the entity is despawned.
 ///
-/// 这是 UT/DR 特有的组件（Napstablook、Mad Dummy 风格）。
 /// 渐隐在生成后 `linger_seconds` 秒开始；alpha 在 2 秒内线性降低，然后实体被销毁。
 #[derive(Component, Debug, Clone, Reflect)]
 #[reflect(Component)]
-pub struct GhostFade {
+pub struct FloatingFade {
     /// How long to wait before fading starts (seconds).
     /// 渐隐开始前的等待时间（秒）。
     pub linger_seconds: f32,
@@ -36,26 +35,39 @@ pub struct GhostFade {
     pub elapsed: f32,
 }
 
-// ── GhostTextState ─────────────────────────────────────────────────────
+// ── FloatingTextState ─────────────────────────────────────────────────────
 
 /// Tracks the previous char_index per dialogue controller for change detection.
 ///
 /// 追踪每个对话控制器的前一次 char_index 用于变化检测。
 #[derive(Component, Debug, Default, Reflect)]
 #[reflect(Component)]
-pub struct GhostTextState {
+pub struct FloatingTextState {
     pub last_char_index: usize,
+    rng_state: u64,
+}
+
+impl FloatingTextState {
+    fn next_random_unit(&mut self) -> f32 {
+        if self.rng_state == 0 {
+            self.rng_state = 0xdead_beef_cafe_babe;
+        }
+        self.rng_state ^= self.rng_state << 13;
+        self.rng_state ^= self.rng_state >> 7;
+        self.rng_state ^= self.rng_state << 17;
+        self.rng_state as f32 / u64::MAX as f32
+    }
 }
 
 // ── Systems ────────────────────────────────────────────────────────────
 
-/// Animate ghost text fade-out — reduces sprite alpha, despawns when done.
+/// Animate floating text fade-out — reduces sprite alpha, despawns when done.
 ///
-/// 幽灵文本渐隐动画 — 降低精灵透明度，完成后销毁实体。
-pub fn ghost_fade_system(
+/// 浮动文本渐隐动画 — 降低精灵透明度，完成后销毁实体。
+pub fn floating_fade_system(
     time: Res<Time>,
     mut commands: Commands,
-    mut query: Query<(Entity, &mut GhostFade, &mut Sprite)>,
+    mut query: Query<(Entity, &mut FloatingFade, &mut Sprite)>,
 ) {
     for (entity, mut fade, mut sprite) in query.iter_mut() {
         fade.elapsed += time.delta_secs();
@@ -140,32 +152,24 @@ pub fn ghost_text_spawn_system(
     facts: Res<LayeredFactDatabase>,
     cache: Res<DynamicGlyphCache>,
     mut controller_query: Query<
-        (&Typewriter, &DialogueChannel, &mut GhostTextState),
+        (&Typewriter, &DialogueChannel, &mut FloatingTextState),
         With<DialogueControllerEntity>,
     >,
+    text_block_query: Query<(&TextBlockDialogueChannel, &TextBlockStyling)>,
     mut commands: Commands,
 ) {
-    let mut rng_state: u64 = 0xdead_beef_cafe_babe;
-
     for (typewriter, channel, mut ghost_state) in controller_query.iter_mut() {
         if typewriter.state != TypewriterState::Playing {
             ghost_state.last_char_index = typewriter.current_char_index;
             continue;
         }
 
-        let preset_name = facts
-            .get_string(&fre_facts::dialogue_channel_key(
-                &channel.name,
-                fre_facts::DIALOGUE_TEXT_STYLE,
-            ))
-            .filter(|s| !s.is_empty());
-
-        let Some(preset) = config.resolve_preset(preset_name) else {
+        let Some(preset) = config.resolve_channel_preset(&facts, &channel.name) else {
             ghost_state.last_char_index = typewriter.current_char_index;
             continue;
         };
 
-        let TextDisplayDef::Ghost {
+        let TextDisplayDef::Floating {
             spawn_area,
             linger_seconds,
         } = &preset.display
@@ -187,30 +191,30 @@ pub fn ghost_text_spawn_system(
                 continue;
             }
 
-            // Xorshift64
-            rng_state ^= rng_state << 13;
-            rng_state ^= rng_state >> 7;
-            rng_state ^= rng_state << 17;
-            let x =
-                spawn_area.x + ((rng_state as f32) / (u64::MAX as f32)) * spawn_area.w;
-            rng_state ^= rng_state << 13;
-            rng_state ^= rng_state >> 7;
-            rng_state ^= rng_state << 17;
-            let y =
-                spawn_area.y + ((rng_state as f32) / (u64::MAX as f32)) * spawn_area.h;
+            let x = spawn_area.x + ghost_state.next_random_unit() * spawn_area.width;
+            let y = spawn_area.y + ghost_state.next_random_unit() * spawn_area.height;
             let position = Vec2::new(x, y);
+            let styling = text_block_query.iter().find_map(|(text_channel, styling)| {
+                (text_channel.0 == channel.name).then_some(styling)
+            });
+            let font = styling.map(|style| style.font.clone()).unwrap_or_default();
+            let size_px = styling.map(|style| style.size_px).unwrap_or(32);
+            let world_scale = styling.map(|style| style.world_scale).unwrap_or(1.0);
+            let color = styling
+                .map(|style| style.color)
+                .unwrap_or(bevy::color::Srgba::WHITE);
 
             if let Some(glyph_entity) = spawn_standalone_glyph(
                 &mut commands,
                 &cache,
                 ch,
-                &FontId::from_name("maintext"),
-                32,
-                1.0,
+                &font,
+                size_px,
+                world_scale,
                 position,
-                bevy::color::Srgba::WHITE,
+                color,
             ) {
-                commands.entity(glyph_entity).insert(GhostFade {
+                commands.entity(glyph_entity).insert(FloatingFade {
                     linger_seconds: *linger_seconds,
                     elapsed: 0.0,
                 });
@@ -218,5 +222,20 @@ pub fn ghost_text_spawn_system(
         }
 
         ghost_state.last_char_index = current;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn floating_text_state_keeps_advancing_random_sequence() {
+        let mut state = FloatingTextState::default();
+
+        let first = state.next_random_unit();
+        let second = state.next_random_unit();
+
+        assert_ne!(first, second);
     }
 }
