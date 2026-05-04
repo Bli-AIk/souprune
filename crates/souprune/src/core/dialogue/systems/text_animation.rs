@@ -444,9 +444,11 @@ mod tests {
         TextAnimationConfigDef, TextAnimationPresetDef, TextDisplayDef, TextShakeDef,
         TextShakeModeDef, TextWaveDef,
     };
+    use std::time::Duration;
 
     use crate::core::fre_facts;
     use crate::core::view::ViewTextAnimationStyle;
+    use crate::{GameUpdateSchedule, ScheduleLabel};
 
     #[test]
     fn extracts_dialogue_channel_from_template() {
@@ -816,5 +818,79 @@ mod tests {
                 .iter()
                 .all(|glyph| app.world().get::<TwitchEffect>(*glyph).is_none())
         );
+    }
+
+    #[derive(ScheduleLabel, Debug, Hash, PartialEq, Eq, Clone)]
+    struct TestGameUpdate;
+
+    #[test]
+    fn dialogue_twitch_runs_before_bitmap_twitch_transform_application() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(GameUpdateSchedule(TestGameUpdate.intern()));
+        app.insert_resource(TextAnimationConfig(TextAnimationConfigDef {
+            default_preset: "twitch".into(),
+            presets: [(
+                "twitch".into(),
+                TextAnimationPresetDef {
+                    display: TextDisplayDef::Normal,
+                    shake: Some(TextShakeDef {
+                        intensity: 2.0,
+                        mode: TextShakeModeDef::Twitch {
+                            average_frames: 1,
+                            frame_variation: 0,
+                        },
+                    }),
+                    wave: None,
+                },
+            )]
+            .into_iter()
+            .collect(),
+        }));
+        app.insert_resource(LayeredFactDatabase::new());
+        let schedule = crate::game_schedule(&app);
+        app.add_systems(
+            schedule,
+            typewriter_shake_system.in_set(TextAnimationSystemSet),
+        );
+        app.add_systems(
+            schedule,
+            bevy_bitmap_text::systems::bitmap_text_animation_systems()
+                .after(TextAnimationSystemSet),
+        );
+
+        let parent = app
+            .world_mut()
+            .spawn(ViewTextAnimationStyle("twitch".into()))
+            .id();
+        let glyph = app
+            .world_mut()
+            .spawn((
+                GlyphEntity {
+                    char_index: 0,
+                    character: 'A',
+                },
+                GlyphBaseOffset(Vec2::new(10.0, 20.0)),
+                Transform::from_xyz(10.0, 20.0, 0.0),
+            ))
+            .id();
+        app.world_mut().entity_mut(glyph).insert(ChildOf(parent));
+
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(Duration::from_secs_f32(1.0 / 60.0));
+        app.world_mut().run_schedule(TestGameUpdate);
+
+        assert!(app.world().resource::<Time>().elapsed_secs() >= 1.0 / 60.0);
+        assert_eq!(app.world().get::<Children>(parent).unwrap().len(), 1);
+        assert!(
+            app.world()
+                .resource::<TextAnimationConfig>()
+                .resolve_preset(Some("twitch"))
+                .is_some()
+        );
+        assert!(app.world().get::<TwitchEffect>(glyph).is_some());
+        let transform = app.world().get::<Transform>(glyph).unwrap();
+        assert_ne!(transform.translation.truncate(), Vec2::new(10.0, 20.0));
     }
 }

@@ -61,6 +61,11 @@ impl Plugin for DialoguePlugin {
         );
         app.configure_sets(
             schedule,
+            bevy_bitmap_text::BitmapTextAnimationSet
+                .after(systems::text_animation::TextAnimationSystemSet),
+        );
+        app.configure_sets(
+            schedule,
             systems::text_animation::TextBlockSyncSystemSet
                 .after(bevy_ecs_typewriter::TypewriterSystemSet)
                 .after(crate::core::view::ron_view::update_dynamic_text_system)
@@ -137,6 +142,10 @@ impl Plugin for DialoguePlugin {
                     systems::ghost_text::floating_fade_system,
                 )
                     .in_set(systems::text_animation::TextAnimationSystemSet),
+            )
+            .add_systems(
+                schedule,
+                bevy_bitmap_text::systems::bitmap_text_animation_systems(),
             )
             .add_systems(
                 schedule,
