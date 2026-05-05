@@ -2,10 +2,12 @@
 //!
 //! 对话系统核心系统。
 
+pub mod ghost_text;
 mod input;
 mod lifecycle;
 mod mortar_sync;
 mod state_sync;
+pub mod text_animation;
 mod voice;
 
 pub use input::{

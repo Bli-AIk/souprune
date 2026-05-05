@@ -121,6 +121,7 @@ pub fn build_text_config(
             })
             .unwrap_or(Visibility::Inherited),
         visible_when: text_def.visible_when.clone(),
+        text_style: text_def.text_style.clone(),
     }
 }
 
@@ -165,6 +166,15 @@ pub(crate) fn spawn_container_texts(
 
         if let Some(template) = &text_config.template {
             cmd.insert(ViewTextTemplate(template.clone()));
+        }
+
+        if let Some(text_style) = text_config
+            .text_style
+            .as_deref()
+            .map(str::trim)
+            .filter(|style| !style.is_empty())
+        {
+            cmd.insert(ViewTextAnimationStyle(text_style.to_string()));
         }
 
         // Add VisibleWhen component if text has visible_when expression

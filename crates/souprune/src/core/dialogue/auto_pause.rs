@@ -259,6 +259,7 @@ pub fn auto_pause_cleanup_system(
 pub fn load_dialogue_config_system(
     mut auto_pause: ResMut<AutoPauseConfig>,
     mut voice: ResMut<super::voice_config::VoiceConfig>,
+    mut text_animation: ResMut<super::text_animation_config::TextAnimationConfig>,
 ) {
     let config = crate::config::load_config();
     let Some(config_path) = crate::config::resolve_path(&config.game.dialogue_config_path) else {
@@ -273,13 +274,16 @@ pub fn load_dialogue_config_system(
         Ok(content) => match ron::from_str::<SchemaDialogueConfig>(&content) {
             Ok(loaded) => {
                 info!(
-                    "[Dialogue] Loaded config from {}: auto_pause={} presets, voice={} presets",
+                    "[Dialogue] Loaded config from {}: auto_pause={} presets, voice={} presets, text_animation={} presets",
                     config_path.display(),
                     loaded.auto_pause.presets.len(),
-                    loaded.voice.presets.len()
+                    loaded.voice.presets.len(),
+                    loaded.text_animation.presets.len()
                 );
                 *auto_pause = AutoPauseConfig(loaded.auto_pause);
                 *voice = super::voice_config::VoiceConfig(loaded.voice);
+                *text_animation =
+                    super::text_animation_config::TextAnimationConfig(loaded.text_animation);
             }
             Err(e) => {
                 warn!(

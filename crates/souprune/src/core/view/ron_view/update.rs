@@ -21,7 +21,7 @@ use super::parsing::{
     DataPathResolvers, PlayerDataView, evaluate_float_expr, resolve_text_content,
 };
 use bevy::prelude::*;
-use bevy_bitmap_text::TextBlock;
+use bevy_bitmap_text::{GlyphReveal, TextBlock};
 use bevy_fact_rule_event::LayeredFactDatabase;
 
 /// Update time-dependent UI elements (elements with @time in expressions).
@@ -215,7 +215,13 @@ fn evaluate_rotation(
 }
 
 pub fn update_dynamic_text_system(
-    mut text_query: Query<(Entity, &ViewTextTemplate, &mut TextBlock, &Name)>,
+    mut text_query: Query<(
+        Entity,
+        &ViewTextTemplate,
+        &mut TextBlock,
+        Option<&GlyphReveal>,
+        &Name,
+    )>,
     layered_db: Res<LayeredFactDatabase>,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     view_root_query: Query<(Entity, &ViewRoot)>,
@@ -237,7 +243,11 @@ pub fn update_dynamic_text_system(
         global_changed, any_view_root_changed,
     );
 
-    for (entity, template, mut text_block, _name) in text_query.iter_mut() {
+    for (entity, template, mut text_block, reveal, _name) in text_query.iter_mut() {
+        if reveal.is_some() {
+            continue;
+        }
+
         let view_root_result =
             find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
         let player_data = if let Some((_, view_root)) = view_root_result {
@@ -493,5 +503,44 @@ pub fn update_shader_materials_system(
             // 仅在值变化时更新调试字符串（而非每帧）
             shader_mat.current_values_debug = format!("{:?}", shader_mat.current_values);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bevy::prelude::*;
+    use bevy_bitmap_text::{GlyphReveal, TextBlock};
+    use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
+
+    use super::*;
+    use crate::extra::mortar::MortarStringTable;
+
+    #[test]
+    fn dynamic_text_system_leaves_revealed_text_block_content_stable() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<LayeredFactDatabase>();
+        app.init_resource::<MortarStringTable>();
+        app.add_systems(Update, update_dynamic_text_system);
+
+        {
+            let mut facts = app.world_mut().resource_mut::<LayeredFactDatabase>();
+            facts.set("dialogue:main:text", FactValue::String("h".to_string()));
+        }
+
+        let text_entity = app
+            .world_mut()
+            .spawn((
+                Name::new("dialogue_text"),
+                TextBlock::new("hello"),
+                GlyphReveal { visible_count: 1 },
+                ViewTextTemplate("{{dialogue:main:text}}".to_string()),
+            ))
+            .id();
+
+        app.update();
+
+        let text_block = app.world().get::<TextBlock>(text_entity).unwrap();
+        assert_eq!(text_block.full_text(), "hello");
     }
 }

@@ -64,6 +64,14 @@ pub const DIALOGUE_AUTO_PAUSE_PRESET: &str = "dialogue:auto_pause_preset";
 pub const DIALOGUE_VOICE_ENABLED: &str = "dialogue:voice_enabled";
 /// 当前生效的语音预设名称（覆盖配置中的 default_preset）
 pub const DIALOGUE_VOICE_PRESET: &str = "dialogue:voice_preset";
+/// Current text animation style preset name.
+///
+/// 当前生效的文本动画风格预设名称。
+pub const DIALOGUE_TEXT_STYLE: &str = "dialogue:text_style";
+/// Text animation style channel field for use with [`dialogue_channel_key`].
+///
+/// [`dialogue_channel_key`] 使用的文本动画风格通道字段。
+pub const DIALOGUE_TEXT_STYLE_FIELD: &str = "text_style";
 /// 恢复时是否重播打字机
 pub const DIALOGUE_REPLAY_ON_RESUME: &str = "dialogue:replay_on_resume";
 /// 停止打字机事件前缀（匹配 "dialogue:stop*"）

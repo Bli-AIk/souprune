@@ -91,6 +91,7 @@ impl Plugin for CoreViewPlugin {
             .init_asset::<SdfStructureAsset>()
             .register_asset_loader(RonAssetLoader::<SdfStructureAsset>::new(&["sdf.ron"]))
             .register_type::<super::components::ShaderMaterial>()
+            .register_type::<super::components::ViewTextAnimationStyle>()
             .add_plugins(Material2dPlugin::<PixelOutlineMaterial>::default())
             .add_plugins(super::dynamic_material::DynamicMaterial2dPlugin)
             .add_plugins(ViewReconciliationPlugin)

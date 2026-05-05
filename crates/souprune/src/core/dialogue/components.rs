@@ -103,6 +103,22 @@ impl TypewriterVoice {
     }
 }
 
+/// Links a `bevy_bitmap_text::TextBlock` entity to its dialogue channel.
+///
+/// 将 `bevy_bitmap_text::TextBlock` 实体链接到其对话通道。
+///
+/// Set by the dialogue-text-block bridge system when a `ViewTextTemplate`
+/// references a dialogue channel fact (e.g. `{{dialogue:battle_narration:text}}`).
+/// Text animation systems (shake, wave, ghost) read this to resolve the
+/// `text_style` fact for the associated channel.
+///
+/// 当 `ViewTextTemplate` 引用对话通道 fact 时（如 `{{dialogue:battle_narration:text}}`），
+/// 由对话-文本块桥接系统设置。文本动画系统（抖动、波浪、幽灵）读取此组件
+/// 以解析关联通道的 `text_style` fact。
+#[derive(Component, Debug, Clone, PartialEq, Eq, Hash, Reflect)]
+#[reflect(Component)]
+pub struct TextBlockDialogueChannel(pub String);
+
 // Note: DialogueFocus has been removed.
 // Focus control is now handled via FRE fact `dialogue:has_focus` (Bool).
 // When `dialogue:has_focus` is true, all typewriters on DialogueControllerEntity

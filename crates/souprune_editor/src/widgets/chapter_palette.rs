@@ -241,6 +241,7 @@ fn all_categories() -> Vec<CategoryDef> {
                             hide_on_finish: true,
                             voice: None,
                             typewriter_speed: None,
+                            text_style: None,
                         })
                     },
                 },

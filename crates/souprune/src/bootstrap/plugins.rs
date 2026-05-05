@@ -136,6 +136,7 @@ pub fn get_third_plugins() -> (
                 alpha_mode: bevy_bitmap_text::GlyphAlphaMode::Binary { threshold: 128 },
                 ..default()
             },
+            register_animation_systems: false,
         },
         bevy_alight_motion::prelude::AlightMotionPlugin,
         bevy_tween::DefaultTweenPlugins::default(),

@@ -23,7 +23,7 @@ pub mod visible_when;
 use bevy::prelude::*;
 
 pub use components::box_components::ViewBox;
-pub use components::text::ViewTextConfig;
+pub use components::text::{ViewTextAnimationStyle, ViewTextConfig};
 pub use components::{
     ActiveView, ElementState, ViewElementHistory, ViewRoot, find_element_by_full_name,
     find_elements_by_tag,

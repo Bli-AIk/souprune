@@ -33,14 +33,12 @@ allow = [
     "0BSD",
     "CC0-1.0",
     "Unicode-3.0",
-    "Unicode-DFS-2016",
     "MPL-2.0",
     # Font licenses (used by egui fonts)
     "OFL-1.1",
     "Ubuntu-font-1.0",
-    # LGPL-3.0 is the license for souprune itself
+    # LGPL-3.0-or-later is the license for souprune itself
     "LGPL-3.0-or-later",
-    "LGPL-3.0",
 ]
 # NOTE: GPL/AGPL licenses are NOT allowed.
 # Any unlisted license will be rejected by cargo-deny.

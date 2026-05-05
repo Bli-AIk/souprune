@@ -124,6 +124,7 @@ pub fn spawn_dialogue_controller_system(
             DialogueControllerEntity,
             crate::core::dialogue::DialogueChannel::new(&channel),
             AutoPauseState::default(),
+            super::ghost_text::FloatingTextState::default(),
         ));
         let entity = entity_commands.id();
 

@@ -305,6 +305,17 @@ pub fn spawn_text_entity(
     // Add template for dynamic updates
     entity_commands.insert(ViewTextTemplate(raw_content.to_string()));
 
+    if let Some(text_style) = text_def
+        .text_style
+        .as_deref()
+        .map(str::trim)
+        .filter(|style| !style.is_empty())
+    {
+        entity_commands.insert(super::super::components::ViewTextAnimationStyle(
+            text_style.to_string(),
+        ));
+    }
+
     // Add VisibleWhen if present
     if let Some(ref visible_when_expr) = text_def.visible_when {
         let expr = visible_when_expr.trim();
@@ -473,5 +484,6 @@ pub fn build_text_config(text_def: &TextDef, ctx: &SpawnContext) -> ViewTextConf
             })
             .unwrap_or(Visibility::Inherited),
         visible_when: text_def.visible_when.clone(),
+        text_style: text_def.text_style.clone(),
     }
 }
