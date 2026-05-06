@@ -1,6 +1,6 @@
 [package]
 name = "souprune_sdk"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 description = "WASM Modding SDK for SoupRune game framework"
 license = "MIT OR Apache-2.0"
