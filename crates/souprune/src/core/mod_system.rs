@@ -226,6 +226,11 @@ fn load_builtin_wasm(
         ),
     ];
 
+    #[cfg(target_os = "android")]
+    candidates.push(std::path::PathBuf::from(
+        "/sdcard/SoupRune/builtins/souprune_builtins.wasm",
+    ));
+
     // Exe-relative candidates (packaged distribution)
     if let Ok(exe) = std::env::current_exe()
         && let Some(exe_dir) = exe.parent()

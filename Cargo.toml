@@ -17,6 +17,7 @@ members = [
     "crates/souprune_lint",
     "crates/cauld-ron",
     "crates/souprune_cauld_ron",
+    "crates/prune",
 ]
 
 # Exclude mortar submodule - it has its own workspace

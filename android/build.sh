@@ -34,12 +34,29 @@ banner() {
 # ── 环境检查 ──────────────────────────────────────────────
 
 check_rust_target() {
+    local ok=true
     if ! rustup target list --installed | grep -q "aarch64-linux-android"; then
         echo -e "${YELLOW}⚠ 未安装 aarch64-linux-android target${NC}"
         echo -e "  运行: ${BOLD}rustup target add aarch64-linux-android${NC}"
-        return 1
+        ok=false
     fi
-    return 0
+    if ! rustup target list --installed | grep -q "wasm32-wasip2"; then
+        echo -e "${YELLOW}⚠ 未安装 wasm32-wasip2 target${NC}"
+        echo -e "  运行: ${BOLD}rustup target add wasm32-wasip2${NC}"
+        ok=false
+    fi
+    [ "$ok" = true ]
+}
+
+read_active_mod_name() {
+    sed -n 's/^mod_name[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' "$PROJECT_ROOT/projects/config.toml"
+}
+
+resolve_mod_order() {
+    local mod_name="$1"
+    cd "$PROJECT_ROOT"
+    CARGO_TARGET_DIR="$PROJECT_ROOT/target/cauld-ron-deps" \
+        cargo run -p souprune_cauld_ron --features deps-cli --bin cauld-ron-deps -- "$mod_name"
 }
 
 find_ndk() {
@@ -88,9 +105,9 @@ check_env() {
         ok=false
     fi
 
-    # aarch64 target
+    # Rust targets for Android native and WASM assets
     if check_rust_target; then
-        echo -e "  ✅ aarch64-linux-android target 已安装"
+        echo -e "  ✅ aarch64-linux-android 与 wasm32-wasip2 targets 已安装"
     else
         ok=false
     fi
@@ -142,11 +159,30 @@ check_env() {
 
 # ── 构建 ──────────────────────────────────────────────────
 
+prepare_assets() {
+    local mod_name
+    mod_name=$(read_active_mod_name)
+    if [ -z "$mod_name" ]; then
+        echo -e "${RED}❌ 无法从 projects/config.toml 读取 mod_name${NC}"
+        return 1
+    fi
+
+    if ! resolve_mod_order "$mod_name" >/dev/null; then
+        echo -e "${RED}❌ 无法解析 mod 依赖顺序: $mod_name${NC}"
+        return 1
+    fi
+
+    echo -e "${GREEN}▶ [assets] 构建 builtin WASM 与 mod 内容: $mod_name...${NC}"
+    cd "$PROJECT_ROOT"
+    just mod="$mod_name" prepare-assets-release
+    echo -e "${GREEN}✅ 资源与 mod 构建完成${NC}"
+}
+
 build_native() {
     local features="android"
     if [ "$BUILD_DEBUG" = true ]; then
         features="android,bevy_debug"
-        echo -e "${YELLOW}▶ [1/3] 构建 aarch64 native library (release + bevy/debug)...${NC}"
+        echo -e "${YELLOW}▶ [1/3] 构建 aarch64 native library (release + bevy debug names)...${NC}"
     else
         echo -e "${GREEN}▶ [1/3] 构建 aarch64 native library (release)...${NC}"
     fi
@@ -208,7 +244,7 @@ build_apk() {
 }
 
 do_build() {
-    build_native && copy_so && build_apk
+    prepare_assets && build_native && copy_so && build_apk
 }
 
 # ── 设备操作 ──────────────────────────────────────────────
@@ -260,62 +296,66 @@ do_sync_mods() {
     fi
 
     local mod_name
-    mod_name=$(grep 'mod_name' "$config_file" | sed 's/.*= *"\(.*\)"/\1/')
+    mod_name=$(read_active_mod_name)
     if [ -z "$mod_name" ]; then
         echo -e "${RED}❌ 无法从 config.toml 读取 mod_name${NC}"
         return 1
     fi
 
-    local local_mod_dir="$PROJECT_ROOT/projects/$mod_name"
-    if [ ! -d "$local_mod_dir" ]; then
-        echo -e "${RED}❌ 本地 mod 目录不存在: $local_mod_dir${NC}"
+    local mod_order_output
+    if ! mod_order_output=$(resolve_mod_order "$mod_name"); then
+        echo -e "${RED}❌ 无法解析 mod 依赖顺序: $mod_name${NC}"
+        return 1
+    fi
+    mapfile -t mod_order < <(printf '%s\n' "$mod_order_output" | sed '/^[[:space:]]*$/d')
+    if [ "${#mod_order[@]}" -eq 0 ]; then
+        echo -e "${RED}❌ mod 依赖顺序为空: $mod_name${NC}"
         return 1
     fi
 
     echo -e "  📦 Mod: ${BOLD}$mod_name${NC}"
-    echo -e "  📁 本地: $local_mod_dir"
-    echo -e "  📱 设备: $ANDROID_MOD_BASE/$mod_name"
+    echo -e "  📦 同步顺序: ${mod_order[*]}"
+    echo -e "  📱 设备: $ANDROID_MOD_BASE"
 
     # Create base dir on device
     adb shell "mkdir -p $ANDROID_MOD_BASE" 2>/dev/null || true
 
-    # Delete existing mod folder on device
-    echo -e "  🗑️  删除设备上的旧 mod 文件夹..."
-    adb shell "rm -rf $ANDROID_MOD_BASE/$mod_name" 2>/dev/null || true
+    for sync_mod_name in "${mod_order[@]}"; do
+        local local_mod_dir="$PROJECT_ROOT/projects/$sync_mod_name"
+        if [ ! -d "$local_mod_dir" ]; then
+            echo -e "${RED}❌ 本地 mod 目录不存在: $local_mod_dir${NC}"
+            return 1
+        fi
 
-    # Push entire mod folder (excluding code/ directory which is Rust source)
-    echo -e "  📤 推送 mod 文件到设备..."
-    adb push "$local_mod_dir" "$ANDROID_MOD_BASE/" 2>&1
+        echo -e "  🗑️  删除设备上的旧 mod 文件夹: $sync_mod_name"
+        adb shell "rm -rf $ANDROID_MOD_BASE/$sync_mod_name" 2>/dev/null || true
+
+        echo -e "  📤 推送 mod 文件到设备: $sync_mod_name"
+        adb push "$local_mod_dir" "$ANDROID_MOD_BASE/" 2>&1
+
+        for wasm_file in "$local_mod_dir/.build/runtime.wasm" "$local_mod_dir/.build/content.wasm"; do
+            if [ -f "$wasm_file" ]; then
+                echo -e "    📦 ${wasm_file#$PROJECT_ROOT/}"
+            else
+                echo -e "  ${YELLOW}⚠ 未找到 ${wasm_file#$PROJECT_ROOT/}，请确认 prepare-assets-release 已成功${NC}"
+            fi
+        done
+    done
 
     # Also push config.toml
     echo -e "  📤 推送 config.toml..."
-    adb push "$config_file" "$ANDROID_MOD_BASE/../config.toml" 2>&1 || \
-    adb shell "mkdir -p /sdcard/SoupRune/projects" && \
-    adb push "$config_file" "/sdcard/SoupRune/projects/config.toml" 2>&1
+    adb push "$config_file" "$ANDROID_MOD_BASE/config.toml" 2>&1
 
     # Sync builtin WASM to device
     echo -e "  📤 同步 builtin WASM 到设备..."
     adb shell "mkdir -p $ANDROID_BUILTINS_DIR" 2>/dev/null || true
 
-    local builtin_wasm="$PROJECT_ROOT/crates/souprune_builtins/target/wasm32-wasip2/release/souprune_builtins.wasm"
+    local builtin_wasm="$PROJECT_ROOT/assets/builtins/souprune_builtins.wasm"
     if [ -f "$builtin_wasm" ]; then
         adb push "$builtin_wasm" "$ANDROID_BUILTINS_DIR/souprune_builtins.wasm" 2>&1
         echo -e "  ${GREEN}✅ souprune_builtins.wasm 已同步${NC}"
     else
-        echo -e "  ${YELLOW}⚠ 未找到 souprune_builtins.wasm (需要先构建: cargo build -p souprune_builtins --target wasm32-wasip2 --release)${NC}"
-    fi
-
-    # Check mod .wasm file
-    local mod_wasm_found=false
-    for wasm_file in "$local_mod_dir"/*.wasm; do
-        if [ -f "$wasm_file" ]; then
-            echo -e "    📦 $(basename "$wasm_file") (included in mod push)"
-            mod_wasm_found=true
-        fi
-    done
-
-    if [ "$mod_wasm_found" = false ]; then
-        echo -e "  ${YELLOW}⚠ 未找到 mod .wasm 文件 (需要先构建 mod: cargo build -p <mod_crate> --target wasm32-wasip2 --release)${NC}"
+        echo -e "  ${YELLOW}⚠ 未找到 assets/builtins/souprune_builtins.wasm，请先运行构建流程${NC}"
     fi
 
     echo -e "${GREEN}✅ Mod 同步完成${NC}"
@@ -327,7 +367,7 @@ show_menu() {
     echo
     echo -e "${BOLD}── 选择操作 ──${NC}"
     echo -e "  ${CYAN}1${NC}. 🔨 构建 + 安装 + 同步 mod"
-    echo -e "  ${CYAN}2${NC}. 🐛 构建 (debug features) + 安装 + 同步 mod"
+    echo -e "  ${CYAN}2${NC}. 🐛 构建 (Bevy debug names) + 安装 + 同步 mod"
     echo -e "  ${CYAN}3${NC}. 📱 安装 APK 到设备"
     echo -e "  ${CYAN}4${NC}. 📂 同步 mod 文件夹到设备"
     echo -e "  ${CYAN}5${NC}. 🚪 退出"

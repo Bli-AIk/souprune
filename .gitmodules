@@ -41,3 +41,6 @@
 [submodule "projects/deltarune_preset"]
 	path = projects/deltarune_preset
 	url = https://github.com/Bli-AIk/souprune_deltarune_preset.git
+[submodule "crates/prune"]
+	path = crates/prune
+	url = https://github.com/Bli-AIk/prune

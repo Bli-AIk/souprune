@@ -96,3 +96,8 @@ changelog_update = false
 name = "bevy_workbench"
 release = false
 changelog_update = false
+
+[[package]]
+name = "prune"
+release = false
+changelog_update = false

@@ -381,7 +381,7 @@ pub fn get_projects_base_path() -> PathBuf {
             return external;
         }
         // Fallback: try app-specific external files dir
-        let app_external = PathBuf::from("/sdcard/Android/data/com.souprune.game/files/projects");
+        let app_external = PathBuf::from("/sdcard/Android/data/com.bliaik.souprune/files/projects");
         if app_external.exists() {
             return app_external;
         }
