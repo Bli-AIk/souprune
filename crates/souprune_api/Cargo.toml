@@ -1,6 +1,6 @@
 [package]
 name = "souprune_api"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 description = "WIT interface definitions for SoupRune mod system"
 license = "MIT OR Apache-2.0"
