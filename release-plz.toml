@@ -91,3 +91,8 @@ changelog_update = false
 name = "cauld-ron"
 release = false
 changelog_update = false
+
+[[package]]
+name = "bevy_workbench"
+release = false
+changelog_update = false
