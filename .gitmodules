@@ -44,3 +44,4 @@
 [submodule "crates/prune"]
 	path = crates/prune
 	url = https://github.com/Bli-AIk/prune
+	branch = feat/init
