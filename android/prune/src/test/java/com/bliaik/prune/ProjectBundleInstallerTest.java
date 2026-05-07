@@ -34,6 +34,30 @@ public class ProjectBundleInstallerTest {
     }
 
     @Test
+    public void reportsFileProgressWhileInstallingBundle() throws Exception {
+        File temp = java.nio.file.Files.createTempDirectory("bundle-progress").toFile();
+        File bundle = new File(temp, "bundle.zip");
+        try (ZipOutputStream zip = new ZipOutputStream(new java.io.FileOutputStream(bundle))) {
+            zip.putNextEntry(new ZipEntry("projects/config.toml"));
+            zip.write("[project]\nmod_name = \"mad_dummy_example\"\n".getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+            zip.putNextEntry(new ZipEntry("projects/mad_dummy_example/mod.toml"));
+            zip.write("name = \"mad_dummy_example\"\n".getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+        }
+
+        File targetRoot = new File(temp, "target/projects");
+        java.util.List<String> events = new java.util.ArrayList<>();
+        ProjectBundleInstaller.install(bundle, targetRoot, (current, total, path) ->
+                events.add(current + "/" + total + ":" + path)
+        );
+
+        assertEquals("0/2:", events.get(0));
+        assertEquals("1/2:config.toml", events.get(1));
+        assertEquals("2/2:mad_dummy_example/mod.toml", events.get(2));
+    }
+
+    @Test
     public void refusesZipSlipEntries() throws Exception {
         File temp = java.nio.file.Files.createTempDirectory("bundle-slip").toFile();
         File bundle = new File(temp, "bundle.zip");

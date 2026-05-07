@@ -16,6 +16,10 @@ public final class ProjectBundleInstaller {
     }
 
     public static void install(File bundleZip, File targetRoot) throws IOException {
+        install(bundleZip, targetRoot, null);
+    }
+
+    public static void install(File bundleZip, File targetRoot, ProgressListener listener) throws IOException {
         File parent = targetRoot.getParentFile();
         if (parent == null) {
             throw new IllegalArgumentException("target root must have a parent");
@@ -27,7 +31,7 @@ public final class ProjectBundleInstaller {
         deleteRecursively(backupRoot.toPath());
         Files.createDirectories(stagingRoot.toPath());
 
-        extractBundle(bundleZip, stagingRoot);
+        extractBundle(bundleZip, stagingRoot, listener);
 
         if (targetRoot.exists()) {
             moveDirectory(targetRoot.toPath(), backupRoot.toPath());
@@ -47,7 +51,17 @@ public final class ProjectBundleInstaller {
         }
     }
 
-    private static void extractBundle(File bundleZip, File stagingRoot) throws IOException {
+    public interface ProgressListener {
+        void onProgress(int currentFiles, int totalFiles, String relativePath);
+    }
+
+    private static void extractBundle(File bundleZip, File stagingRoot, ProgressListener listener) throws IOException {
+        int totalFiles = countInstallableFiles(bundleZip);
+        int currentFiles = 0;
+        if (listener != null) {
+            listener.onProgress(0, totalFiles, "");
+        }
+
         try (ZipInputStream zip = new ZipInputStream(new FileInputStream(bundleZip))) {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
@@ -68,10 +82,29 @@ public final class ProjectBundleInstaller {
                     try (FileOutputStream out = new FileOutputStream(output.toFile())) {
                         copy(zip, out);
                     }
+                    currentFiles++;
+                    if (listener != null) {
+                        listener.onProgress(currentFiles, totalFiles, relative.toString());
+                    }
                 }
                 zip.closeEntry();
             }
         }
+    }
+
+    private static int countInstallableFiles(File bundleZip) throws IOException {
+        int count = 0;
+        try (ZipInputStream zip = new ZipInputStream(new FileInputStream(bundleZip))) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                Path relative = sanitizedRelativePath(entry.getName());
+                if (relative != null && !entry.isDirectory()) {
+                    count++;
+                }
+                zip.closeEntry();
+            }
+        }
+        return count;
     }
 
     private static Path sanitizedRelativePath(String entryName) {

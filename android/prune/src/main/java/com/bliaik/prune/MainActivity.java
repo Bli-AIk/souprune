@@ -71,6 +71,7 @@ public class MainActivity extends Activity {
     private TextView title;
     private TextView subtitle;
     private TextView logView;
+    private final StringBuilder logBuffer = new StringBuilder();
     private FluentMessages messages;
     private String activeView = "mods";
     private String advancedTab = "build";
@@ -79,6 +80,9 @@ public class MainActivity extends Activity {
     private boolean taskInFlight;
     private AlertDialog taskDialog;
     private TextView taskPhaseView;
+    private TextView taskDetailView;
+    private ProgressBar taskProgressBar;
+    private String lastProgressLogSignature = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -605,24 +609,40 @@ public class MainActivity extends Activity {
 
     private void runRemoteBuild() {
         runServerTask(t("remote-build"), client -> {
-            appendLogOnUiThread(t("remote-build-started"));
-            updateTaskProgressOnUiThread(t("remote-build-started"));
+            reportTaskProgress(t("remote-build-started"), 0, 0, t("remote-build-started"), true);
             PruneApiClient.BuildSnapshot started = client.startBuild();
             PruneApiClient.BuildSnapshot current = started;
-            appendLogOnUiThread(tf("remote-build-status", "id", current.id, "status", statusName(current.status)));
-            updateTaskProgressOnUiThread(tf("remote-build-status", "id", current.id, "status", statusName(current.status)));
+            reportTaskProgress(
+                    tf("remote-build-status", "id", current.id, "status", statusName(current.status)),
+                    current.progressCurrent,
+                    current.progressTotal,
+                    buildProgressText(current),
+                    true
+            );
             while (current.status == PruneApiClient.BuildStatus.QUEUED || current.status == PruneApiClient.BuildStatus.RUNNING) {
                 Thread.sleep(2_000L);
                 current = client.getBuild(started.id);
-                appendLogOnUiThread(tf("remote-build-status", "id", current.id, "status", statusName(current.status)));
-                updateTaskProgressOnUiThread(tf("remote-build-status", "id", current.id, "status", statusName(current.status)));
+                reportTaskProgress(
+                        tf("remote-build-status", "id", current.id, "status", statusName(current.status)),
+                        current.progressCurrent,
+                        current.progressTotal,
+                        buildProgressText(current),
+                        false
+                );
             }
             if (current.status != PruneApiClient.BuildStatus.SUCCEEDED) {
                 throw new IOException(tf("remote-build-failed", "id", current.id, "status", statusName(current.status)));
             }
-            appendLogOnUiThread(t("remote-build-downloading"));
-            updateTaskProgressOnUiThread(t("remote-build-downloading"));
-            client.downloadLatestApk(localApk());
+            reportTaskProgress(t("remote-build-downloading"), 0, 0, t("remote-build-downloading"), true);
+            client.downloadLatestApk(localApk(), (currentBytes, totalBytes) ->
+                    reportTaskProgress(
+                            t("remote-build-downloading"),
+                            currentBytes,
+                            totalBytes,
+                            formatByteProgress(t("remote-build-downloading"), currentBytes, totalBytes),
+                            false
+                    )
+            );
             return tf("apk-cached-at", "path", localApk().getAbsolutePath());
         });
     }
@@ -633,11 +653,18 @@ public class MainActivity extends Activity {
 
     private void pullLatestApk() {
         runServerTask(t("pull-apk"), client -> {
-            appendLogOnUiThread(t("pull-apk-started"));
-            updateTaskProgressOnUiThread(t("pull-apk-started"));
+            reportTaskProgress(t("pull-apk-started"), 0, 0, t("pull-apk-started"), true);
             File target = localApk();
             target.getParentFile().mkdirs();
-            client.downloadLatestApk(target);
+            client.downloadLatestApk(target, (currentBytes, totalBytes) ->
+                    reportTaskProgress(
+                            t("pull-apk-started"),
+                            currentBytes,
+                            totalBytes,
+                            formatByteProgress(t("pull-apk-started"), currentBytes, totalBytes),
+                            false
+                    )
+            );
             return tf("apk-cached-at", "path", target.getAbsolutePath());
         });
     }
@@ -697,18 +724,30 @@ public class MainActivity extends Activity {
     private void syncServerMods() {
         runServerTask(t("sync-server-mod-list"), client -> {
             File bundle = serverBundleFile();
-            appendLogOnUiThread(t("sync-download-bundle"));
-            updateTaskProgressOnUiThread(t("sync-download-bundle"));
-            client.downloadProjectsBundle(bundle);
-            appendLogOnUiThread(t("sync-fetch-mods"));
-            updateTaskProgressOnUiThread(t("sync-fetch-mods"));
+            reportTaskProgress(t("sync-download-bundle"), 0, 0, t("sync-download-bundle"), true);
+            client.downloadProjectsBundle(bundle, (currentBytes, totalBytes) ->
+                    reportTaskProgress(
+                            t("sync-download-bundle"),
+                            currentBytes,
+                            totalBytes,
+                            formatByteProgress(t("sync-download-bundle"), currentBytes, totalBytes),
+                            false
+                    )
+            );
+            reportTaskProgress(t("sync-fetch-mods"), 0, 0, t("sync-fetch-mods"), true);
             PruneApiClient.ModsSnapshot snapshot = client.fetchMods();
             prefs.edit().putString(KEY_ENABLED, String.join(",", snapshot.loadOrder)).apply();
-            appendLogOnUiThread(t("sync-install-bundle"));
-            updateTaskProgressOnUiThread(t("sync-install-bundle"));
-            ProjectBundleInstaller.install(bundle, projectsDir());
-            appendLogOnUiThread(t("sync-reload-mods"));
-            updateTaskProgressOnUiThread(t("sync-reload-mods"));
+            reportTaskProgress(t("sync-install-bundle"), 0, 0, t("sync-install-bundle"), true);
+            ProjectBundleInstaller.install(bundle, projectsDir(), (currentFiles, totalFiles, relativePath) ->
+                    reportTaskProgress(
+                            t("sync-install-bundle"),
+                            currentFiles,
+                            totalFiles,
+                            formatFileProgress(t("sync-install-bundle"), currentFiles, totalFiles, relativePath),
+                            false
+                    )
+            );
+            reportTaskProgress(t("sync-reload-mods"), 0, 0, t("sync-reload-mods"), true);
             loadMods();
             runOnUiThread(this::showMods);
             return tf("server-mods-synced", "count", snapshot.mods.size());
@@ -728,6 +767,7 @@ public class MainActivity extends Activity {
             return;
         }
         taskInFlight = true;
+        lastProgressLogSignature = "";
         showTaskDialog(label);
         appendLog("$ http " + serverUrl() + " " + label);
         executor.execute(() -> {
@@ -773,21 +813,31 @@ public class MainActivity extends Activity {
         logView.setPadding(dp(12), dp(12), dp(12), dp(12));
         logView.setBackgroundColor(Color.rgb(23, 26, 22));
         content.addView(logView, new LinearLayout.LayoutParams(-1, dp(180)));
-        appendLog(t("prune-ready"));
+        if (logBuffer.length() == 0) {
+            String initialLog = t("prune-ready");
+            appendLog(initialLog);
+        } else {
+            logView.setText(logBuffer.toString());
+        }
     }
 
     private void copyLog() {
         if (logView == null) return;
         ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
         if (clipboard == null) return;
-        clipboard.setPrimaryClip(ClipData.newPlainText("Prune log", logView.getText()));
+        clipboard.setPrimaryClip(ClipData.newPlainText("Prune log", logBuffer.toString()));
         appendLog(t("log-copied"));
     }
 
     private void appendLog(String message) {
-        if (logView == null) return;
-        String current = logView.getText().toString();
-        logView.setText(current + (current.isEmpty() ? "" : "\n") + message);
+        if (message == null || message.isEmpty()) return;
+        if (logBuffer.length() > 0) {
+            logBuffer.append('\n');
+        }
+        logBuffer.append(message);
+        if (logView != null) {
+            logView.setText(logBuffer.toString());
+        }
     }
 
     private void appendLogOnUiThread(String message) {
@@ -818,12 +868,16 @@ public class MainActivity extends Activity {
 
             TextView heading = text(label, 16, INK, true);
             taskPhaseView = text(label, 13, MUTED, false);
+            taskDetailView = text("", 12, MUTED, false);
+            taskDetailView.setPadding(0, dp(6), 0, 0);
             ProgressBar progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
             progressBar.setIndeterminate(true);
             progressBar.setPadding(0, dp(14), 0, 0);
+            taskProgressBar = progressBar;
 
             body.addView(heading);
             body.addView(taskPhaseView);
+            body.addView(taskDetailView);
             body.addView(progressBar, new LinearLayout.LayoutParams(-1, -2));
 
             taskDialog = new AlertDialog.Builder(this)
@@ -836,9 +890,25 @@ public class MainActivity extends Activity {
     }
 
     private void updateTaskProgressOnUiThread(String phase) {
+        updateTaskProgressOnUiThread(phase, 0, 0, phase);
+    }
+
+    private void updateTaskProgressOnUiThread(String phase, long current, long total, String detail) {
         runOnUiThread(() -> {
             if (taskPhaseView != null) {
                 taskPhaseView.setText(phase);
+            }
+            if (taskDetailView != null) {
+                taskDetailView.setText(detail);
+            }
+            if (taskProgressBar != null) {
+                if (total > 0) {
+                    taskProgressBar.setIndeterminate(false);
+                    taskProgressBar.setMax(progressBarMax(total));
+                    taskProgressBar.setProgress(progressBarValue(current, total));
+                } else {
+                    taskProgressBar.setIndeterminate(true);
+                }
             }
         });
     }
@@ -849,6 +919,95 @@ public class MainActivity extends Activity {
             taskDialog = null;
         }
         taskPhaseView = null;
+        taskDetailView = null;
+        taskProgressBar = null;
+    }
+
+    private void reportTaskProgress(String phase, long current, long total, String detail, boolean forceLog) {
+        updateTaskProgressOnUiThread(phase, current, total, detail);
+        appendProgressLog(phase, current, total, detail, forceLog);
+    }
+
+    private void appendProgressLog(String phase, long current, long total, String detail, boolean forceLog) {
+        String signature = phase + "|" + current + "|" + total + "|" + detail;
+        if (!forceLog && signature.equals(lastProgressLogSignature)) {
+            return;
+        }
+        lastProgressLogSignature = signature;
+        appendLogOnUiThread(formatProgressLog(phase, current, total, detail));
+    }
+
+    private String formatProgressLog(String phase, long current, long total, String detail) {
+        if (detail == null || detail.isEmpty() || detail.equals(phase)) {
+            return phase;
+        }
+        return phase + " " + detail;
+    }
+
+    private String buildProgressText(PruneApiClient.BuildSnapshot current) {
+        String progress = formatCountProgress(current.progressCurrent, current.progressTotal);
+        if (current.progressMessage == null || current.progressMessage.isEmpty()) {
+            return progress;
+        }
+        if (progress.isEmpty()) {
+            return current.progressMessage;
+        }
+        return current.progressMessage + " " + progress;
+    }
+
+    private String formatByteProgress(String label, long current, long total) {
+        if (total > 0) {
+            return label + " " + formatBytes(current) + " / " + formatBytes(total);
+        }
+        return label + " " + formatBytes(current);
+    }
+
+    private String formatFileProgress(String label, long current, long total, String relativePath) {
+        String base = label + " " + current + "/" + total;
+        if (relativePath == null || relativePath.isEmpty()) {
+            return base;
+        }
+        return base + " " + relativePath;
+    }
+
+    private String formatCountProgress(long current, long total) {
+        if (total <= 0) {
+            return "";
+        }
+        return "(" + current + "/" + total + ")";
+    }
+
+    private String formatBytes(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        }
+        long kb = bytes / 1024;
+        if (kb < 1024) {
+            return kb + " KB";
+        }
+        long mb = kb / 1024;
+        if (mb < 1024) {
+            return mb + " MB";
+        }
+        long gb = mb / 1024;
+        return gb + " GB";
+    }
+
+    private int progressBarMax(long total) {
+        if (total <= 0) {
+            return 0;
+        }
+        return total > Integer.MAX_VALUE ? 10_000 : (int) total;
+    }
+
+    private int progressBarValue(long current, long total) {
+        if (total <= 0) {
+            return 0;
+        }
+        if (total > Integer.MAX_VALUE) {
+            return (int) Math.min(10_000L, (current * 10_000L) / total);
+        }
+        return (int) Math.min(current, total);
     }
 
     private void requestStorageAccess() {

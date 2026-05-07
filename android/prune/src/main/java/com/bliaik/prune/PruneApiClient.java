@@ -85,11 +85,19 @@ public final class PruneApiClient {
     }
 
     public File downloadProjectsBundle(File target) throws IOException {
-        return downloadToFile("api/mods/bundle", target, "application/zip");
+        return downloadProjectsBundle(target, null);
+    }
+
+    public File downloadProjectsBundle(File target, TransferProgress progress) throws IOException {
+        return downloadToFile("api/mods/bundle", target, "application/zip", progress);
     }
 
     public File downloadLatestApk(File target) throws IOException {
-        return downloadToFile("api/apk/latest", target, "application/vnd.android.package-archive");
+        return downloadLatestApk(target, null);
+    }
+
+    public File downloadLatestApk(File target, TransferProgress progress) throws IOException {
+        return downloadToFile("api/apk/latest", target, "application/vnd.android.package-archive", progress);
     }
 
     private JSONObject getJson(String path) throws IOException {
@@ -123,7 +131,7 @@ public final class PruneApiClient {
         return readResponse(connection);
     }
 
-    private File downloadToFile(String path, File target, String expectedContentType) throws IOException {
+    private File downloadToFile(String path, File target, String expectedContentType, TransferProgress progress) throws IOException {
         HttpURLConnection connection = openConnection(path);
         connection.setRequestMethod("GET");
         int code = connection.getResponseCode();
@@ -141,12 +149,21 @@ public final class PruneApiClient {
         if (parent != null) {
             parent.mkdirs();
         }
+        long total = connection.getContentLengthLong();
+        long current = 0;
+        if (progress != null) {
+            progress.onProgress(current, total);
+        }
         try (InputStream in = connection.getInputStream();
              FileOutputStream out = new FileOutputStream(target)) {
             byte[] buffer = new byte[8192];
             int read;
             while ((read = in.read(buffer)) >= 0) {
                 out.write(buffer, 0, read);
+                current += read;
+                if (progress != null) {
+                    progress.onProgress(current, total);
+                }
             }
         }
         return target;
@@ -202,7 +219,10 @@ public final class PruneApiClient {
                 BuildStatus.valueOf(json.optString("status", "FAILED").toUpperCase()),
                 json.opt("exit_code") == JSONObject.NULL ? null : json.optInt("exit_code"),
                 json.opt("apk_path") == JSONObject.NULL ? null : json.optString("apk_path", null),
-                json.optString("log", "")
+                json.optString("log", ""),
+                json.optLong("progress_current", 0),
+                json.optLong("progress_total", 0),
+                json.optString("progress_message", "")
         );
     }
 
@@ -262,19 +282,29 @@ public final class PruneApiClient {
         FAILED
     }
 
+    public interface TransferProgress {
+        void onProgress(long currentBytes, long totalBytes);
+    }
+
     public static final class BuildSnapshot {
         public final long id;
         public final BuildStatus status;
         public final Integer exitCode;
         public final String apkPath;
         public final String log;
+        public final long progressCurrent;
+        public final long progressTotal;
+        public final String progressMessage;
 
-        public BuildSnapshot(long id, BuildStatus status, Integer exitCode, String apkPath, String log) {
+        public BuildSnapshot(long id, BuildStatus status, Integer exitCode, String apkPath, String log, long progressCurrent, long progressTotal, String progressMessage) {
             this.id = id;
             this.status = status;
             this.exitCode = exitCode;
             this.apkPath = apkPath;
             this.log = log;
+            this.progressCurrent = progressCurrent;
+            this.progressTotal = progressTotal;
+            this.progressMessage = progressMessage;
         }
     }
 }

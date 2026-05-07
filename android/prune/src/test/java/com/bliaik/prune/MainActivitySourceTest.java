@@ -47,6 +47,7 @@ public class MainActivitySourceTest {
 
         assertTrue(source.contains("AlertDialog"));
         assertTrue(source.contains("ProgressBar"));
+        assertTrue(source.contains("taskProgressBar"));
         assertTrue(source.contains("taskInFlight"));
         assertTrue(source.contains("setCancelable(false)"));
         assertTrue(source.contains("showTaskDialog(label)"));
@@ -59,6 +60,38 @@ public class MainActivitySourceTest {
         assertTrue(source.contains("taskDialog.setCanceledOnTouchOutside(false);"));
         assertTrue(source.contains("taskInFlight = true;"));
         assertTrue(source.contains("taskInFlight = false;"));
+    }
+
+    @Test
+    public void logPanelRestoresPersistentLogBufferWhenSwitchingPages() throws Exception {
+        String source = new String(Files.readAllBytes(sourcePath("MainActivity.java")), StandardCharsets.UTF_8);
+
+        assertTrue(source.contains("StringBuilder logBuffer"));
+        assertTrue(source.contains("logView.setText(logBuffer.toString())"));
+        assertTrue(source.contains("logBuffer.length() == 0"));
+        assertTrue(!source.contains("appendLog(t(\"prune-ready\"));"));
+    }
+
+    @Test
+    public void progressDialogUsesRealCountsForTransfersInstallAndBuildStages() throws Exception {
+        String activity = new String(Files.readAllBytes(sourcePath("MainActivity.java")), StandardCharsets.UTF_8);
+        String api = new String(Files.readAllBytes(sourcePath("PruneApiClient.java")), StandardCharsets.UTF_8);
+        String installer = new String(Files.readAllBytes(sourcePath("ProjectBundleInstaller.java")), StandardCharsets.UTF_8);
+
+        assertTrue(activity.contains("updateTaskProgressOnUiThread(String phase, long current, long total"));
+        assertTrue(activity.contains("taskProgressBar.setMax"));
+        assertTrue(activity.contains("taskProgressBar.setProgress"));
+        assertTrue(activity.contains("client.downloadLatestApk(target,"));
+        assertTrue(activity.contains("client.downloadProjectsBundle(bundle,"));
+        assertTrue(activity.contains("ProjectBundleInstaller.install(bundle, projectsDir(),"));
+        assertTrue(activity.contains("current.progressCurrent"));
+        assertTrue(activity.contains("current.progressTotal"));
+        assertTrue(activity.contains("appendProgressLog"));
+        assertTrue(api.contains("interface TransferProgress"));
+        assertTrue(api.contains("getContentLengthLong"));
+        assertTrue(api.contains("onProgress"));
+        assertTrue(installer.contains("interface ProgressListener"));
+        assertTrue(installer.contains("countInstallableFiles"));
     }
 
     @Test
