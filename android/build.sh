@@ -11,7 +11,7 @@ PROJECT_ROOT="$SCRIPT_DIR/.."
 ANDROID_DIR="$SCRIPT_DIR"
 ANDROID_MOD_BASE="/sdcard/SoupRune/projects"
 ANDROID_BUILTINS_DIR="/sdcard/SoupRune/builtins"
-APK_PATH="$ANDROID_DIR/app/build/outputs/apk/debug/app-debug.apk"
+APK_PATH="$PROJECT_ROOT/android/souprune/build/outputs/apk/debug/souprune-debug.apk"
 PACKAGE_NAME="com.bliaik.souprune"
 BUILD_DEBUG=false
 
@@ -202,7 +202,7 @@ build_native() {
 copy_so() {
     echo -e "${GREEN}▶ [2/3] 复制 .so 到 jniLibs...${NC}"
 
-    local JNILIB_DIR="$ANDROID_DIR/app/src/main/jniLibs/arm64-v8a"
+    local JNILIB_DIR="$PROJECT_ROOT/android/souprune/src/main/jniLibs/arm64-v8a"
     mkdir -p "$JNILIB_DIR"
 
     local SO_FILE="$PROJECT_ROOT/target/aarch64-linux-android/release/libsouprune.so"
@@ -227,7 +227,7 @@ build_apk() {
 
     cd "$ANDROID_DIR"
     JAVA_HOME="$JAVA_HOME" ANDROID_HOME="$ANDROID_HOME" \
-        ./gradlew assembleDebug --no-daemon -q
+        ./gradlew :souprune:assembleDebug --no-daemon -q
 
     if [ -f "$APK_PATH" ]; then
         echo
@@ -407,16 +407,46 @@ menu_loop() {
 
 # ── 入口 ──────────────────────────────────────────────────
 
-# Support --option N to skip interactive menu
+# Support non-interactive entry points used by Prune.
+usage() {
+    cat <<EOF
+Usage: $0 [--option N] [--apk-only] [--debug-apk-only]
+
+  --option N          Run the existing menu option non-interactively.
+  --apk-only          Build android/souprune debug APK only.
+  --debug-apk-only    Build android/souprune debug APK with Bevy debug names only.
+EOF
+}
+
 OPTION=""
+APK_ONLY=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --option)
+            if [[ $# -lt 2 ]]; then
+                echo -e "${RED}--option 需要一个选项编号${NC}"
+                exit 1
+            fi
             OPTION="$2"
             shift 2
             ;;
+        --apk-only)
+            APK_ONLY=true
+            BUILD_DEBUG=false
+            shift
+            ;;
+        --debug-apk-only)
+            APK_ONLY=true
+            BUILD_DEBUG=true
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
         *)
             echo -e "${RED}未知参数: $1${NC}"
+            usage
             exit 1
             ;;
     esac
@@ -425,7 +455,9 @@ done
 banner
 check_env
 
-if [ -n "$OPTION" ]; then
+if [ "$APK_ONLY" = true ]; then
+    do_build
+elif [ -n "$OPTION" ]; then
     case "$OPTION" in
         1)
             BUILD_DEBUG=false

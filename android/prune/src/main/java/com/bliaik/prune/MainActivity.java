@@ -1,0 +1,1053 @@
+package com.bliaik.prune;
+
+import android.Manifest;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ClipboardManager;
+import android.content.ClipData;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.content.res.Configuration;
+import android.graphics.Color;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Environment;
+import android.provider.Settings;
+import android.text.InputType;
+import android.view.DragEvent;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.ScrollView;
+import android.widget.TextView;
+
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class MainActivity extends Activity {
+    private static final int INK = Color.rgb(32, 36, 31);
+    private static final int MUTED = Color.rgb(93, 100, 90);
+    private static final int LINE = Color.rgb(214, 217, 208);
+    private static final int SOFT = Color.rgb(246, 247, 243);
+    private static final int GREEN = Color.rgb(47, 125, 70);
+    private static final int BLUE = Color.rgb(40, 95, 145);
+
+    private static final String PREFS = "prune";
+    private static final String KEY_ENABLED = "enabled_mods";
+    private static final String KEY_LANGUAGE = "language";
+    private static final String KEY_SERVER_URL = "server_url";
+    private static final String KEY_SERVER_TOKEN = "server_token";
+
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final List<ModInfo> enabledMods = new ArrayList<>();
+    private final List<ModInfo> availableMods = new ArrayList<>();
+
+    private SharedPreferences prefs;
+    private LinearLayout root;
+    private LinearLayout content;
+    private TextView title;
+    private TextView subtitle;
+    private TextView logView;
+    private FluentMessages messages;
+    private String activeView = "mods";
+    private String advancedTab = "build";
+    private String language = "en";
+    private String activeModName = "";
+    private boolean taskInFlight;
+    private AlertDialog taskDialog;
+    private TextView taskPhaseView;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        loadMessages();
+        requestStorageAccess();
+        loadMods();
+        buildShell();
+        showMods();
+    }
+
+    @Override
+    protected void onDestroy() {
+        executor.shutdownNow();
+        super.onDestroy();
+    }
+
+    private void buildShell() {
+        root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(SOFT);
+        setContentView(root);
+
+        LinearLayout header = vertical();
+        header.setBackgroundColor(Color.WHITE);
+        header.setPadding(dp(18), dp(16), dp(18), dp(12));
+        root.addView(header, new LinearLayout.LayoutParams(-1, -2));
+
+        LinearLayout titleRow = horizontal();
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        header.addView(titleRow, new LinearLayout.LayoutParams(-1, -2));
+
+        LinearLayout titleBlock = vertical();
+        titleRow.addView(titleBlock, new LinearLayout.LayoutParams(0, -2, 1));
+        title = text(t("nav-mods"), 26, INK, true);
+        subtitle = text(t("mods-subtitle"), 13, MUTED, false);
+        titleBlock.addView(title);
+        titleBlock.addView(subtitle);
+
+        Button refresh = iconButton("↻");
+        refresh.setOnClickListener(v -> {
+            loadMods();
+            if ("mods".equals(activeView)) showMods(); else showAdvanced();
+        });
+        titleRow.addView(refresh, new LinearLayout.LayoutParams(dp(44), dp(44)));
+
+        ScrollView scroll = new ScrollView(this);
+        content = vertical();
+        content.setPadding(dp(14), dp(14), dp(14), dp(14));
+        scroll.addView(content);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+
+        LinearLayout nav = horizontal();
+        nav.setBackgroundColor(Color.WHITE);
+        nav.setPadding(dp(10), dp(6), dp(10), dp(8));
+        root.addView(nav, new LinearLayout.LayoutParams(-1, dp(72)));
+
+        Button mods = navButton("☷\n" + t("nav-mods"));
+        mods.setOnClickListener(v -> showMods());
+        nav.addView(mods, new LinearLayout.LayoutParams(0, -1, 1));
+
+        Button advanced = navButton("⚙\n" + t("nav-advanced"));
+        advanced.setOnClickListener(v -> showAdvanced());
+        nav.addView(advanced, new LinearLayout.LayoutParams(0, -1, 1));
+    }
+
+    private void showMods() {
+        activeView = "mods";
+        title.setText(t("nav-mods"));
+        subtitle.setText(t("mods-subtitle"));
+        content.removeAllViews();
+
+        LinearLayout summary = horizontal();
+        content.addView(summary, new LinearLayout.LayoutParams(-1, -2));
+        summary.addView(metric(t("workspace"), "SoupRune"), new LinearLayout.LayoutParams(0, dp(78), 1));
+        LinearLayout.LayoutParams metricGap = new LinearLayout.LayoutParams(0, dp(78), 1);
+        metricGap.setMargins(dp(8), 0, 0, 0);
+        summary.addView(metric(t("enabled-order"), tf("mods-count", "count", enabledMods.size())), metricGap);
+
+        LinearLayout search = horizontal();
+        search.setPadding(0, dp(12), 0, dp(10));
+        content.addView(search, new LinearLayout.LayoutParams(-1, -2));
+        EditText query = input(t("search-placeholder"));
+        search.addView(query, new LinearLayout.LayoutParams(0, dp(44), 1));
+        Button fetch = iconButton("↓");
+        fetch.setContentDescription(t("fetch-remote-mod"));
+        fetch.setOnClickListener(v -> syncServerMods());
+        LinearLayout.LayoutParams fetchParams = new LinearLayout.LayoutParams(dp(48), dp(44));
+        fetchParams.setMargins(dp(8), 0, 0, 0);
+        search.addView(fetch, fetchParams);
+
+        boolean landscape = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+        LinearLayout lists = landscape ? horizontal() : vertical();
+        content.addView(lists, new LinearLayout.LayoutParams(-1, -2));
+
+        LinearLayout.LayoutParams enabledParams = landscape
+                ? new LinearLayout.LayoutParams(0, -2, 1)
+                : new LinearLayout.LayoutParams(-1, -2);
+        lists.addView(modColumn(t("enabled-list"), t("load-order"), enabledMods, true), enabledParams);
+
+        LinearLayout.LayoutParams availableParams = landscape
+                ? new LinearLayout.LayoutParams(0, -2, 1)
+                : new LinearLayout.LayoutParams(-1, -2);
+        if (landscape) {
+            availableParams.setMargins(dp(12), 0, 0, 0);
+        } else {
+            availableParams.setMargins(0, dp(12), 0, 0);
+        }
+        lists.addView(modColumn(t("available-list"), t("not-enabled"), availableMods, false), availableParams);
+
+        addGap(dp(10));
+        content.addView(note(t("dependency-note")));
+        addLogPanel();
+    }
+
+    private void showAdvanced() {
+        activeView = "advanced";
+        title.setText(t("nav-advanced"));
+        subtitle.setText(t("advanced-build-subtitle"));
+        content.removeAllViews();
+
+        LinearLayout tabs = horizontal();
+        content.addView(tabs, new LinearLayout.LayoutParams(-1, dp(42)));
+        Button build = tabButton(t("tab-build"), "build".equals(advancedTab));
+        build.setOnClickListener(v -> {
+            advancedTab = "build";
+            showAdvanced();
+        });
+        tabs.addView(build, new LinearLayout.LayoutParams(0, -1, 1));
+        Button settings = tabButton(t("tab-settings"), "settings".equals(advancedTab));
+        settings.setOnClickListener(v -> {
+            advancedTab = "settings";
+            showAdvanced();
+        });
+        tabs.addView(settings, new LinearLayout.LayoutParams(0, -1, 1));
+        addGap(dp(12));
+
+        if ("settings".equals(advancedTab)) {
+            subtitle.setText(t("advanced-settings-subtitle"));
+            showSettings();
+        } else {
+            showBuild();
+        }
+    }
+
+    private void showBuild() {
+        LinearLayout summary = horizontal();
+        content.addView(summary, new LinearLayout.LayoutParams(-1, -2));
+        summary.addView(metric(t("server"), hasServer() ? t("configured") : t("missing")), new LinearLayout.LayoutParams(0, dp(78), 1));
+        LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(0, dp(78), 1);
+        gap.setMargins(dp(8), 0, 0, 0);
+        summary.addView(metric(t("latest-souprune-apk"), localApk().exists() ? t("cached") : t("none")), gap);
+        addGap(dp(12));
+
+        LinearLayout card = card();
+        content.addView(card);
+        card.addView(rowTitle(t("build-souprune-apk"), t("build-souprune-apk-detail")));
+        Button plan = actionButton(t("plan"), false);
+        plan.setOnClickListener(v -> appendLog(remoteBuildCommand()));
+        Button build = actionButton(t("remote-build"), true);
+        build.setOnClickListener(v -> runRemoteBuild());
+        card.addView(buttonRow(plan, build));
+
+        addGap(dp(12));
+        LinearLayout pull = card();
+        content.addView(pull);
+        pull.addView(rowTitle(t("pull-install-latest"), t("pull-install-latest-detail")));
+        Button pullButton = actionButton(t("pull-apk"), true);
+        pullButton.setOnClickListener(v -> pullLatestApk());
+        Button installButton = actionButton(t("install-cached-apk"), false);
+        installButton.setOnClickListener(v -> installLocalApk());
+        pull.addView(buttonRow(pullButton, installButton));
+        addLogPanel();
+    }
+
+    private void showSettings() {
+        EditText serverUrl = input(prefs.getString(KEY_SERVER_URL, ""));
+        EditText token = input(prefs.getString(KEY_SERVER_TOKEN, ""));
+        token.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+
+        content.addView(field(t("server-url"), serverUrl));
+        content.addView(field(t("server-token"), token));
+        content.addView(languageSelector());
+
+        Button save = actionButton(t("save-settings"), true);
+        save.setOnClickListener(v -> {
+            prefs.edit()
+                    .putString(KEY_SERVER_URL, serverUrl.getText().toString().trim())
+                    .putString(KEY_SERVER_TOKEN, token.getText().toString())
+                    .apply();
+            appendLog(t("settings-saved"));
+        });
+        Button test = actionButton(t("test-connection"), false);
+        test.setOnClickListener(v -> testServerConnection());
+        content.addView(buttonRow(save, test));
+
+        Button sync = actionButton(t("sync-server-mod-list"), false);
+        sync.setOnClickListener(v -> syncServerMods());
+        content.addView(sync, new LinearLayout.LayoutParams(-1, dp(44)));
+        addLogPanel();
+    }
+
+    private LinearLayout languageSelector() {
+        LinearLayout view = vertical();
+        view.setPadding(0, 0, 0, dp(10));
+        view.addView(text(t("language"), 12, MUTED, true));
+
+        LinearLayout row = horizontal();
+        view.addView(row, new LinearLayout.LayoutParams(-1, dp(44)));
+        row.addView(languageButton("system", t("language-system")), new LinearLayout.LayoutParams(0, -1, 1));
+        LinearLayout.LayoutParams zhParams = new LinearLayout.LayoutParams(0, -1, 1);
+        zhParams.setMargins(dp(8), 0, 0, 0);
+        row.addView(languageButton("zh-Hans", t("language-zh-hans")), zhParams);
+        LinearLayout.LayoutParams enParams = new LinearLayout.LayoutParams(0, -1, 1);
+        enParams.setMargins(dp(8), 0, 0, 0);
+        row.addView(languageButton("en", t("language-en")), enParams);
+        return view;
+    }
+
+    private Button languageButton(String value, String label) {
+        boolean active = value.equals(prefs.getString(KEY_LANGUAGE, "system"));
+        Button button = tabButton(label, active);
+        button.setOnClickListener(v -> {
+            prefs.edit().putString(KEY_LANGUAGE, value).apply();
+            loadMessages();
+            buildShell();
+            showAdvanced();
+            appendLog(t("language-saved"));
+        });
+        return button;
+    }
+
+    private LinearLayout modColumn(String label, String caption, List<ModInfo> mods, boolean enabled) {
+        LinearLayout column = vertical();
+        column.setBackgroundColor(Color.WHITE);
+        column.setPadding(0, 0, 0, dp(8));
+        column.setOnDragListener((view, event) -> handleModDrop(event, enabled));
+        column.addView(columnHeader(label, caption));
+        if (mods.isEmpty()) {
+            TextView empty = note(t("empty-mods"));
+            empty.setPadding(dp(12), dp(12), dp(12), dp(12));
+            column.addView(empty);
+            return column;
+        }
+        for (ModInfo mod : mods) {
+            column.addView(modCard(mod, enabled));
+        }
+        return column;
+    }
+
+    private LinearLayout modCard(ModInfo mod, boolean enabled) {
+        LinearLayout card = card();
+        card.setOnLongClickListener(view -> {
+            ClipData data = ClipData.newPlainText("mod", mod.name);
+            DragPayload payload = new DragPayload(mod, enabled);
+            View.DragShadowBuilder shadow = new View.DragShadowBuilder(view);
+            if (Build.VERSION.SDK_INT >= 24) {
+                view.startDragAndDrop(data, shadow, payload, 0);
+            } else {
+                view.startDrag(data, shadow, payload, 0);
+            }
+            return true;
+        });
+
+        LinearLayout head = horizontal();
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        card.addView(head);
+
+        TextView handle = text("::", 16, MUTED, false);
+        head.addView(handle, new LinearLayout.LayoutParams(dp(24), -2));
+
+        LinearLayout textBlock = vertical();
+        head.addView(textBlock, new LinearLayout.LayoutParams(0, -2, 1));
+        textBlock.addView(text(mod.name, 16, INK, true));
+        textBlock.addView(text(mod.path.getPath(), 12, MUTED, false));
+
+        Button move = iconButton(enabled ? "→" : "←");
+        move.setOnClickListener(v -> {
+            if (enabled) disableMod(mod); else enableMod(mod);
+        });
+        head.addView(move, new LinearLayout.LayoutParams(dp(40), dp(38)));
+
+        boolean active = enabled && mod.name.equals(activeModName);
+        String status = active ? t("active-status") : (enabled ? t("enabled-status") : t("available-status"));
+        TextView meta = text(tf("mod-version", "status", status, "version", mod.version), 12, MUTED, false);
+        meta.setPadding(0, dp(8), 0, 0);
+        card.addView(meta);
+
+        if (!mod.dependencies.isEmpty()) {
+            LinearLayout deps = horizontal();
+            deps.setPadding(0, dp(8), 0, 0);
+            deps.setGravity(Gravity.CENTER_VERTICAL);
+            deps.addView(text(t("dependency-label"), 12, MUTED, true));
+            for (String dep : mod.dependencies) {
+                TextView chip = chip(dep);
+                LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2);
+                params.setMargins(dp(6), 0, 0, 0);
+                deps.addView(chip, params);
+            }
+            card.addView(deps);
+        }
+        return card;
+    }
+
+    private boolean handleModDrop(DragEvent event, boolean targetEnabled) {
+        if (!(event.getLocalState() instanceof DragPayload)) {
+            return false;
+        }
+        switch (event.getAction()) {
+            case DragEvent.ACTION_DRAG_STARTED:
+            case DragEvent.ACTION_DRAG_ENTERED:
+            case DragEvent.ACTION_DRAG_LOCATION:
+            case DragEvent.ACTION_DRAG_EXITED:
+            case DragEvent.ACTION_DRAG_ENDED:
+                return true;
+            case DragEvent.ACTION_DROP:
+                DragPayload payload = (DragPayload) event.getLocalState();
+                if (payload.fromEnabled != targetEnabled) {
+                    if (targetEnabled) {
+                        enableMod(payload.mod);
+                    } else {
+                        disableMod(payload.mod);
+                    }
+                }
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void enableMod(ModInfo mod) {
+        availableMods.remove(mod);
+        enabledMods.remove(mod);
+        enabledMods.add(0, mod);
+        activeModName = mod.name;
+        persistEnabledMods();
+        showMods();
+        writeActiveProjectConfig();
+    }
+
+    private void disableMod(ModInfo mod) {
+        enabledMods.remove(mod);
+        availableMods.add(mod);
+        if (mod.name.equals(activeModName)) {
+            activeModName = enabledMods.isEmpty() ? "" : enabledMods.get(0).name;
+        }
+        persistEnabledMods();
+        showMods();
+        writeActiveProjectConfig();
+    }
+
+    private void loadMods() {
+        enabledMods.clear();
+        availableMods.clear();
+
+        File projects = projectsDir();
+        List<ModInfo> discovered = discoverMods(projects);
+        Map<String, ModInfo> modsByName = new HashMap<>();
+        List<String> discoveredNames = new ArrayList<>();
+        for (ModInfo mod : discovered) {
+            if (!modsByName.containsKey(mod.name)) {
+                modsByName.put(mod.name, mod);
+                discoveredNames.add(mod.name);
+            }
+        }
+
+        String activeConfigMod = readConfigString(new File(projects, "config.toml"), "mod_name", "");
+        ModListOrganizer.State state = ModListOrganizer.organize(
+                discoveredNames,
+                splitList(prefs.getString(KEY_ENABLED, "")),
+                activeConfigMod
+        );
+        activeModName = state.activeName;
+
+        for (String name : state.enabledNames) {
+            ModInfo mod = modsByName.get(name);
+            if (mod != null) {
+                enabledMods.add(mod);
+            }
+        }
+
+        for (String name : state.availableNames) {
+            ModInfo mod = modsByName.get(name);
+            if (mod != null) {
+                availableMods.add(mod);
+            }
+        }
+    }
+
+    private List<ModInfo> discoverMods(File projects) {
+        List<ModInfo> mods = new ArrayList<>();
+        File[] children = projects.listFiles();
+        if (children == null) return mods;
+        for (File child : children) {
+            if (!child.isDirectory()) continue;
+            File manifest = new File(child, "mod.toml");
+            if (!manifest.isFile()) continue;
+            mods.add(parseMod(child, manifest));
+        }
+        Collections.sort(mods, (a, b) -> a.name.compareTo(b.name));
+        return mods;
+    }
+
+    private ModInfo parseMod(File dir, File manifest) {
+        String name = dir.getName();
+        String version = "unknown";
+        List<String> deps = new ArrayList<>();
+        boolean inDeps = false;
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(manifest), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String trimmed = line.trim();
+                if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                    inDeps = "[dependencies]".equals(trimmed);
+                    continue;
+                }
+                if (trimmed.startsWith("#") || trimmed.isEmpty()) continue;
+                if (trimmed.startsWith("name") && trimmed.contains("=")) {
+                    name = tomlStringValue(trimmed, name);
+                } else if (trimmed.startsWith("version") && trimmed.contains("=")) {
+                    version = tomlStringValue(trimmed, version);
+                } else if (inDeps && trimmed.contains("=")) {
+                    String depName = trimmed.substring(0, trimmed.indexOf('=')).trim();
+                    String depVersion = tomlStringValue(trimmed, "");
+                    deps.add(depVersion.isEmpty() ? depName : depName + "@" + depVersion);
+                }
+            }
+        } catch (IOException ignored) {
+        }
+        return new ModInfo(name, version, dir, deps);
+    }
+
+    private String tomlStringValue(String line, String fallback) {
+        int first = line.indexOf('"');
+        int last = line.lastIndexOf('"');
+        if (first >= 0 && last > first) return line.substring(first + 1, last);
+        return fallback;
+    }
+
+    private void persistEnabledMods() {
+        List<String> names = new ArrayList<>();
+        for (ModInfo mod : enabledMods) names.add(mod.name);
+        prefs.edit().putString(KEY_ENABLED, String.join(",", names)).apply();
+    }
+
+    private void writeActiveProjectConfig() {
+        String modName = selectedActiveModName();
+        if (modName.isEmpty()) return;
+
+        File projects = projectsDir();
+        if (!projects.exists() && !projects.mkdirs()) {
+            appendLog(tf("game-config-failed", "error", projects.getAbsolutePath()));
+            return;
+        }
+
+        File config = new File(projects, "config.toml");
+        String language = readConfigString(config, "language", "en-US");
+        int resolutionScale = readConfigInt(config, "resolution_scale", 4);
+        String output = ProjectConfigFile.render(modName, language, resolutionScale);
+
+        try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(config, false), StandardCharsets.UTF_8)) {
+            writer.write(output);
+            appendLog(tf("game-config-updated", "mod", modName));
+        } catch (IOException error) {
+            appendLog(tf("game-config-failed", "error", error.getMessage()));
+        }
+    }
+
+    private String selectedActiveModName() {
+        if (!activeModName.isEmpty()) return activeModName;
+        return enabledMods.isEmpty() ? "" : enabledMods.get(0).name;
+    }
+
+    private String readConfigString(File config, String key, String fallback) {
+        if (!config.isFile()) return fallback;
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(config), StandardCharsets.UTF_8))) {
+            String prefix = key + " ";
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String trimmed = line.trim();
+                if (trimmed.startsWith(prefix) && trimmed.contains("=")) {
+                    return tomlStringValue(trimmed, fallback);
+                }
+            }
+        } catch (IOException ignored) {
+        }
+        return fallback;
+    }
+
+    private int readConfigInt(File config, String key, int fallback) {
+        if (!config.isFile()) return fallback;
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(config), StandardCharsets.UTF_8))) {
+            String prefix = key + " ";
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String trimmed = line.trim();
+                if (trimmed.startsWith(prefix) && trimmed.contains("=")) {
+                    return Integer.parseInt(trimmed.substring(trimmed.indexOf('=') + 1).trim());
+                }
+            }
+        } catch (IOException | NumberFormatException ignored) {
+        }
+        return fallback;
+    }
+
+    private String remoteBuildCommand() {
+        if (!hasServer()) {
+            return t("configure-server-first");
+        }
+        return t("remote-build-command-detail")
+                + "\nPOST " + apiEndpoint("/api/builds")
+                + "\nGET " + apiEndpoint("/api/builds/{id}")
+                + "\nGET " + apiEndpoint("/api/apk/latest");
+    }
+
+    private String apiEndpoint(String path) {
+        String base = serverUrl();
+        while (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base + path;
+    }
+
+    private void runRemoteBuild() {
+        runServerTask(t("remote-build"), client -> {
+            appendLogOnUiThread(t("remote-build-started"));
+            updateTaskProgressOnUiThread(t("remote-build-started"));
+            PruneApiClient.BuildSnapshot started = client.startBuild();
+            PruneApiClient.BuildSnapshot current = started;
+            appendLogOnUiThread(tf("remote-build-status", "id", current.id, "status", statusName(current.status)));
+            updateTaskProgressOnUiThread(tf("remote-build-status", "id", current.id, "status", statusName(current.status)));
+            while (current.status == PruneApiClient.BuildStatus.QUEUED || current.status == PruneApiClient.BuildStatus.RUNNING) {
+                Thread.sleep(2_000L);
+                current = client.getBuild(started.id);
+                appendLogOnUiThread(tf("remote-build-status", "id", current.id, "status", statusName(current.status)));
+                updateTaskProgressOnUiThread(tf("remote-build-status", "id", current.id, "status", statusName(current.status)));
+            }
+            if (current.status != PruneApiClient.BuildStatus.SUCCEEDED) {
+                throw new IOException(tf("remote-build-failed", "id", current.id, "status", statusName(current.status)));
+            }
+            appendLogOnUiThread(t("remote-build-downloading"));
+            updateTaskProgressOnUiThread(t("remote-build-downloading"));
+            client.downloadLatestApk(localApk());
+            return tf("apk-cached-at", "path", localApk().getAbsolutePath());
+        });
+    }
+
+    private String statusName(PruneApiClient.BuildStatus status) {
+        return status.name().toLowerCase(Locale.US);
+    }
+
+    private void pullLatestApk() {
+        runServerTask(t("pull-apk"), client -> {
+            appendLogOnUiThread(t("pull-apk-started"));
+            updateTaskProgressOnUiThread(t("pull-apk-started"));
+            File target = localApk();
+            target.getParentFile().mkdirs();
+            client.downloadLatestApk(target);
+            return tf("apk-cached-at", "path", target.getAbsolutePath());
+        });
+    }
+
+    private void installLocalApk() {
+        File apk = localApk();
+        if (!apk.isFile()) {
+            appendLog(t("cached-apk-missing"));
+            return;
+        }
+        Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".files", apk);
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setDataAndType(uri, "application/vnd.android.package-archive");
+        intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.setClipData(ClipData.newUri(getContentResolver(), "souprune apk", uri));
+        startActivity(intent);
+    }
+
+    private void loadMessages() {
+        language = FluentMessages.selectLanguage(prefs.getString(KEY_LANGUAGE, "system"), Locale.getDefault());
+        try {
+            messages = FluentMessages.fromStream(getAssets().open("i18n/" + language + ".ftl"));
+        } catch (IOException error) {
+            try {
+                messages = FluentMessages.fromStream(getAssets().open("i18n/en.ftl"));
+                language = "en";
+            } catch (IOException fallbackError) {
+                messages = FluentMessages.parse("app-title = Prune\n");
+                language = "en";
+            }
+        }
+    }
+
+    private String t(String key) {
+        return messages == null ? key : messages.get(key);
+    }
+
+    private String tf(String key, Object... pairs) {
+        return messages == null ? key : messages.format(key, pairs);
+    }
+
+    private boolean hasServer() {
+        return !serverUrl().isEmpty() && !serverToken().isEmpty();
+    }
+
+    private String serverUrl() { return prefs.getString(KEY_SERVER_URL, "").trim(); }
+    private String serverToken() { return prefs.getString(KEY_SERVER_TOKEN, "").trim(); }
+
+    private PruneApiClient apiClient() {
+        return new PruneApiClient(serverUrl(), serverToken());
+    }
+
+    private File serverBundleFile() {
+        return new File(getExternalFilesDir(null), "server/projects-bundle.zip");
+    }
+
+    private void syncServerMods() {
+        runServerTask(t("sync-server-mod-list"), client -> {
+            File bundle = serverBundleFile();
+            appendLogOnUiThread(t("sync-download-bundle"));
+            updateTaskProgressOnUiThread(t("sync-download-bundle"));
+            client.downloadProjectsBundle(bundle);
+            appendLogOnUiThread(t("sync-fetch-mods"));
+            updateTaskProgressOnUiThread(t("sync-fetch-mods"));
+            PruneApiClient.ModsSnapshot snapshot = client.fetchMods();
+            prefs.edit().putString(KEY_ENABLED, String.join(",", snapshot.loadOrder)).apply();
+            appendLogOnUiThread(t("sync-install-bundle"));
+            updateTaskProgressOnUiThread(t("sync-install-bundle"));
+            ProjectBundleInstaller.install(bundle, projectsDir());
+            appendLogOnUiThread(t("sync-reload-mods"));
+            updateTaskProgressOnUiThread(t("sync-reload-mods"));
+            loadMods();
+            runOnUiThread(this::showMods);
+            return tf("server-mods-synced", "count", snapshot.mods.size());
+        });
+    }
+
+    private interface ServerTask {
+        String run(PruneApiClient client) throws Exception;
+    }
+
+    private void runServerTask(String label, ServerTask task) {
+        if (!hasServer()) {
+            appendLog(t("configure-server-first"));
+            return;
+        }
+        if (taskInFlight) {
+            return;
+        }
+        taskInFlight = true;
+        showTaskDialog(label);
+        appendLog("$ http " + serverUrl() + " " + label);
+        executor.execute(() -> {
+            String message;
+            try {
+                message = task.run(apiClient());
+            } catch (InterruptedException error) {
+                Thread.currentThread().interrupt();
+                message = error.getClass().getSimpleName() + ": " + error.getMessage();
+            } catch (Exception error) {
+                message = error.getClass().getSimpleName() + ": " + error.getMessage();
+            }
+            String finalMessage = message;
+            runOnUiThread(() -> {
+                appendLog("[" + label + "] " + finalMessage);
+                dismissTaskDialog();
+                taskInFlight = false;
+            });
+        });
+    }
+
+    private File localApk() {
+        return new File(getExternalFilesDir(null), "souprune/souprune-debug.apk");
+    }
+
+    private File projectsDir() {
+        return new File(Environment.getExternalStorageDirectory(), "SoupRune/projects");
+    }
+
+    private void addLogPanel() {
+        addGap(dp(12));
+        LinearLayout header = horizontal();
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.addView(text(t("log"), 13, MUTED, true), new LinearLayout.LayoutParams(0, -2, 1));
+        Button copy = actionButton(t("copy-log"), false);
+        copy.setOnClickListener(v -> copyLog());
+        header.addView(copy, new LinearLayout.LayoutParams(dp(96), dp(38)));
+        content.addView(header, new LinearLayout.LayoutParams(-1, -2));
+        addGap(dp(8));
+
+        logView = text("", 12, Color.rgb(220, 234, 213), false);
+        logView.setTypeface(android.graphics.Typeface.MONOSPACE);
+        logView.setPadding(dp(12), dp(12), dp(12), dp(12));
+        logView.setBackgroundColor(Color.rgb(23, 26, 22));
+        content.addView(logView, new LinearLayout.LayoutParams(-1, dp(180)));
+        appendLog(t("prune-ready"));
+    }
+
+    private void copyLog() {
+        if (logView == null) return;
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (clipboard == null) return;
+        clipboard.setPrimaryClip(ClipData.newPlainText("Prune log", logView.getText()));
+        appendLog(t("log-copied"));
+    }
+
+    private void appendLog(String message) {
+        if (logView == null) return;
+        String current = logView.getText().toString();
+        logView.setText(current + (current.isEmpty() ? "" : "\n") + message);
+    }
+
+    private void appendLogOnUiThread(String message) {
+        runOnUiThread(() -> appendLog(message));
+    }
+
+    private void testServerConnection() {
+        if (!hasServer()) {
+            appendLog(t("configure-server-first"));
+            return;
+        }
+        appendLog("$ http " + serverUrl() + " " + t("test-connection"));
+        executor.execute(() -> {
+            try {
+                PruneApiClient.ServerHealth health = apiClient().health();
+                appendLogOnUiThread(tf("server-health", "mod", health.activeMod));
+            } catch (Exception error) {
+                appendLogOnUiThread(error.getClass().getSimpleName() + ": " + error.getMessage());
+            }
+        });
+    }
+
+    private void showTaskDialog(String label) {
+        runOnUiThread(() -> {
+            dismissTaskDialog();
+            LinearLayout body = vertical();
+            body.setPadding(dp(20), dp(18), dp(20), dp(18));
+
+            TextView heading = text(label, 16, INK, true);
+            taskPhaseView = text(label, 13, MUTED, false);
+            ProgressBar progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+            progressBar.setIndeterminate(true);
+            progressBar.setPadding(0, dp(14), 0, 0);
+
+            body.addView(heading);
+            body.addView(taskPhaseView);
+            body.addView(progressBar, new LinearLayout.LayoutParams(-1, -2));
+
+            taskDialog = new AlertDialog.Builder(this)
+                    .setView(body)
+                    .setCancelable(false)
+                    .create();
+            taskDialog.setCanceledOnTouchOutside(false);
+            taskDialog.show();
+        });
+    }
+
+    private void updateTaskProgressOnUiThread(String phase) {
+        runOnUiThread(() -> {
+            if (taskPhaseView != null) {
+                taskPhaseView.setText(phase);
+            }
+        });
+    }
+
+    private void dismissTaskDialog() {
+        if (taskDialog != null) {
+            taskDialog.dismiss();
+            taskDialog = null;
+        }
+        taskPhaseView = null;
+    }
+
+    private void requestStorageAccess() {
+        if (Build.VERSION.SDK_INT >= 30 && !Environment.isExternalStorageManager()) {
+            try {
+                startActivity(new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:" + getPackageName())));
+            } catch (Exception ignored) {
+                startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
+            }
+        }
+        if (Build.VERSION.SDK_INT < 33 && ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+        }
+    }
+
+    private LinearLayout card() {
+        LinearLayout view = vertical();
+        view.setPadding(dp(12), dp(12), dp(12), dp(12));
+        view.setBackground(makeBorder(Color.WHITE, LINE));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, 0, 0, dp(8));
+        view.setLayoutParams(params);
+        return view;
+    }
+
+    private LinearLayout metric(String label, String value) {
+        LinearLayout view = card();
+        view.addView(text(label, 12, MUTED, false));
+        view.addView(text(value, 20, INK, true));
+        return view;
+    }
+
+    private LinearLayout columnHeader(String left, String right) {
+        LinearLayout row = horizontal();
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(12), dp(10), dp(12), dp(10));
+        row.setBackgroundColor(Color.rgb(241, 244, 236));
+        row.addView(text(left, 14, INK, true), new LinearLayout.LayoutParams(0, -2, 1));
+        row.addView(text(right, 12, MUTED, false));
+        return row;
+    }
+
+    private LinearLayout rowTitle(String heading, String detail) {
+        LinearLayout view = vertical();
+        view.addView(text(heading, 16, INK, true));
+        view.addView(text(detail, 12, MUTED, false));
+        return view;
+    }
+
+    private LinearLayout field(String label, EditText input) {
+        LinearLayout view = vertical();
+        view.setPadding(0, 0, 0, dp(10));
+        view.addView(text(label, 12, MUTED, true));
+        view.addView(input, new LinearLayout.LayoutParams(-1, dp(44)));
+        return view;
+    }
+
+    private LinearLayout buttonRow(Button left, Button right) {
+        LinearLayout row = horizontal();
+        row.setPadding(0, dp(10), 0, 0);
+        row.addView(left, new LinearLayout.LayoutParams(0, dp(44), 1));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(44), 1);
+        params.setMargins(dp(8), 0, 0, 0);
+        row.addView(right, params);
+        return row;
+    }
+
+    private Button actionButton(String label, boolean primary) {
+        Button button = new Button(this);
+        button.setAllCaps(false);
+        button.setText(label);
+        button.setTextColor(primary ? Color.WHITE : INK);
+        button.setTextSize(14);
+        button.setBackground(makeBorder(primary ? GREEN : Color.WHITE, primary ? GREEN : LINE));
+        return button;
+    }
+
+    private Button tabButton(String label, boolean active) {
+        Button button = actionButton(label, active);
+        button.setTextColor(active ? Color.WHITE : MUTED);
+        button.setBackground(makeBorder(active ? INK : Color.rgb(238, 242, 234), LINE));
+        return button;
+    }
+
+    private Button navButton(String label) {
+        Button button = new Button(this);
+        button.setAllCaps(false);
+        button.setText(label);
+        button.setTextSize(12);
+        button.setTextColor(GREEN);
+        button.setBackgroundColor(Color.TRANSPARENT);
+        return button;
+    }
+
+    private Button iconButton(String label) {
+        Button button = new Button(this);
+        button.setAllCaps(false);
+        button.setText(label);
+        button.setTextSize(20);
+        button.setTextColor(INK);
+        button.setBackground(makeBorder(Color.WHITE, LINE));
+        return button;
+    }
+
+    private EditText input(String value) {
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setText(value);
+        input.setTextColor(INK);
+        input.setTextSize(15);
+        input.setPadding(dp(10), 0, dp(10), 0);
+        input.setBackground(makeBorder(Color.WHITE, LINE));
+        return input;
+    }
+
+    private TextView chip(String label) {
+        TextView view = text(label, 11, BLUE, false);
+        view.setTypeface(android.graphics.Typeface.MONOSPACE);
+        view.setPadding(dp(7), dp(4), dp(7), dp(4));
+        view.setBackground(makeBorder(Color.rgb(223, 234, 243), Color.rgb(223, 234, 243)));
+        return view;
+    }
+
+    private TextView note(String message) {
+        TextView view = text(message, 12, MUTED, false);
+        view.setLineSpacing(0, 1.15f);
+        return view;
+    }
+
+    private TextView text(String value, int sp, int color, boolean bold) {
+        TextView view = new TextView(this);
+        view.setText(value);
+        view.setTextSize(sp);
+        view.setTextColor(color);
+        view.setIncludeFontPadding(true);
+        if (bold) view.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        return view;
+    }
+
+    private LinearLayout vertical() {
+        LinearLayout view = new LinearLayout(this);
+        view.setOrientation(LinearLayout.VERTICAL);
+        return view;
+    }
+
+    private LinearLayout horizontal() {
+        LinearLayout view = new LinearLayout(this);
+        view.setOrientation(LinearLayout.HORIZONTAL);
+        return view;
+    }
+
+    private void addGap(int height) {
+        View gap = new View(this);
+        content.addView(gap, new LinearLayout.LayoutParams(1, height));
+    }
+
+    private android.graphics.drawable.Drawable makeBorder(int fill, int stroke) {
+        android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
+        drawable.setColor(fill);
+        drawable.setStroke(dp(1), stroke);
+        drawable.setCornerRadius(dp(8));
+        return drawable;
+    }
+
+    private int dp(int value) {
+        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    private List<String> splitList(String input) {
+        List<String> result = new ArrayList<>();
+        if (input == null) return result;
+        for (String part : input.split(",")) {
+            String item = part.trim();
+            if (!item.isEmpty()) result.add(item);
+        }
+        return result;
+    }
+
+    private static final class ModInfo {
+        final String name;
+        final String version;
+        final File path;
+        final List<String> dependencies;
+
+        ModInfo(String name, String version, File path, List<String> dependencies) {
+            this.name = name;
+            this.version = version;
+            this.path = path;
+            this.dependencies = dependencies;
+        }
+    }
+
+    private static final class DragPayload {
+        final ModInfo mod;
+        final boolean fromEnabled;
+
+        DragPayload(ModInfo mod, boolean fromEnabled) {
+            this.mod = mod;
+            this.fromEnabled = fromEnabled;
+        }
+    }
+}

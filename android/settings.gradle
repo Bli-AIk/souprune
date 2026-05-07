@@ -6,4 +6,5 @@ pluginManagement {
     }
 }
 rootProject.name = "SoupRune"
-include ':app'
+include ':prune'
+include ':souprune'

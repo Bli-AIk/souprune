@@ -70,8 +70,10 @@ crates/**/tests/fixtures/**/Cargo.lock
 .mod-repo/
 # Android build artifacts
 android/.gradle/
-android/app/build/
-android/app/src/main/jniLibs/
+android/prune/build/
+android/prune/src/main/jniLibs/
+android/souprune/build/
+android/souprune/src/main/jniLibs/
 android/build/
 
 # Project mods (local user projects are ignored; maintained examples are git submodules)
