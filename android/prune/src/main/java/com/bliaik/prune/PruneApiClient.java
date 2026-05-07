@@ -1,7 +1,5 @@
 package com.bliaik.prune;
 
-import android.text.TextUtils;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -140,7 +138,7 @@ public final class PruneApiClient {
         }
         if (expectedContentType != null) {
             String contentType = connection.getContentType();
-            if (!TextUtils.isEmpty(contentType) && !contentType.startsWith(expectedContentType)) {
+            if (contentType != null && !contentType.isEmpty() && !contentType.startsWith(expectedContentType)) {
                 throw new IOException("Unexpected content type: " + contentType);
             }
         }
@@ -151,6 +149,8 @@ public final class PruneApiClient {
         }
         long total = connection.getContentLengthLong();
         long current = 0;
+        long reportStep = total > 0 ? Math.max(total / 100, 256L * 1024L) : 256L * 1024L;
+        long lastReported = 0;
         if (progress != null) {
             progress.onProgress(current, total);
         }
@@ -161,10 +161,14 @@ public final class PruneApiClient {
             while ((read = in.read(buffer)) >= 0) {
                 out.write(buffer, 0, read);
                 current += read;
-                if (progress != null) {
+                if (progress != null && (current == total || current - lastReported >= reportStep)) {
+                    lastReported = current;
                     progress.onProgress(current, total);
                 }
             }
+        }
+        if (progress != null && current != lastReported) {
+            progress.onProgress(current, total);
         }
         return target;
     }
