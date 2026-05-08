@@ -9,8 +9,6 @@ set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$SCRIPT_DIR/.."
 ANDROID_DIR="$SCRIPT_DIR"
-ANDROID_MOD_BASE="/sdcard/SoupRune/projects"
-ANDROID_BUILTINS_DIR="/sdcard/SoupRune/builtins"
 APK_PATH="$PROJECT_ROOT/android/souprune/build/outputs/apk/debug/souprune-debug.apk"
 PACKAGE_NAME="com.bliaik.souprune"
 BUILD_DEBUG=false
@@ -275,90 +273,15 @@ do_install() {
     echo -e "${GREEN}▶ 正在安装 APK...${NC}"
     adb install -r "$APK_PATH"
 
-    # Grant permissions
-    echo -e "${GREEN}▶ 设置权限...${NC}"
-    adb shell "appops set $PACKAGE_NAME MANAGE_EXTERNAL_STORAGE allow" 2>/dev/null || true
-    adb shell "pm grant $PACKAGE_NAME android.permission.READ_EXTERNAL_STORAGE" 2>/dev/null || true
-
     echo -e "${GREEN}✅ 安装完成${NC}"
 }
 
 do_sync_mods() {
     if ! check_device; then return 1; fi
 
-    echo -e "${GREEN}▶ 同步 mod 文件夹到设备...${NC}"
-
-    # Read current mod name from config.toml
-    local config_file="$PROJECT_ROOT/projects/config.toml"
-    if [ ! -f "$config_file" ]; then
-        echo -e "${RED}❌ 找不到 projects/config.toml${NC}"
-        return 1
-    fi
-
-    local mod_name
-    mod_name=$(read_active_mod_name)
-    if [ -z "$mod_name" ]; then
-        echo -e "${RED}❌ 无法从 config.toml 读取 mod_name${NC}"
-        return 1
-    fi
-
-    local mod_order_output
-    if ! mod_order_output=$(resolve_mod_order "$mod_name"); then
-        echo -e "${RED}❌ 无法解析 mod 依赖顺序: $mod_name${NC}"
-        return 1
-    fi
-    mapfile -t mod_order < <(printf '%s\n' "$mod_order_output" | sed '/^[[:space:]]*$/d')
-    if [ "${#mod_order[@]}" -eq 0 ]; then
-        echo -e "${RED}❌ mod 依赖顺序为空: $mod_name${NC}"
-        return 1
-    fi
-
-    echo -e "  📦 Mod: ${BOLD}$mod_name${NC}"
-    echo -e "  📦 同步顺序: ${mod_order[*]}"
-    echo -e "  📱 设备: $ANDROID_MOD_BASE"
-
-    # Create base dir on device
-    adb shell "mkdir -p $ANDROID_MOD_BASE" 2>/dev/null || true
-
-    for sync_mod_name in "${mod_order[@]}"; do
-        local local_mod_dir="$PROJECT_ROOT/projects/$sync_mod_name"
-        if [ ! -d "$local_mod_dir" ]; then
-            echo -e "${RED}❌ 本地 mod 目录不存在: $local_mod_dir${NC}"
-            return 1
-        fi
-
-        echo -e "  🗑️  删除设备上的旧 mod 文件夹: $sync_mod_name"
-        adb shell "rm -rf $ANDROID_MOD_BASE/$sync_mod_name" 2>/dev/null || true
-
-        echo -e "  📤 推送 mod 文件到设备: $sync_mod_name"
-        adb push "$local_mod_dir" "$ANDROID_MOD_BASE/" 2>&1
-
-        for wasm_file in "$local_mod_dir/.build/runtime.wasm" "$local_mod_dir/.build/content.wasm"; do
-            if [ -f "$wasm_file" ]; then
-                echo -e "    📦 ${wasm_file#$PROJECT_ROOT/}"
-            else
-                echo -e "  ${YELLOW}⚠ 未找到 ${wasm_file#$PROJECT_ROOT/}，请确认 prepare-assets-release 已成功${NC}"
-            fi
-        done
-    done
-
-    # Also push config.toml
-    echo -e "  📤 推送 config.toml..."
-    adb push "$config_file" "$ANDROID_MOD_BASE/config.toml" 2>&1
-
-    # Sync builtin WASM to device
-    echo -e "  📤 同步 builtin WASM 到设备..."
-    adb shell "mkdir -p $ANDROID_BUILTINS_DIR" 2>/dev/null || true
-
-    local builtin_wasm="$PROJECT_ROOT/assets/builtins/souprune_builtins.wasm"
-    if [ -f "$builtin_wasm" ]; then
-        adb push "$builtin_wasm" "$ANDROID_BUILTINS_DIR/souprune_builtins.wasm" 2>&1
-        echo -e "  ${GREEN}✅ souprune_builtins.wasm 已同步${NC}"
-    else
-        echo -e "  ${YELLOW}⚠ 未找到 assets/builtins/souprune_builtins.wasm，请先运行构建流程${NC}"
-    fi
-
-    echo -e "${GREEN}✅ Mod 同步完成${NC}"
+    echo -e "${YELLOW}⚠ Souprune 现在只使用应用私有目录。${NC}"
+    echo -e "  请用 Prune APK 的“使用服务器 mod 列表强制覆盖”通过 Souprune Provider 同步 mod。"
+    return 1
 }
 
 # ── 主菜单 ────────────────────────────────────────────────
@@ -366,8 +289,8 @@ do_sync_mods() {
 show_menu() {
     echo
     echo -e "${BOLD}── 选择操作 ──${NC}"
-    echo -e "  ${CYAN}1${NC}. 🔨 构建 + 安装 + 同步 mod"
-    echo -e "  ${CYAN}2${NC}. 🐛 构建 (Bevy debug names) + 安装 + 同步 mod"
+    echo -e "  ${CYAN}1${NC}. 🔨 构建 + 安装"
+    echo -e "  ${CYAN}2${NC}. 🐛 构建 (Bevy debug names) + 安装"
     echo -e "  ${CYAN}3${NC}. 📱 安装 APK 到设备"
     echo -e "  ${CYAN}4${NC}. 📂 同步 mod 文件夹到设备"
     echo -e "  ${CYAN}5${NC}. 🚪 退出"
@@ -382,11 +305,11 @@ menu_loop() {
         case "$choice" in
             1)
                 BUILD_DEBUG=false
-                do_build && do_install && do_sync_mods || true
+                do_build && do_install || true
                 ;;
             2)
                 BUILD_DEBUG=true
-                do_build && do_install && do_sync_mods || true
+                do_build && do_install || true
                 ;;
             3)
                 do_install || true
@@ -461,11 +384,11 @@ elif [ -n "$OPTION" ]; then
     case "$OPTION" in
         1)
             BUILD_DEBUG=false
-            do_build && do_install && do_sync_mods
+            do_build && do_install
             ;;
         2)
             BUILD_DEBUG=true
-            do_build && do_install && do_sync_mods
+            do_build && do_install
             ;;
         3)
             do_install

@@ -208,41 +208,13 @@ fn load_builtin_wasm(
     pattern_registry: &mut SpawnPatternRegistry,
     loaded_mods: &mut LoadedMods,
 ) {
-    // CWD-relative candidates. Keep both packaged and development layouts so
-    // running from the repo root does not depend on one specific target dir.
-    //
-    // CWD 相对候选路径。兼容发行包布局和开发布局，避免仓库根目录运行时
-    // 依赖某一个固定的 target 目录结构。
-    let mut candidates = vec![
-        std::path::PathBuf::from("builtins/souprune_builtins.wasm"),
-        std::path::PathBuf::from("assets/builtins/souprune_builtins.wasm"),
-        std::path::PathBuf::from("target/builtins/wasm32-wasip2/debug/souprune_builtins.wasm"),
-        std::path::PathBuf::from("target/builtins/wasm32-wasip2/release/souprune_builtins.wasm"),
-        std::path::PathBuf::from(
-            "crates/souprune_builtins/target/wasm32-wasip2/debug/souprune_builtins.wasm",
-        ),
-        std::path::PathBuf::from(
-            "crates/souprune_builtins/target/wasm32-wasip2/release/souprune_builtins.wasm",
-        ),
-    ];
+    let builtin_candidates = builtin_wasm_candidates();
 
-    #[cfg(target_os = "android")]
-    candidates.push(std::path::PathBuf::from(
-        "/sdcard/SoupRune/builtins/souprune_builtins.wasm",
-    ));
-
-    // Exe-relative candidates (packaged distribution)
-    if let Ok(exe) = std::env::current_exe()
-        && let Some(exe_dir) = exe.parent()
-    {
-        candidates.push(exe_dir.join("builtins/souprune_builtins.wasm"));
-    }
-
-    let wasm_path = candidates.iter().find(|p| p.exists());
+    let wasm_path = builtin_candidates.iter().find(|p| p.exists());
     let Some(wasm_path) = wasm_path else {
         warn!(
             "Builtin WASM not found. Searched: {:?}",
-            candidates
+            builtin_candidates
                 .iter()
                 .map(|p| p.display().to_string())
                 .collect::<Vec<_>>()
@@ -274,6 +246,67 @@ fn load_builtin_wasm(
         Err(e) => {
             error!("Failed to load builtin WASM: {:?}", e);
         }
+    }
+}
+
+fn builtin_wasm_candidates() -> Vec<std::path::PathBuf> {
+    // CWD-relative candidates. Keep both packaged and development layouts so
+    // running from the repo root does not depend on one specific target dir.
+    //
+    // CWD 相对候选路径。兼容发行包布局和开发布局，避免仓库根目录运行时
+    // 依赖某一个固定的 target 目录结构。
+    let mut candidates = vec![
+        std::path::PathBuf::from("builtins/souprune_builtins.wasm"),
+        std::path::PathBuf::from("assets/builtins/souprune_builtins.wasm"),
+        std::path::PathBuf::from("target/builtins/wasm32-wasip2/debug/souprune_builtins.wasm"),
+        std::path::PathBuf::from("target/builtins/wasm32-wasip2/release/souprune_builtins.wasm"),
+        std::path::PathBuf::from(
+            "crates/souprune_builtins/target/wasm32-wasip2/debug/souprune_builtins.wasm",
+        ),
+        std::path::PathBuf::from(
+            "crates/souprune_builtins/target/wasm32-wasip2/release/souprune_builtins.wasm",
+        ),
+    ];
+
+    #[cfg(target_os = "android")]
+    candidates
+        .push(crate::config::android_private_base_path().join("builtins/souprune_builtins.wasm"));
+
+    // Exe-relative candidates (packaged distribution)
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(exe_dir) = exe.parent()
+    {
+        candidates.push(exe_dir.join("builtins/souprune_builtins.wasm"));
+    }
+
+    candidates
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builtin_candidates_include_packaged_layouts() {
+        let candidates = builtin_wasm_candidates();
+        assert!(
+            candidates
+                .iter()
+                .any(|p| p == &std::path::PathBuf::from("builtins/souprune_builtins.wasm"))
+        );
+        assert!(
+            candidates
+                .iter()
+                .any(|p| p == &std::path::PathBuf::from("assets/builtins/souprune_builtins.wasm"))
+        );
+    }
+
+    #[cfg(target_os = "android")]
+    #[test]
+    fn android_builtin_candidate_uses_private_storage() {
+        assert!(builtin_wasm_candidates().iter().any(|p| {
+            p == &crate::config::android_private_base_path().join("builtins/souprune_builtins.wasm")
+        }));
     }
 }
 

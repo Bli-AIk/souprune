@@ -76,22 +76,23 @@ public class MainActivitySourceTest {
     public void progressDialogUsesRealCountsForTransfersInstallAndBuildStages() throws Exception {
         String activity = new String(Files.readAllBytes(sourcePath("MainActivity.java")), StandardCharsets.UTF_8);
         String api = new String(Files.readAllBytes(sourcePath("PruneApiClient.java")), StandardCharsets.UTF_8);
-        String installer = new String(Files.readAllBytes(sourcePath("ProjectBundleInstaller.java")), StandardCharsets.UTF_8);
+        String storageClient = new String(Files.readAllBytes(sourcePath("SoupruneStorageClient.java")), StandardCharsets.UTF_8);
 
         assertTrue(activity.contains("updateTaskProgressOnUiThread(String phase, long current, long total"));
         assertTrue(activity.contains("taskProgressBar.setMax"));
         assertTrue(activity.contains("taskProgressBar.setProgress"));
         assertTrue(activity.contains("client.downloadLatestApk(target,"));
         assertTrue(activity.contains("client.downloadProjectsBundle(bundle,"));
-        assertTrue(activity.contains("ProjectBundleInstaller.install(bundle, projectsDir(),"));
+        assertTrue(activity.contains("storageClient().installBundle(bundle,"));
+        assertTrue(activity.contains("formatByteProgress(t(\"sync-install-bundle\"), currentBytes, totalBytes)"));
         assertTrue(activity.contains("current.progressCurrent"));
         assertTrue(activity.contains("current.progressTotal"));
         assertTrue(activity.contains("appendProgressLog"));
         assertTrue(api.contains("interface TransferProgress"));
         assertTrue(api.contains("getContentLengthLong"));
         assertTrue(api.contains("onProgress"));
-        assertTrue(installer.contains("interface ProgressListener"));
-        assertTrue(installer.contains("countInstallableFiles"));
+        assertTrue(storageClient.contains("interface ProgressListener"));
+        assertTrue(storageClient.contains("listener.onProgress"));
     }
 
     @Test

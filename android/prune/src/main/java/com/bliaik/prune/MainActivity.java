@@ -1,20 +1,16 @@
 package com.bliaik.prune;
 
-import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ClipboardManager;
 import android.content.ClipData;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
-import android.provider.Settings;
 import android.text.InputType;
 import android.view.DragEvent;
 import android.view.Gravity;
@@ -26,24 +22,13 @@ import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -83,13 +68,13 @@ public class MainActivity extends Activity {
     private TextView taskDetailView;
     private ProgressBar taskProgressBar;
     private String lastProgressLogSignature = "";
+    private SoupruneStorageClient storageClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         loadMessages();
-        requestStorageAccess();
         loadMods();
         buildShell();
         showMods();
@@ -358,7 +343,7 @@ public class MainActivity extends Activity {
         LinearLayout textBlock = vertical();
         head.addView(textBlock, new LinearLayout.LayoutParams(0, -2, 1));
         textBlock.addView(text(mod.name, 16, INK, true));
-        textBlock.addView(text(mod.path.getPath(), 12, MUTED, false));
+        textBlock.addView(text(mod.path, 12, MUTED, false));
 
         Button move = iconButton(enabled ? "→" : "←");
         move.setOnClickListener(v -> {
@@ -439,18 +424,27 @@ public class MainActivity extends Activity {
         enabledMods.clear();
         availableMods.clear();
 
-        File projects = projectsDir();
-        List<ModInfo> discovered = discoverMods(projects);
-        Map<String, ModInfo> modsByName = new HashMap<>();
+        List<SoupruneStorageClient.ModInfo> discovered;
+        try {
+            discovered = storageClient().listMods();
+        } catch (IOException error) {
+            appendLog(tf("game-config-failed", "error", error.getMessage()));
+            return;
+        }
+
+        java.util.Map<String, SoupruneStorageClient.ModInfo> modsByName = new java.util.HashMap<>();
         List<String> discoveredNames = new ArrayList<>();
-        for (ModInfo mod : discovered) {
+        String activeConfigMod = "";
+        for (SoupruneStorageClient.ModInfo mod : discovered) {
             if (!modsByName.containsKey(mod.name)) {
                 modsByName.put(mod.name, mod);
                 discoveredNames.add(mod.name);
             }
+            if (mod.active && activeConfigMod.isEmpty()) {
+                activeConfigMod = mod.name;
+            }
         }
 
-        String activeConfigMod = readConfigString(new File(projects, "config.toml"), "mod_name", "");
         ModListOrganizer.State state = ModListOrganizer.organize(
                 discoveredNames,
                 splitList(prefs.getString(KEY_ENABLED, "")),
@@ -459,68 +453,22 @@ public class MainActivity extends Activity {
         activeModName = state.activeName;
 
         for (String name : state.enabledNames) {
-            ModInfo mod = modsByName.get(name);
+            SoupruneStorageClient.ModInfo mod = modsByName.get(name);
             if (mod != null) {
-                enabledMods.add(mod);
+                enabledMods.add(modInfo(mod));
             }
         }
 
         for (String name : state.availableNames) {
-            ModInfo mod = modsByName.get(name);
+            SoupruneStorageClient.ModInfo mod = modsByName.get(name);
             if (mod != null) {
-                availableMods.add(mod);
+                availableMods.add(modInfo(mod));
             }
         }
     }
 
-    private List<ModInfo> discoverMods(File projects) {
-        List<ModInfo> mods = new ArrayList<>();
-        File[] children = projects.listFiles();
-        if (children == null) return mods;
-        for (File child : children) {
-            if (!child.isDirectory()) continue;
-            File manifest = new File(child, "mod.toml");
-            if (!manifest.isFile()) continue;
-            mods.add(parseMod(child, manifest));
-        }
-        Collections.sort(mods, (a, b) -> a.name.compareTo(b.name));
-        return mods;
-    }
-
-    private ModInfo parseMod(File dir, File manifest) {
-        String name = dir.getName();
-        String version = "unknown";
-        List<String> deps = new ArrayList<>();
-        boolean inDeps = false;
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(manifest), StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String trimmed = line.trim();
-                if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-                    inDeps = "[dependencies]".equals(trimmed);
-                    continue;
-                }
-                if (trimmed.startsWith("#") || trimmed.isEmpty()) continue;
-                if (trimmed.startsWith("name") && trimmed.contains("=")) {
-                    name = tomlStringValue(trimmed, name);
-                } else if (trimmed.startsWith("version") && trimmed.contains("=")) {
-                    version = tomlStringValue(trimmed, version);
-                } else if (inDeps && trimmed.contains("=")) {
-                    String depName = trimmed.substring(0, trimmed.indexOf('=')).trim();
-                    String depVersion = tomlStringValue(trimmed, "");
-                    deps.add(depVersion.isEmpty() ? depName : depName + "@" + depVersion);
-                }
-            }
-        } catch (IOException ignored) {
-        }
-        return new ModInfo(name, version, dir, deps);
-    }
-
-    private String tomlStringValue(String line, String fallback) {
-        int first = line.indexOf('"');
-        int last = line.lastIndexOf('"');
-        if (first >= 0 && last > first) return line.substring(first + 1, last);
-        return fallback;
+    private ModInfo modInfo(SoupruneStorageClient.ModInfo mod) {
+        return new ModInfo(mod.name, mod.version, mod.path, mod.dependencies);
     }
 
     private void persistEnabledMods() {
@@ -533,19 +481,8 @@ public class MainActivity extends Activity {
         String modName = selectedActiveModName();
         if (modName.isEmpty()) return;
 
-        File projects = projectsDir();
-        if (!projects.exists() && !projects.mkdirs()) {
-            appendLog(tf("game-config-failed", "error", projects.getAbsolutePath()));
-            return;
-        }
-
-        File config = new File(projects, "config.toml");
-        String language = readConfigString(config, "language", "en-US");
-        int resolutionScale = readConfigInt(config, "resolution_scale", 4);
-        String output = ProjectConfigFile.render(modName, language, resolutionScale);
-
-        try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(config, false), StandardCharsets.UTF_8)) {
-            writer.write(output);
+        try {
+            storageClient().setActiveMod(modName, "en-US", 4);
             appendLog(tf("game-config-updated", "mod", modName));
         } catch (IOException error) {
             appendLog(tf("game-config-failed", "error", error.getMessage()));
@@ -555,38 +492,6 @@ public class MainActivity extends Activity {
     private String selectedActiveModName() {
         if (!activeModName.isEmpty()) return activeModName;
         return enabledMods.isEmpty() ? "" : enabledMods.get(0).name;
-    }
-
-    private String readConfigString(File config, String key, String fallback) {
-        if (!config.isFile()) return fallback;
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(config), StandardCharsets.UTF_8))) {
-            String prefix = key + " ";
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String trimmed = line.trim();
-                if (trimmed.startsWith(prefix) && trimmed.contains("=")) {
-                    return tomlStringValue(trimmed, fallback);
-                }
-            }
-        } catch (IOException ignored) {
-        }
-        return fallback;
-    }
-
-    private int readConfigInt(File config, String key, int fallback) {
-        if (!config.isFile()) return fallback;
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(config), StandardCharsets.UTF_8))) {
-            String prefix = key + " ";
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String trimmed = line.trim();
-                if (trimmed.startsWith(prefix) && trimmed.contains("=")) {
-                    return Integer.parseInt(trimmed.substring(trimmed.indexOf('=') + 1).trim());
-                }
-            }
-        } catch (IOException | NumberFormatException ignored) {
-        }
-        return fallback;
     }
 
     private String remoteBuildCommand() {
@@ -738,12 +643,12 @@ public class MainActivity extends Activity {
             PruneApiClient.ModsSnapshot snapshot = client.fetchMods();
             prefs.edit().putString(KEY_ENABLED, String.join(",", snapshot.loadOrder)).apply();
             reportTaskProgress(t("sync-install-bundle"), 0, 0, t("sync-install-bundle"), true);
-            ProjectBundleInstaller.install(bundle, projectsDir(), (currentFiles, totalFiles, relativePath) ->
+            storageClient().installBundle(bundle, (currentBytes, totalBytes) ->
                     reportTaskProgress(
                             t("sync-install-bundle"),
-                            currentFiles,
-                            totalFiles,
-                            formatFileProgress(t("sync-install-bundle"), currentFiles, totalFiles, relativePath),
+                            currentBytes,
+                            totalBytes,
+                            formatByteProgress(t("sync-install-bundle"), currentBytes, totalBytes),
                             false
                     )
             );
@@ -793,8 +698,11 @@ public class MainActivity extends Activity {
         return new File(getExternalFilesDir(null), "souprune/souprune-debug.apk");
     }
 
-    private File projectsDir() {
-        return new File(Environment.getExternalStorageDirectory(), "SoupRune/projects");
+    private SoupruneStorageClient storageClient() {
+        if (storageClient == null) {
+            storageClient = new SoupruneStorageClient(getContentResolver());
+        }
+        return storageClient;
     }
 
     private void addLogPanel() {
@@ -962,14 +870,6 @@ public class MainActivity extends Activity {
         return label + " " + formatBytes(current);
     }
 
-    private String formatFileProgress(String label, long current, long total, String relativePath) {
-        String base = label + " " + current + "/" + total;
-        if (relativePath == null || relativePath.isEmpty()) {
-            return base;
-        }
-        return base + " " + relativePath;
-    }
-
     private String formatCountProgress(long current, long total) {
         if (total <= 0) {
             return "";
@@ -1008,19 +908,6 @@ public class MainActivity extends Activity {
             return (int) Math.min(10_000L, (current * 10_000L) / total);
         }
         return (int) Math.min(current, total);
-    }
-
-    private void requestStorageAccess() {
-        if (Build.VERSION.SDK_INT >= 30 && !Environment.isExternalStorageManager()) {
-            try {
-                startActivity(new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:" + getPackageName())));
-            } catch (Exception ignored) {
-                startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
-            }
-        }
-        if (Build.VERSION.SDK_INT < 33 && ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
-        }
     }
 
     private LinearLayout card() {
@@ -1189,10 +1076,10 @@ public class MainActivity extends Activity {
     private static final class ModInfo {
         final String name;
         final String version;
-        final File path;
+        final String path;
         final List<String> dependencies;
 
-        ModInfo(String name, String version, File path, List<String> dependencies) {
+        ModInfo(String name, String version, String path, List<String> dependencies) {
             this.name = name;
             this.version = version;
             this.path = path;
