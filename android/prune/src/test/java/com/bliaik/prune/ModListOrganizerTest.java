@@ -69,8 +69,7 @@ public class ModListOrganizerTest {
                 name,
                 "0.1.0",
                 "SoupRune/projects/" + name,
-                dependencyList,
-                false
+                dependencyList
         );
     }
 }

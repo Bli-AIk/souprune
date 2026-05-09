@@ -25,6 +25,12 @@ public class SoupruneStorageClientSourceTest {
         assertTrue(client.contains("putString(\"language\""));
         assertTrue(client.contains("putInt(\"resolutionScale\""));
         assertTrue(client.contains("putLong(\"bundleBytes\""));
+        assertTrue(client.contains("String activeMod = response.getString(\"active_mod\", \"\")"));
+        assertTrue(client.contains("new InventorySnapshot(activeMod, activeLanguage, resolutionScale"));
+        assertTrue(!client.contains("boolean active"));
+        assertTrue(!client.contains("isActive()"));
+        assertTrue(!client.contains("optBoolean(\"active\""));
+        assertTrue(!client.contains("getBoolean(\"active\""));
         assertTrue(activity.contains("SoupruneStorageClient"));
         assertTrue(activity.contains("storageClient().listModsSnapshot()"));
         assertTrue(activity.contains("storageClient().installBundle("));

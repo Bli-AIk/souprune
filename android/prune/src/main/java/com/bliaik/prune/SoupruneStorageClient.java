@@ -182,16 +182,16 @@ public final class SoupruneStorageClient {
         } else if (response.containsKey("resolutionScale")) {
             resolutionScale = response.getInt("resolutionScale");
         }
-        return new InventorySnapshot(activeMod, activeLanguage, resolutionScale, parseMods(response, activeMod));
+        return new InventorySnapshot(activeMod, activeLanguage, resolutionScale, parseMods(response));
     }
 
-    private static List<ModInfo> parseMods(Bundle response, String activeName) throws IOException {
+    private static List<ModInfo> parseMods(Bundle response) throws IOException {
         ArrayList<Bundle> bundles = response.getParcelableArrayList("mods");
         if (bundles != null) {
             List<ModInfo> mods = new ArrayList<>();
             for (Bundle bundle : bundles) {
                 if (bundle != null) {
-                    mods.add(parseMod(bundle, activeName));
+                    mods.add(parseMod(bundle));
                 }
             }
             return mods;
@@ -199,7 +199,7 @@ public final class SoupruneStorageClient {
 
         String modsJson = response.getString("modsJson", "");
         if (!modsJson.isEmpty()) {
-            return parseModsJson(modsJson, activeName);
+            return parseModsJson(modsJson);
         }
 
         ArrayList<String> names = response.getStringArrayList("names");
@@ -209,18 +209,17 @@ public final class SoupruneStorageClient {
         List<ModInfo> mods = new ArrayList<>();
         for (String name : names) {
             if (name != null && !name.isEmpty()) {
-                mods.add(new ModInfo(name, "unknown", "SoupRune/projects/" + name, Collections.emptyList(), name.equals(activeName)));
+                mods.add(new ModInfo(name, "unknown", "SoupRune/projects/" + name, Collections.emptyList()));
             }
         }
         return mods;
     }
 
-    private static ModInfo parseMod(Bundle bundle, String activeName) {
+    private static ModInfo parseMod(Bundle bundle) {
         String name = bundle.getString("name", "");
         String version = bundle.getString("version", "unknown");
         String path = bundle.getString("path", name.isEmpty() ? "SoupRune/projects" : "SoupRune/projects/" + name);
-        boolean active = bundle.getBoolean("active", false) || name.equals(activeName);
-        return new ModInfo(name, version, path, parseDependencies(bundle), active);
+        return new ModInfo(name, version, path, parseDependencies(bundle));
     }
 
     private static List<String> parseDependencies(Bundle mod) {
@@ -244,7 +243,7 @@ public final class SoupruneStorageClient {
         return dependencies;
     }
 
-    private static List<ModInfo> parseModsJson(String modsJson, String activeName) throws IOException {
+    private static List<ModInfo> parseModsJson(String modsJson) throws IOException {
         try {
             JSONArray array = new JSONArray(modsJson);
             List<ModInfo> mods = new ArrayList<>();
@@ -268,8 +267,7 @@ public final class SoupruneStorageClient {
                         name,
                         object.optString("version", "unknown"),
                         object.optString("path", name.isEmpty() ? "SoupRune/projects" : "SoupRune/projects/" + name),
-                        dependencies,
-                        object.optBoolean("active", false) || name.equals(activeName)
+                        dependencies
                 ));
             }
             return mods;
@@ -297,14 +295,12 @@ public final class SoupruneStorageClient {
         public final String version;
         public final String path;
         public final List<String> dependencies;
-        public final boolean active;
 
-        ModInfo(String name, String version, String path, List<String> dependencies, boolean active) {
+        ModInfo(String name, String version, String path, List<String> dependencies) {
             this.name = name;
             this.version = version;
             this.path = path;
             this.dependencies = dependencies;
-            this.active = active;
         }
 
         @Override
@@ -317,8 +313,5 @@ public final class SoupruneStorageClient {
             return dependencies;
         }
 
-        public boolean isActive() {
-            return active;
-        }
     }
 }
