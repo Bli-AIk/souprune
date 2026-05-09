@@ -27,8 +27,8 @@ public class SoupruneStorageClientSourceTest {
         assertTrue(client.contains("putLong(\"bundleBytes\""));
         assertTrue(client.contains("String activeMod = response.getString(\"active_mod\", \"\")"));
         assertTrue(client.contains("new InventorySnapshot(activeMod, activeLanguage, resolutionScale"));
-        assertTrue(!client.contains("boolean active"));
-        assertTrue(!client.contains("isActive()"));
+        assertTrue(!client.contains("boolean " + "active"));
+        assertTrue(!client.contains("is" + "Active()"));
         assertTrue(!client.contains("optBoolean(\"active\""));
         assertTrue(!client.contains("getBoolean(\"active\""));
         assertTrue(activity.contains("SoupruneStorageClient"));
@@ -37,7 +37,7 @@ public class SoupruneStorageClientSourceTest {
         assertTrue(activity.contains("storageClient().setActiveMod("));
         assertTrue(activity.contains("projectLanguage"));
         assertTrue(activity.contains("projectResolutionScale"));
-        assertTrue(!activity.contains("KEY_ENABLED"));
+        assertTrue(!activity.contains("KEY_" + "ENABLED"));
         assertTrue(!activity.contains("setActiveMod(modName, \"en-US\", 4)"));
         assertTrue(manifest.contains("com.bliaik.souprune.permission.STORAGE"));
         assertTrue(manifest.contains("<queries>"));

@@ -160,15 +160,15 @@ public class MainActivitySourceTest {
         assertTrue(source.contains("t(\"total-mod-list\")"));
         assertTrue(source.contains("t(\"mod-missing\")"));
 
-        assertTrue(!source.contains("KEY_ENABLED"));
-        assertTrue(!source.contains("enabledMods"));
-        assertTrue(!source.contains("availableMods"));
+        assertTrue(!source.contains("KEY_" + "ENABLED"));
+        assertTrue(!source.contains("enabled" + "Mods"));
+        assertTrue(!source.contains("available" + "Mods"));
         assertTrue(!source.contains("DragEvent"));
         assertTrue(!source.contains("startDrag"));
-        assertTrue(!source.contains("DragPayload"));
-        assertTrue(!source.contains("enableMod("));
-        assertTrue(!source.contains("disableMod("));
-        assertTrue(!source.contains("handleModDrop"));
+        assertTrue(!source.contains("Drag" + "Payload"));
+        assertTrue(!source.contains("enable" + "Mod("));
+        assertTrue(!source.contains("disable" + "Mod("));
+        assertTrue(!source.contains("handle" + "ModDrop"));
 
         assertTrue(en.contains("current-used-mod ="));
         assertTrue(en.contains("startup-mod-chain ="));

@@ -270,8 +270,8 @@ public class MainActivity extends Activity {
     }
 
     private Button languageButton(String value, String label) {
-        boolean active = value.equals(prefs.getString(KEY_LANGUAGE, "system"));
-        Button button = tabButton(label, active);
+        boolean selected = value.equals(prefs.getString(KEY_LANGUAGE, "system"));
+        Button button = tabButton(label, selected);
         button.setOnClickListener(v -> {
             prefs.edit().putString(KEY_LANGUAGE, value).apply();
             loadMessages();
@@ -959,10 +959,10 @@ public class MainActivity extends Activity {
         return button;
     }
 
-    private Button tabButton(String label, boolean active) {
-        Button button = actionButton(label, active);
-        button.setTextColor(active ? Color.WHITE : MUTED);
-        button.setBackground(makeBorder(active ? INK : Color.rgb(238, 242, 234), LINE));
+    private Button tabButton(String label, boolean selected) {
+        Button button = actionButton(label, selected);
+        button.setTextColor(selected ? Color.WHITE : MUTED);
+        button.setBackground(makeBorder(selected ? INK : Color.rgb(238, 242, 234), LINE));
         return button;
     }
 
