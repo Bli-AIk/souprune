@@ -13,7 +13,6 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:configChanges="layoutDirection|locale|orientation|keyboardHidden|screenSize|smallestScreenSize|density|keyboard|navigation|screenLayout|uiMode"
             android:screenOrientation="landscape"
             android:theme="@style/SoupRuneTheme">
 
@@ -21,7 +20,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data android:name="android.app.lib_name" android:value="souprune" />
+        </activity>
 
+        <activity
+            android:name=".GameMainActivity"
+            android:exported="false"
+            android:configChanges="layoutDirection|locale|orientation|keyboardHidden|screenSize|smallestScreenSize|density|keyboard|navigation|screenLayout|uiMode"
+            android:screenOrientation="landscape"
+            android:theme="@style/SoupRuneTheme">
             <meta-data android:name="android.app.lib_name" android:value="souprune" />
         </activity>
     </application>
