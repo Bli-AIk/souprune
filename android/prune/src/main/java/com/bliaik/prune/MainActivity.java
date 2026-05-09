@@ -41,14 +41,14 @@ public class MainActivity extends Activity {
     private static final int BLUE = Color.rgb(40, 95, 145);
 
     private static final String PREFS = "prune";
-    private static final String KEY_ENABLED = "enabled_mods";
     private static final String KEY_LANGUAGE = "language";
     private static final String KEY_SERVER_URL = "server_url";
     private static final String KEY_SERVER_TOKEN = "server_token";
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private final List<ModInfo> enabledMods = new ArrayList<>();
+    private final List<ModInfo> loadOrderMods = new ArrayList<>();
     private final List<ModInfo> availableMods = new ArrayList<>();
+    private final List<String> missingDependencyNames = new ArrayList<>();
 
     private SharedPreferences prefs;
     private LinearLayout root;
@@ -68,6 +68,8 @@ public class MainActivity extends Activity {
     private TextView taskDetailView;
     private ProgressBar taskProgressBar;
     private String lastProgressLogSignature = "";
+    private String projectLanguage = "en-US";
+    private int projectResolutionScale = 4;
     private SoupruneStorageClient storageClient;
 
     @Override
@@ -146,7 +148,7 @@ public class MainActivity extends Activity {
         summary.addView(metric(t("workspace"), "SoupRune"), new LinearLayout.LayoutParams(0, dp(78), 1));
         LinearLayout.LayoutParams metricGap = new LinearLayout.LayoutParams(0, dp(78), 1);
         metricGap.setMargins(dp(8), 0, 0, 0);
-        summary.addView(metric(t("enabled-order"), tf("mods-count", "count", enabledMods.size())), metricGap);
+        summary.addView(metric(t("enabled-order"), tf("mods-count", "count", loadOrderMods.size())), metricGap);
 
         LinearLayout search = horizontal();
         search.setPadding(0, dp(12), 0, dp(10));
@@ -167,7 +169,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams enabledParams = landscape
                 ? new LinearLayout.LayoutParams(0, -2, 1)
                 : new LinearLayout.LayoutParams(-1, -2);
-        lists.addView(modColumn(t("enabled-list"), t("load-order"), enabledMods, true), enabledParams);
+        lists.addView(modColumn(t("enabled-list"), t("load-order"), loadOrderMods, true), enabledParams);
 
         LinearLayout.LayoutParams availableParams = landscape
                 ? new LinearLayout.LayoutParams(0, -2, 1)
@@ -181,6 +183,9 @@ public class MainActivity extends Activity {
 
         addGap(dp(10));
         content.addView(note(t("dependency-note")));
+        if (!missingDependencyNames.isEmpty()) {
+            content.addView(note(tf("missing-dependencies", "deps", String.join(", ", missingDependencyNames))));
+        }
         addLogPanel();
     }
 
@@ -301,37 +306,43 @@ public class MainActivity extends Activity {
         return button;
     }
 
-    private LinearLayout modColumn(String label, String caption, List<ModInfo> mods, boolean enabled) {
+    private LinearLayout modColumn(String label, String caption, List<ModInfo> mods, boolean loadOrder) {
         LinearLayout column = vertical();
         column.setBackgroundColor(Color.WHITE);
         column.setPadding(0, 0, 0, dp(8));
-        column.setOnDragListener((view, event) -> handleModDrop(event, enabled));
+        column.setOnDragListener((view, event) -> handleModDrop(event, loadOrder));
         column.addView(columnHeader(label, caption));
         if (mods.isEmpty()) {
-            TextView empty = note(t("empty-mods"));
+            TextView empty = note(emptyMessage(loadOrder));
             empty.setPadding(dp(12), dp(12), dp(12), dp(12));
             column.addView(empty);
             return column;
         }
         for (ModInfo mod : mods) {
-            column.addView(modCard(mod, enabled));
+            column.addView(modCard(mod, loadOrder));
         }
         return column;
     }
 
-    private LinearLayout modCard(ModInfo mod, boolean enabled) {
+    private String emptyMessage(boolean loadOrder) {
+        return loadOrder ? t("empty-load-order") : t("empty-available-projects");
+    }
+
+    private LinearLayout modCard(ModInfo mod, boolean loadOrder) {
         LinearLayout card = card();
-        card.setOnLongClickListener(view -> {
-            ClipData data = ClipData.newPlainText("mod", mod.name);
-            DragPayload payload = new DragPayload(mod, enabled);
-            View.DragShadowBuilder shadow = new View.DragShadowBuilder(view);
-            if (Build.VERSION.SDK_INT >= 24) {
-                view.startDragAndDrop(data, shadow, payload, 0);
-            } else {
-                view.startDrag(data, shadow, payload, 0);
-            }
-            return true;
-        });
+        if (!loadOrder) {
+            card.setOnLongClickListener(view -> {
+                ClipData data = ClipData.newPlainText("mod", mod.name);
+                DragPayload payload = new DragPayload(mod);
+                View.DragShadowBuilder shadow = new View.DragShadowBuilder(view);
+                if (Build.VERSION.SDK_INT >= 24) {
+                    view.startDragAndDrop(data, shadow, payload, 0);
+                } else {
+                    view.startDrag(data, shadow, payload, 0);
+                }
+                return true;
+            });
+        }
 
         LinearLayout head = horizontal();
         head.setGravity(Gravity.CENTER_VERTICAL);
@@ -345,14 +356,15 @@ public class MainActivity extends Activity {
         textBlock.addView(text(mod.name, 16, INK, true));
         textBlock.addView(text(mod.path, 12, MUTED, false));
 
-        Button move = iconButton(enabled ? "→" : "←");
-        move.setOnClickListener(v -> {
-            if (enabled) disableMod(mod); else enableMod(mod);
-        });
-        head.addView(move, new LinearLayout.LayoutParams(dp(40), dp(38)));
+        if (!loadOrder) {
+            Button move = iconButton("→");
+            move.setContentDescription(t("activate-mod"));
+            move.setOnClickListener(v -> activateMod(mod));
+            head.addView(move, new LinearLayout.LayoutParams(dp(40), dp(38)));
+        }
 
-        boolean active = enabled && mod.name.equals(activeModName);
-        String status = active ? t("active-status") : (enabled ? t("enabled-status") : t("available-status"));
+        boolean active = loadOrder && mod.name.equals(activeModName);
+        String status = active ? t("active-status") : (loadOrder ? t("dependency-status") : t("available-status"));
         TextView meta = text(tf("mod-version", "status", status, "version", mod.version), 12, MUTED, false);
         meta.setPadding(0, dp(8), 0, 0);
         card.addView(meta);
@@ -373,7 +385,7 @@ public class MainActivity extends Activity {
         return card;
     }
 
-    private boolean handleModDrop(DragEvent event, boolean targetEnabled) {
+    private boolean handleModDrop(DragEvent event, boolean targetLoadOrder) {
         if (!(event.getLocalState() instanceof DragPayload)) {
             return false;
         }
@@ -386,12 +398,8 @@ public class MainActivity extends Activity {
                 return true;
             case DragEvent.ACTION_DROP:
                 DragPayload payload = (DragPayload) event.getLocalState();
-                if (payload.fromEnabled != targetEnabled) {
-                    if (targetEnabled) {
-                        enableMod(payload.mod);
-                    } else {
-                        disableMod(payload.mod);
-                    }
+                if (targetLoadOrder) {
+                    activateMod(payload.mod);
                 }
                 return true;
             default:
@@ -399,63 +407,56 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void enableMod(ModInfo mod) {
-        availableMods.remove(mod);
-        enabledMods.remove(mod);
-        enabledMods.add(0, mod);
+    private void activateMod(ModInfo mod) {
         activeModName = mod.name;
-        persistEnabledMods();
+        writeActiveProjectConfig(mod.name);
+        loadMods();
         showMods();
-        writeActiveProjectConfig();
-    }
-
-    private void disableMod(ModInfo mod) {
-        enabledMods.remove(mod);
-        availableMods.add(mod);
-        if (mod.name.equals(activeModName)) {
-            activeModName = enabledMods.isEmpty() ? "" : enabledMods.get(0).name;
-        }
-        persistEnabledMods();
-        showMods();
-        writeActiveProjectConfig();
     }
 
     private void loadMods() {
-        enabledMods.clear();
-        availableMods.clear();
-
-        List<SoupruneStorageClient.ModInfo> discovered;
+        SoupruneStorageClient.InventorySnapshot snapshot;
         try {
-            discovered = storageClient().listMods();
+            snapshot = storageClient().listModsSnapshot();
+        } catch (SoupruneStorageClient.ProviderUnavailableException error) {
+            handleProviderUnavailable(error);
+            return;
         } catch (IOException error) {
             appendLog(tf("game-config-failed", "error", error.getMessage()));
             return;
         }
 
+        loadOrderMods.clear();
+        availableMods.clear();
+        missingDependencyNames.clear();
+
         java.util.Map<String, SoupruneStorageClient.ModInfo> modsByName = new java.util.HashMap<>();
-        List<String> discoveredNames = new ArrayList<>();
-        String activeConfigMod = "";
-        for (SoupruneStorageClient.ModInfo mod : discovered) {
+        for (SoupruneStorageClient.ModInfo mod : snapshot.mods) {
             if (!modsByName.containsKey(mod.name)) {
                 modsByName.put(mod.name, mod);
-                discoveredNames.add(mod.name);
-            }
-            if (mod.active && activeConfigMod.isEmpty()) {
-                activeConfigMod = mod.name;
             }
         }
 
-        ModListOrganizer.State state = ModListOrganizer.organize(
-                discoveredNames,
-                splitList(prefs.getString(KEY_ENABLED, "")),
-                activeConfigMod
-        );
+        projectLanguage = snapshot.activeLanguage;
+        projectResolutionScale = snapshot.resolutionScale;
+        ModListOrganizer.State state;
+        try {
+            state = ModListOrganizer.organize(snapshot.mods);
+        } catch (IllegalStateException error) {
+            appendLog(tf("mod-list-failed", "error", error.getMessage()));
+            for (SoupruneStorageClient.ModInfo mod : snapshot.mods) {
+                availableMods.add(modInfo(mod));
+            }
+            activeModName = "";
+            return;
+        }
         activeModName = state.activeName;
+        missingDependencyNames.addAll(state.missingDependencyNames);
 
-        for (String name : state.enabledNames) {
+        for (String name : state.loadOrderNames) {
             SoupruneStorageClient.ModInfo mod = modsByName.get(name);
             if (mod != null) {
-                enabledMods.add(modInfo(mod));
+                loadOrderMods.add(modInfo(mod));
             }
         }
 
@@ -471,27 +472,19 @@ public class MainActivity extends Activity {
         return new ModInfo(mod.name, mod.version, mod.path, mod.dependencies);
     }
 
-    private void persistEnabledMods() {
-        List<String> names = new ArrayList<>();
-        for (ModInfo mod : enabledMods) names.add(mod.name);
-        prefs.edit().putString(KEY_ENABLED, String.join(",", names)).apply();
-    }
-
-    private void writeActiveProjectConfig() {
-        String modName = selectedActiveModName();
+    private void writeActiveProjectConfig(String modName) {
         if (modName.isEmpty()) return;
 
         try {
-            storageClient().setActiveMod(modName, "en-US", 4);
+            storageClient().setActiveMod(modName, projectLanguage, projectResolutionScale);
             appendLog(tf("game-config-updated", "mod", modName));
         } catch (IOException error) {
             appendLog(tf("game-config-failed", "error", error.getMessage()));
         }
     }
 
-    private String selectedActiveModName() {
-        if (!activeModName.isEmpty()) return activeModName;
-        return enabledMods.isEmpty() ? "" : enabledMods.get(0).name;
+    private void handleProviderUnavailable(SoupruneStorageClient.ProviderUnavailableException error) {
+        appendLog(tf("storage-provider-unavailable", "error", error.getMessage()));
     }
 
     private String remoteBuildCommand() {
@@ -641,7 +634,6 @@ public class MainActivity extends Activity {
             );
             reportTaskProgress(t("sync-fetch-mods"), 0, 0, t("sync-fetch-mods"), true);
             PruneApiClient.ModsSnapshot snapshot = client.fetchMods();
-            prefs.edit().putString(KEY_ENABLED, String.join(",", snapshot.loadOrder)).apply();
             reportTaskProgress(t("sync-install-bundle"), 0, 0, t("sync-install-bundle"), true);
             storageClient().installBundle(bundle, (currentBytes, totalBytes) ->
                     reportTaskProgress(
@@ -1063,16 +1055,6 @@ public class MainActivity extends Activity {
         return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
     }
 
-    private List<String> splitList(String input) {
-        List<String> result = new ArrayList<>();
-        if (input == null) return result;
-        for (String part : input.split(",")) {
-            String item = part.trim();
-            if (!item.isEmpty()) result.add(item);
-        }
-        return result;
-    }
-
     private static final class ModInfo {
         final String name;
         final String version;
@@ -1089,11 +1071,9 @@ public class MainActivity extends Activity {
 
     private static final class DragPayload {
         final ModInfo mod;
-        final boolean fromEnabled;
 
-        DragPayload(ModInfo mod, boolean fromEnabled) {
+        DragPayload(ModInfo mod) {
             this.mod = mod;
-            this.fromEnabled = fromEnabled;
         }
     }
 }

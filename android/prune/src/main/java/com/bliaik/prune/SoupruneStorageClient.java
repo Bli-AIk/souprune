@@ -19,8 +19,8 @@ import java.util.List;
 
 public final class SoupruneStorageClient {
     private static final String AUTHORITY = "com.bliaik.souprune.storage";
-    private static final Uri PROVIDER_URI = Uri.parse("content://" + AUTHORITY);
-    private static final Uri INCOMING_BUNDLE_URI = Uri.parse("content://com.bliaik.souprune.storage/bundle.incoming.zip");
+    private static final String PROVIDER_URI_STRING = "content://" + AUTHORITY;
+    private static final String INCOMING_BUNDLE_URI_STRING = "content://com.bliaik.souprune.storage/bundle.incoming.zip";
 
     private final ContentResolver resolver;
 
@@ -29,9 +29,13 @@ public final class SoupruneStorageClient {
     }
 
     public List<ModInfo> listMods() throws IOException {
+        return listModsSnapshot().mods;
+    }
+
+    public InventorySnapshot listModsSnapshot() throws IOException {
         Bundle response = call("listMods", null);
         requireOk(response, "listMods");
-        return parseMods(response);
+        return parseSnapshot(response);
     }
 
     public void installBundle(File bundle, ProgressListener listener) throws IOException {
@@ -39,7 +43,7 @@ public final class SoupruneStorageClient {
         uploadBundle(bundle, total, listener);
 
         Bundle args = new Bundle();
-        args.putString("bundleUri", INCOMING_BUNDLE_URI.toString());
+        args.putString("bundleUri", INCOMING_BUNDLE_URI_STRING);
         args.putLong("bundleBytes", total);
         Bundle response = call("installBundle", args);
         requireOk(response, "installBundle");
@@ -60,13 +64,14 @@ public final class SoupruneStorageClient {
 
     private void uploadBundle(File bundle, long total, ProgressListener listener) throws IOException {
         OutputStream rawOutput;
+        Uri incomingBundleUri = incomingBundleUri();
         try {
-            rawOutput = resolver.openOutputStream(INCOMING_BUNDLE_URI);
+            rawOutput = resolver.openOutputStream(incomingBundleUri);
         } catch (RuntimeException error) {
-            throw new IOException("Storage provider did not open " + INCOMING_BUNDLE_URI, error);
+            throw storageFailure("open " + INCOMING_BUNDLE_URI_STRING, error);
         }
         if (rawOutput == null) {
-            throw new IOException("Storage provider did not open " + INCOMING_BUNDLE_URI);
+            throw new IOException("Storage provider did not open " + INCOMING_BUNDLE_URI_STRING);
         }
 
         long current = 0;
@@ -97,9 +102,55 @@ public final class SoupruneStorageClient {
 
     private Bundle call(String method, Bundle args) throws IOException {
         try {
-            return resolver.call(PROVIDER_URI, method, null, args);
+            return resolver.call(providerUri(), method, null, args);
         } catch (RuntimeException error) {
-            throw new IOException("Storage provider call failed: " + method, error);
+            throw storageFailure(method, error);
+        }
+    }
+
+    private static Uri providerUri() {
+        return Uri.parse(PROVIDER_URI_STRING);
+    }
+
+    private static Uri incomingBundleUri() {
+        return Uri.parse(INCOMING_BUNDLE_URI_STRING);
+    }
+
+    static IOException storageFailure(String method, RuntimeException error) {
+        if (isProviderUnavailable(error)) {
+            return new ProviderUnavailableException(method, error);
+        }
+        return new IOException("Storage provider call failed: " + method + " (" + describe(error) + ")", error);
+    }
+
+    private static boolean isProviderUnavailable(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && (
+                    message.contains("Failed to find provider info")
+                            || message.contains("shouldPreventStartProvider")
+                            || message.contains(AUTHORITY)
+            )) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private static String describe(Throwable error) {
+        String name = error.getClass().getSimpleName();
+        String message = error.getMessage();
+        if (message == null || message.isEmpty()) {
+            return name;
+        }
+        return name + ": " + message;
+    }
+
+    public static final class ProviderUnavailableException extends IOException {
+        ProviderUnavailableException(String method, RuntimeException cause) {
+            super("Storage provider unavailable for " + method + " (" + describe(cause) + ")", cause);
         }
     }
 
@@ -116,13 +167,31 @@ public final class SoupruneStorageClient {
         }
     }
 
-    private static List<ModInfo> parseMods(Bundle response) throws IOException {
+    static InventorySnapshot parseSnapshot(Bundle response) throws IOException {
+        String activeMod = response.getString("active_mod", "");
+        if (activeMod == null || activeMod.isEmpty()) {
+            activeMod = response.getString("activeMod", "");
+        }
+        String activeLanguage = response.getString("active_language", "en-US");
+        if (activeLanguage == null || activeLanguage.isEmpty()) {
+            activeLanguage = response.getString("activeLanguage", "en-US");
+        }
+        int resolutionScale = 4;
+        if (response.containsKey("resolution_scale")) {
+            resolutionScale = response.getInt("resolution_scale");
+        } else if (response.containsKey("resolutionScale")) {
+            resolutionScale = response.getInt("resolutionScale");
+        }
+        return new InventorySnapshot(activeMod, activeLanguage, resolutionScale, parseMods(response, activeMod));
+    }
+
+    private static List<ModInfo> parseMods(Bundle response, String activeName) throws IOException {
         ArrayList<Bundle> bundles = response.getParcelableArrayList("mods");
         if (bundles != null) {
             List<ModInfo> mods = new ArrayList<>();
             for (Bundle bundle : bundles) {
                 if (bundle != null) {
-                    mods.add(parseMod(bundle));
+                    mods.add(parseMod(bundle, activeName));
                 }
             }
             return mods;
@@ -130,7 +199,7 @@ public final class SoupruneStorageClient {
 
         String modsJson = response.getString("modsJson", "");
         if (!modsJson.isEmpty()) {
-            return parseModsJson(modsJson);
+            return parseModsJson(modsJson, activeName);
         }
 
         ArrayList<String> names = response.getStringArrayList("names");
@@ -138,10 +207,6 @@ public final class SoupruneStorageClient {
             return Collections.emptyList();
         }
         List<ModInfo> mods = new ArrayList<>();
-        String activeName = response.getString("activeMod", "");
-        if (activeName.isEmpty()) {
-            activeName = response.getString("active_mod", "");
-        }
         for (String name : names) {
             if (name != null && !name.isEmpty()) {
                 mods.add(new ModInfo(name, "unknown", "SoupRune/projects/" + name, Collections.emptyList(), name.equals(activeName)));
@@ -150,11 +215,11 @@ public final class SoupruneStorageClient {
         return mods;
     }
 
-    private static ModInfo parseMod(Bundle bundle) {
+    private static ModInfo parseMod(Bundle bundle, String activeName) {
         String name = bundle.getString("name", "");
         String version = bundle.getString("version", "unknown");
         String path = bundle.getString("path", name.isEmpty() ? "SoupRune/projects" : "SoupRune/projects/" + name);
-        boolean active = bundle.getBoolean("active", false);
+        boolean active = bundle.getBoolean("active", false) || name.equals(activeName);
         return new ModInfo(name, version, path, parseDependencies(bundle), active);
     }
 
@@ -179,7 +244,7 @@ public final class SoupruneStorageClient {
         return dependencies;
     }
 
-    private static List<ModInfo> parseModsJson(String modsJson) throws IOException {
+    private static List<ModInfo> parseModsJson(String modsJson, String activeName) throws IOException {
         try {
             JSONArray array = new JSONArray(modsJson);
             List<ModInfo> mods = new ArrayList<>();
@@ -204,7 +269,7 @@ public final class SoupruneStorageClient {
                         object.optString("version", "unknown"),
                         object.optString("path", name.isEmpty() ? "SoupRune/projects" : "SoupRune/projects/" + name),
                         dependencies,
-                        object.optBoolean("active", false)
+                        object.optBoolean("active", false) || name.equals(activeName)
                 ));
             }
             return mods;
@@ -213,7 +278,21 @@ public final class SoupruneStorageClient {
         }
     }
 
-    public static final class ModInfo {
+    public static final class InventorySnapshot {
+        public final String activeMod;
+        public final String activeLanguage;
+        public final int resolutionScale;
+        public final List<ModInfo> mods;
+
+        InventorySnapshot(String activeMod, String activeLanguage, int resolutionScale, List<ModInfo> mods) {
+            this.activeMod = activeMod == null ? "" : activeMod;
+            this.activeLanguage = activeLanguage == null || activeLanguage.isEmpty() ? "en-US" : activeLanguage;
+            this.resolutionScale = resolutionScale <= 0 ? 4 : resolutionScale;
+            this.mods = mods;
+        }
+    }
+
+    public static final class ModInfo implements ModListOrganizer.ModEntry {
         public final String name;
         public final String version;
         public final String path;
@@ -226,6 +305,21 @@ public final class SoupruneStorageClient {
             this.path = path;
             this.dependencies = dependencies;
             this.active = active;
+        }
+
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public List<String> getDependencies() {
+            return dependencies;
+        }
+
+        @Override
+        public boolean isActive() {
+            return active;
         }
     }
 }

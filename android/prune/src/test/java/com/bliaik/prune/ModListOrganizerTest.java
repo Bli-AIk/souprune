@@ -2,48 +2,60 @@ package com.bliaik.prune;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
 public class ModListOrganizerTest {
     @Test
-    public void preservesPreferredServerLoadOrderForEnabledMods() {
-        ModListOrganizer.State state = ModListOrganizer.organize(
-                Arrays.asList("base", "active", "extra"),
-                Arrays.asList("base", "active"),
-                "active"
-        );
+    public void derivesLoadOrderFromActiveModDependencies() {
+        ModListOrganizer.State state = ModListOrganizer.organize(Arrays.asList(
+                mod("mad_dummy_example", true, "undertale_preset@0.1.0"),
+                mod("undertale_preset", false),
+                mod("deltarune_preset", false)
+        ));
 
-        assertEquals(Arrays.asList("base", "active"), state.enabledNames);
-        assertEquals(Collections.singletonList("extra"), state.availableNames);
-        assertEquals("active", state.activeName);
+        assertEquals(Arrays.asList("undertale_preset", "mad_dummy_example"), state.loadOrderNames);
+        assertEquals(Collections.singletonList("deltarune_preset"), state.availableNames);
+        assertEquals("mad_dummy_example", state.activeName);
+        assertEquals(Collections.emptyList(), state.missingDependencyNames);
     }
 
     @Test
-    public void usesActiveConfigWhenNoPreferredOrderExists() {
-        ModListOrganizer.State state = ModListOrganizer.organize(
-                Arrays.asList("base", "active"),
-                Collections.emptyList(),
-                "active"
-        );
+    public void leavesEverythingAvailableWhenConfigHasNoActiveMod() {
+        ModListOrganizer.State state = ModListOrganizer.organize(Arrays.asList(
+                mod("mad_dummy_example", false, "undertale_preset@0.1.0"),
+                mod("undertale_preset", false)
+        ));
 
-        assertEquals(Collections.singletonList("active"), state.enabledNames);
-        assertEquals(Collections.singletonList("base"), state.availableNames);
-        assertEquals("active", state.activeName);
+        assertEquals(Collections.emptyList(), state.loadOrderNames);
+        assertEquals(Arrays.asList("mad_dummy_example", "undertale_preset"), state.availableNames);
+        assertEquals("", state.activeName);
     }
 
     @Test
-    public void fallsBackToFirstDiscoveredModWhenNothingIsEnabled() {
-        ModListOrganizer.State state = ModListOrganizer.organize(
-                Arrays.asList("alpha", "beta"),
-                Collections.emptyList(),
-                ""
-        );
+    public void recordsMissingDependenciesWithoutDroppingActiveMod() {
+        ModListOrganizer.State state = ModListOrganizer.organize(Arrays.asList(
+                mod("mad_dummy_example", true, "undertale_preset@0.1.0")
+        ));
 
-        assertEquals(Collections.singletonList("alpha"), state.enabledNames);
-        assertEquals(Collections.singletonList("beta"), state.availableNames);
-        assertEquals("alpha", state.activeName);
+        assertEquals(Collections.singletonList("mad_dummy_example"), state.loadOrderNames);
+        assertEquals(Collections.emptyList(), state.availableNames);
+        assertEquals(Collections.singletonList("undertale_preset"), state.missingDependencyNames);
+    }
+
+    private static SoupruneStorageClient.ModInfo mod(String name, boolean active, String... dependencies) {
+        List<String> dependencyList = new ArrayList<>();
+        dependencyList.addAll(Arrays.asList(dependencies));
+        return new SoupruneStorageClient.ModInfo(
+                name,
+                "0.1.0",
+                "SoupRune/projects/" + name,
+                dependencyList,
+                active
+        );
     }
 }

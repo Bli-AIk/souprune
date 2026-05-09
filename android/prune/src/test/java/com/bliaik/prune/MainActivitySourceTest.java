@@ -110,6 +110,57 @@ public class MainActivitySourceTest {
     }
 
     @Test
+    public void modListEmptyStatesDistinguishLoadOrderFromAvailableProjects() throws Exception {
+        String source = new String(Files.readAllBytes(sourcePath("MainActivity.java")), StandardCharsets.UTF_8);
+        String en = new String(Files.readAllBytes(assetPath("en.ftl")), StandardCharsets.UTF_8);
+        String zh = new String(Files.readAllBytes(assetPath("zh-Hans.ftl")), StandardCharsets.UTF_8);
+
+        assertTrue(source.contains("emptyMessage(loadOrder)"));
+        assertTrue(source.contains("t(\"empty-load-order\")"));
+        assertTrue(source.contains("t(\"empty-available-projects\")"));
+        assertTrue(!source.contains("t(\"empty-mods\")"));
+        assertTrue(en.contains("empty-load-order ="));
+        assertTrue(en.contains("empty-available-projects ="));
+        assertTrue(zh.contains("empty-load-order ="));
+        assertTrue(zh.contains("empty-available-projects ="));
+    }
+
+    @Test
+    public void providerUnavailableFailureDoesNotLaunchSoupruneOrLeaveApp() throws Exception {
+        String source = new String(Files.readAllBytes(sourcePath("MainActivity.java")), StandardCharsets.UTF_8);
+        String en = new String(Files.readAllBytes(assetPath("en.ftl")), StandardCharsets.UTF_8);
+        String zh = new String(Files.readAllBytes(assetPath("zh-Hans.ftl")), StandardCharsets.UTF_8);
+
+        assertTrue(source.contains("ProviderUnavailableException"));
+        assertTrue(source.contains("handleProviderUnavailable"));
+        assertTrue(source.contains("storage-provider-unavailable"));
+        assertTrue(!source.contains("SOUPRUNE_PACKAGE"));
+        assertTrue(!source.contains("getLaunchIntentForPackage"));
+        assertTrue(!source.contains("launchSoupruneForStorageAccess"));
+        assertTrue(!source.contains("storageWarmupRequested"));
+        assertTrue(!source.contains("pendingStorageReload"));
+        assertTrue(!en.contains("storage-provider-warmup ="));
+        assertTrue(!en.contains("storage-provider-retry ="));
+        assertTrue(!zh.contains("storage-provider-warmup ="));
+        assertTrue(!zh.contains("storage-provider-retry ="));
+    }
+
+    @Test
+    public void failedStorageProviderRefreshDoesNotClearCurrentModLists() throws Exception {
+        String source = new String(Files.readAllBytes(sourcePath("MainActivity.java")), StandardCharsets.UTF_8);
+
+        int providerCall = source.indexOf("snapshot = storageClient().listModsSnapshot();");
+        int clearLoadOrder = source.indexOf("loadOrderMods.clear();");
+        int clearAvailable = source.indexOf("availableMods.clear();");
+        int clearMissing = source.indexOf("missingDependencyNames.clear();");
+
+        assertTrue(providerCall >= 0);
+        assertTrue(clearLoadOrder > providerCall);
+        assertTrue(clearAvailable > providerCall);
+        assertTrue(clearMissing > providerCall);
+    }
+
+    @Test
     public void mainSourcesAvoidAndroidRuntimeIncompatibleJavaHelpers() throws Exception {
         assertMainSourceAvoids("PruneApiClient.java", "readAllBytes(");
         assertMainSourceAvoids("ProjectBundleInstaller.java", "transferTo(");

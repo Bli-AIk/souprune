@@ -26,10 +26,16 @@ public class SoupruneStorageClientSourceTest {
         assertTrue(client.contains("putInt(\"resolutionScale\""));
         assertTrue(client.contains("putLong(\"bundleBytes\""));
         assertTrue(activity.contains("SoupruneStorageClient"));
-        assertTrue(activity.contains("storageClient().listMods()"));
+        assertTrue(activity.contains("storageClient().listModsSnapshot()"));
         assertTrue(activity.contains("storageClient().installBundle("));
         assertTrue(activity.contains("storageClient().setActiveMod("));
+        assertTrue(activity.contains("projectLanguage"));
+        assertTrue(activity.contains("projectResolutionScale"));
+        assertTrue(!activity.contains("KEY_ENABLED"));
+        assertTrue(!activity.contains("setActiveMod(modName, \"en-US\", 4)"));
         assertTrue(manifest.contains("com.bliaik.souprune.permission.STORAGE"));
+        assertTrue(manifest.contains("<queries>"));
+        assertTrue(manifest.contains("<provider android:authorities=\"com.bliaik.souprune.storage\""));
         assertTrue(!activity.contains("Environment.getExternalStorageDirectory()"));
         assertTrue(!activity.contains("ProjectBundleInstaller.install(bundle, projectsDir()"));
         assertTrue(!activity.contains("requestStorageAccess()"));
