@@ -117,6 +117,9 @@ public class MainActivitySourceTest {
 
         assertTrue(source.contains("Environment.getExternalStorageDirectory()"));
         assertTrue(source.contains("hasSharedStorageAccess()"));
+        assertTrue(source.contains("ensureSharedStorageAccess()"));
+        assertTrue(source.contains("storageSettingsOpened"));
+        assertTrue(source.contains("openStorageSettings();"));
         assertTrue(source.contains("storage-permission-missing"));
         assertTrue(!source.contains("SOUPRUNE_PACKAGE"));
         assertTrue(!source.contains("getLaunchIntentForPackage"));

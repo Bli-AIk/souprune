@@ -72,6 +72,7 @@ public class MainActivity extends Activity {
     private String projectLanguage = "en-US";
     private int projectResolutionScale = 4;
     private SharedSoupRuneWorkspace workspace;
+    private boolean storageSettingsOpened;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -426,8 +427,8 @@ public class MainActivity extends Activity {
     }
 
     private void loadMods() {
-        if (!hasSharedStorageAccess()) {
-            appendLog(t("storage-permission-missing"));
+        if (!ensureSharedStorageAccess()) {
+            return;
         }
 
         SharedSoupRuneWorkspace.InventorySnapshot snapshot;
@@ -713,6 +714,18 @@ public class MainActivity extends Activity {
 
     private boolean hasSharedStorageAccess() {
         return android.os.Build.VERSION.SDK_INT < 30 || Environment.isExternalStorageManager();
+    }
+
+    private boolean ensureSharedStorageAccess() {
+        if (hasSharedStorageAccess()) {
+            return true;
+        }
+        appendLog(t("storage-permission-missing"));
+        if (!storageSettingsOpened) {
+            storageSettingsOpened = true;
+            openStorageSettings();
+        }
+        return false;
     }
 
     private void openStorageSettings() {
