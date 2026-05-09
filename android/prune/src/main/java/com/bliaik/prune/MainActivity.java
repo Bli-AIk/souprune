@@ -9,6 +9,8 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.Settings;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -69,7 +71,7 @@ public class MainActivity extends Activity {
     private String lastProgressLogSignature = "";
     private String projectLanguage = "en-US";
     private int projectResolutionScale = 4;
-    private SoupruneStorageClient storageClient;
+    private SharedSoupRuneWorkspace workspace;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -144,7 +146,7 @@ public class MainActivity extends Activity {
 
         LinearLayout summary = horizontal();
         content.addView(summary, new LinearLayout.LayoutParams(-1, -2));
-        summary.addView(metric(t("workspace"), "SoupRune"), new LinearLayout.LayoutParams(0, dp(78), 1));
+        summary.addView(metric(t("workspace"), sharedSoupRuneRoot().getAbsolutePath()), new LinearLayout.LayoutParams(0, dp(78), 1));
         LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(0, dp(78), 1);
         statusParams.setMargins(dp(8), 0, 0, 0);
         summary.addView(metric(t("current-mod-status"), currentModStatusText()), statusParams);
@@ -249,6 +251,12 @@ public class MainActivity extends Activity {
         Button sync = actionButton(t("sync-server-mod-list"), false);
         sync.setOnClickListener(v -> syncServerMods());
         content.addView(sync, new LinearLayout.LayoutParams(-1, dp(44)));
+
+        Button storage = actionButton(t("open-storage-settings"), false);
+        storage.setOnClickListener(v -> openStorageSettings());
+        LinearLayout.LayoutParams storageParams = new LinearLayout.LayoutParams(-1, dp(44));
+        storageParams.setMargins(0, dp(8), 0, 0);
+        content.addView(storage, storageParams);
         addLogPanel();
     }
 
@@ -418,12 +426,13 @@ public class MainActivity extends Activity {
     }
 
     private void loadMods() {
-        SoupruneStorageClient.InventorySnapshot snapshot;
+        if (!hasSharedStorageAccess()) {
+            appendLog(t("storage-permission-missing"));
+        }
+
+        SharedSoupRuneWorkspace.InventorySnapshot snapshot;
         try {
-            snapshot = storageClient().listModsSnapshot();
-        } catch (SoupruneStorageClient.ProviderUnavailableException error) {
-            handleProviderUnavailable(error);
-            return;
+            snapshot = workspace().listModsSnapshot();
         } catch (IOException error) {
             appendLog(tf("game-config-failed", "error", error.getMessage()));
             return;
@@ -433,8 +442,8 @@ public class MainActivity extends Activity {
         totalMods.clear();
         missingDependencyNames.clear();
 
-        java.util.Map<String, SoupruneStorageClient.ModInfo> modsByName = new java.util.HashMap<>();
-        for (SoupruneStorageClient.ModInfo mod : snapshot.mods) {
+        java.util.Map<String, SharedSoupRuneWorkspace.ModInfo> modsByName = new java.util.HashMap<>();
+        for (SharedSoupRuneWorkspace.ModInfo mod : snapshot.mods) {
             if (!modsByName.containsKey(mod.name)) {
                 modsByName.put(mod.name, mod);
             }
@@ -449,7 +458,7 @@ public class MainActivity extends Activity {
             appendLog(tf("mod-list-failed", "error", error.getMessage()));
             activeModName = snapshot.activeMod;
             currentModExists = false;
-            for (SoupruneStorageClient.ModInfo mod : snapshot.mods) {
+            for (SharedSoupRuneWorkspace.ModInfo mod : snapshot.mods) {
                 totalMods.add(modInfo(mod));
             }
             return;
@@ -459,21 +468,21 @@ public class MainActivity extends Activity {
         missingDependencyNames.addAll(state.missingDependencyNames);
 
         for (String name : state.startupChainNames) {
-            SoupruneStorageClient.ModInfo mod = modsByName.get(name);
+            SharedSoupRuneWorkspace.ModInfo mod = modsByName.get(name);
             if (mod != null) {
                 startupChainMods.add(modInfo(mod));
             }
         }
 
         for (String name : state.allModNames) {
-            SoupruneStorageClient.ModInfo mod = modsByName.get(name);
+            SharedSoupRuneWorkspace.ModInfo mod = modsByName.get(name);
             if (mod != null) {
                 totalMods.add(modInfo(mod));
             }
         }
     }
 
-    private ModInfo modInfo(SoupruneStorageClient.ModInfo mod) {
+    private ModInfo modInfo(SharedSoupRuneWorkspace.ModInfo mod) {
         return new ModInfo(mod.name, mod.version, mod.path, mod.dependencies);
     }
 
@@ -481,15 +490,11 @@ public class MainActivity extends Activity {
         if (modName.isEmpty()) return;
 
         try {
-            storageClient().setActiveMod(modName, projectLanguage, projectResolutionScale);
+            workspace().setActiveMod(modName, projectLanguage, projectResolutionScale);
             appendLog(tf("game-config-updated", "mod", modName));
         } catch (IOException error) {
             appendLog(tf("game-config-failed", "error", error.getMessage()));
         }
-    }
-
-    private void handleProviderUnavailable(SoupruneStorageClient.ProviderUnavailableException error) {
-        appendLog(tf("storage-provider-unavailable", "error", error.getMessage()));
     }
 
     private String remoteBuildCommand() {
@@ -640,12 +645,12 @@ public class MainActivity extends Activity {
             reportTaskProgress(t("sync-fetch-mods"), 0, 0, t("sync-fetch-mods"), true);
             PruneApiClient.ModsSnapshot snapshot = client.fetchMods();
             reportTaskProgress(t("sync-install-bundle"), 0, 0, t("sync-install-bundle"), true);
-            storageClient().installBundle(bundle, (currentBytes, totalBytes) ->
+            workspace().installBundle(bundle, (currentFiles, totalFiles) ->
                     reportTaskProgress(
                             t("sync-install-bundle"),
-                            currentBytes,
-                            totalBytes,
-                            formatByteProgress(t("sync-install-bundle"), currentBytes, totalBytes),
+                            currentFiles,
+                            totalFiles,
+                            t("sync-install-bundle") + " " + formatCountProgress(currentFiles, totalFiles),
                             false
                     )
             );
@@ -695,11 +700,25 @@ public class MainActivity extends Activity {
         return new File(getExternalFilesDir(null), "souprune/souprune-debug.apk");
     }
 
-    private SoupruneStorageClient storageClient() {
-        if (storageClient == null) {
-            storageClient = new SoupruneStorageClient(getContentResolver());
+    private SharedSoupRuneWorkspace workspace() {
+        if (workspace == null) {
+            workspace = new SharedSoupRuneWorkspace(sharedSoupRuneRoot());
         }
-        return storageClient;
+        return workspace;
+    }
+
+    private File sharedSoupRuneRoot() {
+        return new File(Environment.getExternalStorageDirectory(), "SoupRune");
+    }
+
+    private boolean hasSharedStorageAccess() {
+        return android.os.Build.VERSION.SDK_INT < 30 || Environment.isExternalStorageManager();
+    }
+
+    private void openStorageSettings() {
+        Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+        intent.setData(Uri.parse("package:" + getPackageName()));
+        startActivity(intent);
     }
 
     private void addLogPanel() {

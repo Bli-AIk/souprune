@@ -10,16 +10,17 @@ import static org.junit.Assert.assertTrue;
 
 public class MainActivitySourceTest {
     @Test
-    public void installsPackagedBuiltinWasmIntoPrivateStorageBeforeGameStarts() throws Exception {
+    public void installsPackagedBuiltinWasmIntoSharedExternalStorageBeforeGameStarts() throws Exception {
         String source = new String(Files.readAllBytes(sourcePath("MainActivity.java")), StandardCharsets.UTF_8);
 
-        assertTrue(source.contains("installPrivateBuiltins();"));
+        assertTrue(source.contains("installSharedBuiltins();"));
         assertTrue(!source.contains("installDefaultProjectsIfMissing"));
         assertTrue(source.contains("Os.setenv(\"SOUPRUNE_PRIVATE_ROOT\""));
         assertTrue(source.contains("builtins/souprune_builtins.wasm"));
-        assertTrue(source.contains("getFilesDir()"));
+        assertTrue(source.contains("Environment.getExternalStorageDirectory()"));
         assertTrue(source.contains("SoupRune"));
         assertTrue(source.contains("new FileOutputStream(target)"));
+        assertTrue(!source.contains("getFiles" + "Dir()"));
     }
 
     @Test

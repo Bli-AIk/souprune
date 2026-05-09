@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class AndroidManifestTest {
     @Test
@@ -23,6 +24,15 @@ public class AndroidManifestTest {
                 "true",
                 application.getAttribute("android:usesCleartextTraffic")
         );
+    }
+
+    @Test
+    public void requestsAllFilesAccessForSharedSoupRuneWorkspace() throws Exception {
+        String manifest = new String(Files.readAllBytes(manifestPath()), java.nio.charset.StandardCharsets.UTF_8);
+
+        assertTrue(manifest.contains("android.permission.MANAGE_EXTERNAL_STORAGE"));
+        assertTrue(!manifest.contains("com.bliaik.souprune.permission." + "STORAGE"));
+        assertTrue(!manifest.contains("com.bliaik.souprune." + "storage"));
     }
 
     private static Path manifestPath() {

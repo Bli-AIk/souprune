@@ -62,10 +62,10 @@ public class ModListOrganizerTest {
         ));
     }
 
-    private static SoupruneStorageClient.ModInfo mod(String name, String... dependencies) {
+    private static SharedSoupRuneWorkspace.ModInfo mod(String name, String... dependencies) {
         List<String> dependencyList = new ArrayList<>();
         dependencyList.addAll(Arrays.asList(dependencies));
-        return new SoupruneStorageClient.ModInfo(
+        return new SharedSoupRuneWorkspace.ModInfo(
                 name,
                 "0.1.0",
                 "SoupRune/projects/" + name,

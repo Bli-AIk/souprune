@@ -76,23 +76,23 @@ public class MainActivitySourceTest {
     public void progressDialogUsesRealCountsForTransfersInstallAndBuildStages() throws Exception {
         String activity = new String(Files.readAllBytes(sourcePath("MainActivity.java")), StandardCharsets.UTF_8);
         String api = new String(Files.readAllBytes(sourcePath("PruneApiClient.java")), StandardCharsets.UTF_8);
-        String storageClient = new String(Files.readAllBytes(sourcePath("SoupruneStorageClient.java")), StandardCharsets.UTF_8);
+        String workspace = new String(Files.readAllBytes(sourcePath("SharedSoupRuneWorkspace.java")), StandardCharsets.UTF_8);
 
         assertTrue(activity.contains("updateTaskProgressOnUiThread(String phase, long current, long total"));
         assertTrue(activity.contains("taskProgressBar.setMax"));
         assertTrue(activity.contains("taskProgressBar.setProgress"));
         assertTrue(activity.contains("client.downloadLatestApk(target,"));
         assertTrue(activity.contains("client.downloadProjectsBundle(bundle,"));
-        assertTrue(activity.contains("storageClient().installBundle(bundle,"));
-        assertTrue(activity.contains("formatByteProgress(t(\"sync-install-bundle\"), currentBytes, totalBytes)"));
+        assertTrue(activity.contains("workspace().installBundle(bundle,"));
+        assertTrue(activity.contains("formatCountProgress(currentFiles, totalFiles)"));
         assertTrue(activity.contains("current.progressCurrent"));
         assertTrue(activity.contains("current.progressTotal"));
         assertTrue(activity.contains("appendProgressLog"));
         assertTrue(api.contains("interface TransferProgress"));
         assertTrue(api.contains("getContentLengthLong"));
         assertTrue(api.contains("onProgress"));
-        assertTrue(storageClient.contains("interface ProgressListener"));
-        assertTrue(storageClient.contains("listener.onProgress"));
+        assertTrue(workspace.contains("interface ProgressListener"));
+        assertTrue(workspace.contains("listener.onProgress"));
     }
 
     @Test
@@ -110,38 +110,41 @@ public class MainActivitySourceTest {
     }
 
     @Test
-    public void providerUnavailableFailureDoesNotLaunchSoupruneOrLeaveApp() throws Exception {
+    public void modsPageUsesSharedStorageWithoutLaunchingSoupruneOrLeavingApp() throws Exception {
         String source = new String(Files.readAllBytes(sourcePath("MainActivity.java")), StandardCharsets.UTF_8);
         String en = new String(Files.readAllBytes(assetPath("en.ftl")), StandardCharsets.UTF_8);
         String zh = new String(Files.readAllBytes(assetPath("zh-Hans.ftl")), StandardCharsets.UTF_8);
 
-        assertTrue(source.contains("ProviderUnavailableException"));
-        assertTrue(source.contains("handleProviderUnavailable"));
-        assertTrue(source.contains("storage-provider-unavailable"));
+        assertTrue(source.contains("Environment.getExternalStorageDirectory()"));
+        assertTrue(source.contains("hasSharedStorageAccess()"));
+        assertTrue(source.contains("storage-permission-missing"));
         assertTrue(!source.contains("SOUPRUNE_PACKAGE"));
         assertTrue(!source.contains("getLaunchIntentForPackage"));
         assertTrue(!source.contains("launchSoupruneForStorageAccess"));
         assertTrue(!source.contains("storageWarmupRequested"));
         assertTrue(!source.contains("pendingStorageReload"));
+        assertTrue(!source.contains("Provider" + "UnavailableException"));
         assertTrue(!en.contains("storage-provider-warmup ="));
         assertTrue(!en.contains("storage-provider-retry ="));
+        assertTrue(!en.contains("storage-provider-" + "unavailable ="));
         assertTrue(!zh.contains("storage-provider-warmup ="));
         assertTrue(!zh.contains("storage-provider-retry ="));
+        assertTrue(!zh.contains("storage-provider-" + "unavailable ="));
     }
 
     @Test
-    public void failedStorageProviderRefreshDoesNotClearCurrentModLists() throws Exception {
+    public void failedSharedWorkspaceRefreshDoesNotClearCurrentModLists() throws Exception {
         String source = new String(Files.readAllBytes(sourcePath("MainActivity.java")), StandardCharsets.UTF_8);
 
-        int providerCall = source.indexOf("snapshot = storageClient().listModsSnapshot();");
+        int workspaceCall = source.indexOf("snapshot = workspace().listModsSnapshot();");
         int clearLoadOrder = source.indexOf("startupChainMods.clear();");
         int clearAvailable = source.indexOf("totalMods.clear();");
         int clearMissing = source.indexOf("missingDependencyNames.clear();");
 
-        assertTrue(providerCall >= 0);
-        assertTrue(clearLoadOrder > providerCall);
-        assertTrue(clearAvailable > providerCall);
-        assertTrue(clearMissing > providerCall);
+        assertTrue(workspaceCall >= 0);
+        assertTrue(clearLoadOrder > workspaceCall);
+        assertTrue(clearAvailable > workspaceCall);
+        assertTrue(clearMissing > workspaceCall);
     }
 
     @Test

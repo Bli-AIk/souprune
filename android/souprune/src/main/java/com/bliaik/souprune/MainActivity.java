@@ -1,6 +1,7 @@
 package com.bliaik.souprune;
 
 import android.os.Bundle;
+import android.os.Environment;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.view.View;
@@ -23,8 +24,8 @@ public class MainActivity extends GameActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        setPrivateRootEnvironment();
-        installPrivateBuiltins();
+        setSharedRootEnvironment();
+        installSharedBuiltins();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         super.onCreate(savedInstanceState);
     }
@@ -49,9 +50,9 @@ public class MainActivity extends GameActivity {
         );
     }
 
-    private void installPrivateBuiltins() {
+    private void installSharedBuiltins() {
         File target = new File(
-                new File(new File(getFilesDir(), "SoupRune"), "builtins"),
+                new File(sharedSoupRuneRoot(), "builtins"),
                 "souprune_builtins.wasm"
         );
         if (target.isFile()) {
@@ -76,11 +77,15 @@ public class MainActivity extends GameActivity {
         }
     }
 
-    private void setPrivateRootEnvironment() {
+    private void setSharedRootEnvironment() {
         try {
-            Os.setenv("SOUPRUNE_PRIVATE_ROOT", new File(getFilesDir(), "SoupRune").getAbsolutePath(), true);
+            Os.setenv("SOUPRUNE_PRIVATE_ROOT", sharedSoupRuneRoot().getAbsolutePath(), true);
         } catch (ErrnoException error) {
             android.util.Log.e("SoupRune", "Failed to set private storage environment", error);
         }
+    }
+
+    private File sharedSoupRuneRoot() {
+        return new File(Environment.getExternalStorageDirectory(), "SoupRune");
     }
 }
