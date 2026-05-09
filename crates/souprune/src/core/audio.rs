@@ -57,7 +57,14 @@ pub(crate) struct AudioPlugin;
 
 impl Plugin for AudioPlugin {
     fn build(&self, app: &mut App) {
+        app.insert_resource(audio_settings());
         app.add_plugins(bevy_kira_audio::prelude::AudioPlugin);
+    }
+}
+
+fn audio_settings() -> AudioSettings {
+    AudioSettings {
+        sound_capacity: 256,
     }
 }
 
@@ -93,4 +100,14 @@ pub fn play_bgm(
     });
     let music_handle = asset_server.load(resolved_path);
     audio.play(music_handle).looped().handle()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn audio_settings_allow_dense_sound_effect_playback() {
+        assert_eq!(audio_settings().sound_capacity, 256);
+    }
 }
