@@ -24,8 +24,8 @@ public class MainActivitySourceTest {
     public void modsRemoteFetchButtonRunsServerSyncInsteadOfPlaceholderLog() throws Exception {
         String source = new String(Files.readAllBytes(sourcePath("MainActivity.java")), StandardCharsets.UTF_8);
 
-        assertTrue(source.contains("fetch.setOnClickListener(v -> syncServerMods())"));
-        assertTrue(!source.contains("fetch.setOnClickListener(v -> appendLog(t(\"remote-mod-ready\")))"));
+        assertTrue(source.contains("sync.setOnClickListener(v -> syncServerMods())"));
+        assertTrue(!source.contains("appendLog(t(\"remote-mod-ready\"))"));
     }
 
     @Test
@@ -110,22 +110,6 @@ public class MainActivitySourceTest {
     }
 
     @Test
-    public void modListEmptyStatesDistinguishLoadOrderFromAvailableProjects() throws Exception {
-        String source = new String(Files.readAllBytes(sourcePath("MainActivity.java")), StandardCharsets.UTF_8);
-        String en = new String(Files.readAllBytes(assetPath("en.ftl")), StandardCharsets.UTF_8);
-        String zh = new String(Files.readAllBytes(assetPath("zh-Hans.ftl")), StandardCharsets.UTF_8);
-
-        assertTrue(source.contains("emptyMessage(loadOrder)"));
-        assertTrue(source.contains("t(\"empty-load-order\")"));
-        assertTrue(source.contains("t(\"empty-available-projects\")"));
-        assertTrue(!source.contains("t(\"empty-mods\")"));
-        assertTrue(en.contains("empty-load-order ="));
-        assertTrue(en.contains("empty-available-projects ="));
-        assertTrue(zh.contains("empty-load-order ="));
-        assertTrue(zh.contains("empty-available-projects ="));
-    }
-
-    @Test
     public void providerUnavailableFailureDoesNotLaunchSoupruneOrLeaveApp() throws Exception {
         String source = new String(Files.readAllBytes(sourcePath("MainActivity.java")), StandardCharsets.UTF_8);
         String en = new String(Files.readAllBytes(assetPath("en.ftl")), StandardCharsets.UTF_8);
@@ -150,14 +134,50 @@ public class MainActivitySourceTest {
         String source = new String(Files.readAllBytes(sourcePath("MainActivity.java")), StandardCharsets.UTF_8);
 
         int providerCall = source.indexOf("snapshot = storageClient().listModsSnapshot();");
-        int clearLoadOrder = source.indexOf("loadOrderMods.clear();");
-        int clearAvailable = source.indexOf("availableMods.clear();");
+        int clearLoadOrder = source.indexOf("startupChainMods.clear();");
+        int clearAvailable = source.indexOf("totalMods.clear();");
         int clearMissing = source.indexOf("missingDependencyNames.clear();");
 
         assertTrue(providerCall >= 0);
         assertTrue(clearLoadOrder > providerCall);
         assertTrue(clearAvailable > providerCall);
         assertTrue(clearMissing > providerCall);
+    }
+
+    @Test
+    public void modsPageUsesConfigDrivenSectionsWithoutLegacyEnableDisableCode() throws Exception {
+        String source = new String(Files.readAllBytes(sourcePath("MainActivity.java")), StandardCharsets.UTF_8);
+        String en = new String(Files.readAllBytes(assetPath("en.ftl")), StandardCharsets.UTF_8);
+        String zh = new String(Files.readAllBytes(assetPath("zh-Hans.ftl")), StandardCharsets.UTF_8);
+
+        assertTrue(source.contains("currentModCard()"));
+        assertTrue(source.contains("startupChainCard()"));
+        assertTrue(source.contains("totalModsCard()"));
+        assertTrue(source.contains("currentModInput"));
+        assertTrue(source.contains("applyCurrentModName"));
+        assertTrue(source.contains("t(\"current-used-mod\")"));
+        assertTrue(source.contains("t(\"startup-mod-chain\")"));
+        assertTrue(source.contains("t(\"total-mod-list\")"));
+        assertTrue(source.contains("t(\"mod-missing\")"));
+
+        assertTrue(!source.contains("KEY_ENABLED"));
+        assertTrue(!source.contains("enabledMods"));
+        assertTrue(!source.contains("availableMods"));
+        assertTrue(!source.contains("DragEvent"));
+        assertTrue(!source.contains("startDrag"));
+        assertTrue(!source.contains("DragPayload"));
+        assertTrue(!source.contains("enableMod("));
+        assertTrue(!source.contains("disableMod("));
+        assertTrue(!source.contains("handleModDrop"));
+
+        assertTrue(en.contains("current-used-mod ="));
+        assertTrue(en.contains("startup-mod-chain ="));
+        assertTrue(en.contains("total-mod-list ="));
+        assertTrue(en.contains("mod-missing = mod does not exist"));
+        assertTrue(zh.contains("current-used-mod ="));
+        assertTrue(zh.contains("startup-mod-chain ="));
+        assertTrue(zh.contains("total-mod-list ="));
+        assertTrue(zh.contains("mod-missing = mod不存在"));
     }
 
     @Test

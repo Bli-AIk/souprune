@@ -6,13 +6,10 @@ import android.content.ClipboardManager;
 import android.content.ClipData;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.Configuration;
 import android.graphics.Color;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
-import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -46,8 +43,8 @@ public class MainActivity extends Activity {
     private static final String KEY_SERVER_TOKEN = "server_token";
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private final List<ModInfo> loadOrderMods = new ArrayList<>();
-    private final List<ModInfo> availableMods = new ArrayList<>();
+    private final List<ModInfo> startupChainMods = new ArrayList<>();
+    private final List<ModInfo> totalMods = new ArrayList<>();
     private final List<String> missingDependencyNames = new ArrayList<>();
 
     private SharedPreferences prefs;
@@ -62,6 +59,8 @@ public class MainActivity extends Activity {
     private String advancedTab = "build";
     private String language = "en";
     private String activeModName = "";
+    private boolean currentModExists = true;
+    private EditText currentModInput;
     private boolean taskInFlight;
     private AlertDialog taskDialog;
     private TextView taskPhaseView;
@@ -146,47 +145,24 @@ public class MainActivity extends Activity {
         LinearLayout summary = horizontal();
         content.addView(summary, new LinearLayout.LayoutParams(-1, -2));
         summary.addView(metric(t("workspace"), "SoupRune"), new LinearLayout.LayoutParams(0, dp(78), 1));
-        LinearLayout.LayoutParams metricGap = new LinearLayout.LayoutParams(0, dp(78), 1);
-        metricGap.setMargins(dp(8), 0, 0, 0);
-        summary.addView(metric(t("enabled-order"), tf("mods-count", "count", loadOrderMods.size())), metricGap);
+        LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(0, dp(78), 1);
+        statusParams.setMargins(dp(8), 0, 0, 0);
+        summary.addView(metric(t("current-mod-status"), currentModStatusText()), statusParams);
+        LinearLayout.LayoutParams chainParams = new LinearLayout.LayoutParams(0, dp(78), 1);
+        chainParams.setMargins(dp(8), 0, 0, 0);
+        summary.addView(metric(t("startup-chain-count"), tf("mods-count", "count", startupChainMods.size())), chainParams);
 
-        LinearLayout search = horizontal();
-        search.setPadding(0, dp(12), 0, dp(10));
-        content.addView(search, new LinearLayout.LayoutParams(-1, -2));
-        EditText query = input(t("search-placeholder"));
-        search.addView(query, new LinearLayout.LayoutParams(0, dp(44), 1));
-        Button fetch = iconButton("↓");
-        fetch.setContentDescription(t("fetch-remote-mod"));
-        fetch.setOnClickListener(v -> syncServerMods());
-        LinearLayout.LayoutParams fetchParams = new LinearLayout.LayoutParams(dp(48), dp(44));
-        fetchParams.setMargins(dp(8), 0, 0, 0);
-        search.addView(fetch, fetchParams);
-
-        boolean landscape = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
-        LinearLayout lists = landscape ? horizontal() : vertical();
-        content.addView(lists, new LinearLayout.LayoutParams(-1, -2));
-
-        LinearLayout.LayoutParams enabledParams = landscape
-                ? new LinearLayout.LayoutParams(0, -2, 1)
-                : new LinearLayout.LayoutParams(-1, -2);
-        lists.addView(modColumn(t("enabled-list"), t("load-order"), loadOrderMods, true), enabledParams);
-
-        LinearLayout.LayoutParams availableParams = landscape
-                ? new LinearLayout.LayoutParams(0, -2, 1)
-                : new LinearLayout.LayoutParams(-1, -2);
-        if (landscape) {
-            availableParams.setMargins(dp(12), 0, 0, 0);
-        } else {
-            availableParams.setMargins(0, dp(12), 0, 0);
-        }
-        lists.addView(modColumn(t("available-list"), t("not-enabled"), availableMods, false), availableParams);
-
-        addGap(dp(10));
-        content.addView(note(t("dependency-note")));
-        if (!missingDependencyNames.isEmpty()) {
-            content.addView(note(tf("missing-dependencies", "deps", String.join(", ", missingDependencyNames))));
-        }
+        content.addView(currentModCard());
+        content.addView(startupChainCard());
+        content.addView(totalModsCard());
         addLogPanel();
+    }
+
+    private String currentModStatusText() {
+        if (activeModName == null || activeModName.isEmpty()) {
+            return t("not-configured");
+        }
+        return currentModExists ? t("configured") : t("mod-missing");
     }
 
     private void showAdvanced() {
@@ -306,65 +282,121 @@ public class MainActivity extends Activity {
         return button;
     }
 
-    private LinearLayout modColumn(String label, String caption, List<ModInfo> mods, boolean loadOrder) {
-        LinearLayout column = vertical();
-        column.setBackgroundColor(Color.WHITE);
-        column.setPadding(0, 0, 0, dp(8));
-        column.setOnDragListener((view, event) -> handleModDrop(event, loadOrder));
-        column.addView(columnHeader(label, caption));
-        if (mods.isEmpty()) {
-            TextView empty = note(emptyMessage(loadOrder));
-            empty.setPadding(dp(12), dp(12), dp(12), dp(12));
-            column.addView(empty);
-            return column;
-        }
-        for (ModInfo mod : mods) {
-            column.addView(modCard(mod, loadOrder));
-        }
-        return column;
-    }
-
-    private String emptyMessage(boolean loadOrder) {
-        return loadOrder ? t("empty-load-order") : t("empty-available-projects");
-    }
-
-    private LinearLayout modCard(ModInfo mod, boolean loadOrder) {
+    private LinearLayout currentModCard() {
         LinearLayout card = card();
-        if (!loadOrder) {
-            card.setOnLongClickListener(view -> {
-                ClipData data = ClipData.newPlainText("mod", mod.name);
-                DragPayload payload = new DragPayload(mod);
-                View.DragShadowBuilder shadow = new View.DragShadowBuilder(view);
-                if (Build.VERSION.SDK_INT >= 24) {
-                    view.startDragAndDrop(data, shadow, payload, 0);
-                } else {
-                    view.startDrag(data, shadow, payload, 0);
-                }
-                return true;
-            });
+        card.addView(rowTitle(t("current-used-mod"), t("current-used-mod-detail")));
+
+        LinearLayout row = horizontal();
+        row.setPadding(0, dp(10), 0, 0);
+        currentModInput = input(t("current-mod-placeholder"));
+        currentModInput.setText(activeModName);
+        row.addView(currentModInput, new LinearLayout.LayoutParams(0, dp(44), 1));
+        Button apply = iconButton("→");
+        apply.setContentDescription(t("apply-current-mod"));
+        apply.setOnClickListener(v -> applyCurrentModName());
+        LinearLayout.LayoutParams applyParams = new LinearLayout.LayoutParams(dp(48), dp(44));
+        applyParams.setMargins(dp(8), 0, 0, 0);
+        row.addView(apply, applyParams);
+        card.addView(row);
+
+        Button sync = actionButton(t("sync-server-mod-list"), false);
+        sync.setOnClickListener(v -> syncServerMods());
+        LinearLayout.LayoutParams syncParams = new LinearLayout.LayoutParams(-1, dp(44));
+        syncParams.setMargins(0, dp(10), 0, 0);
+        card.addView(sync, syncParams);
+
+        if (!currentModExists && activeModName != null && !activeModName.isEmpty()) {
+            TextView error = note(t("mod-missing"));
+            error.setTextColor(Color.rgb(176, 35, 35));
+            error.setPadding(0, dp(10), 0, 0);
+            card.addView(error);
         }
+
+        TextView preview = text(ProjectConfigFile.render(activeModName, projectLanguage, projectResolutionScale), 12, Color.rgb(220, 234, 213), false);
+        preview.setTypeface(android.graphics.Typeface.MONOSPACE);
+        preview.setPadding(dp(12), dp(12), dp(12), dp(12));
+        preview.setBackgroundColor(Color.rgb(23, 26, 22));
+        LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(-1, -2);
+        previewParams.setMargins(0, dp(10), 0, 0);
+        card.addView(preview, previewParams);
+        return card;
+    }
+
+    private void applyCurrentModName() {
+        if (currentModInput == null) return;
+        String modName = currentModInput.getText().toString().trim();
+        if (modName.isEmpty()) {
+            appendLog(t("current-mod-required"));
+            return;
+        }
+        writeActiveProjectConfig(modName);
+        loadMods();
+        showMods();
+    }
+
+    private LinearLayout startupChainCard() {
+        LinearLayout card = card();
+        card.addView(rowTitle(t("startup-mod-chain"), t("startup-mod-chain-detail")));
+        if (!currentModExists || startupChainMods.isEmpty()) {
+            TextView empty = note(t("empty-startup-chain"));
+            empty.setPadding(0, dp(10), 0, 0);
+            card.addView(empty);
+        } else {
+            for (ModInfo mod : startupChainMods) {
+                card.addView(modCard(mod, true));
+            }
+        }
+        if (!missingDependencyNames.isEmpty()) {
+            TextView missing = note(tf("missing-dependencies", "deps", String.join(", ", missingDependencyNames)));
+            missing.setPadding(0, dp(10), 0, 0);
+            card.addView(missing);
+        }
+        return card;
+    }
+
+    private LinearLayout totalModsCard() {
+        LinearLayout card = card();
+        card.addView(rowTitle(t("total-mod-list"), t("total-mod-list-detail")));
+        if (totalMods.isEmpty()) {
+            TextView empty = note(t("empty-total-mods"));
+            empty.setPadding(0, dp(10), 0, 0);
+            card.addView(empty);
+            return card;
+        }
+        for (ModInfo mod : totalMods) {
+            card.addView(modCard(mod, false));
+        }
+        return card;
+    }
+
+    private LinearLayout modCard(ModInfo mod, boolean chainItem) {
+        LinearLayout card = card();
 
         LinearLayout head = horizontal();
         head.setGravity(Gravity.CENTER_VERTICAL);
         card.addView(head);
 
-        TextView handle = text("::", 16, MUTED, false);
-        head.addView(handle, new LinearLayout.LayoutParams(dp(24), -2));
+        TextView marker = text(chainItem ? "•" : "□", 16, chainItem ? BLUE : MUTED, false);
+        head.addView(marker, new LinearLayout.LayoutParams(dp(24), -2));
 
         LinearLayout textBlock = vertical();
         head.addView(textBlock, new LinearLayout.LayoutParams(0, -2, 1));
         textBlock.addView(text(mod.name, 16, INK, true));
         textBlock.addView(text(mod.path, 12, MUTED, false));
 
-        if (!loadOrder) {
-            Button move = iconButton("→");
-            move.setContentDescription(t("activate-mod"));
-            move.setOnClickListener(v -> activateMod(mod));
-            head.addView(move, new LinearLayout.LayoutParams(dp(40), dp(38)));
+        if (!chainItem) {
+            Button select = iconButton("→");
+            select.setContentDescription(t("set-current-mod"));
+            select.setOnClickListener(v -> {
+                writeActiveProjectConfig(mod.name);
+                loadMods();
+                showMods();
+            });
+            head.addView(select, new LinearLayout.LayoutParams(dp(40), dp(38)));
         }
 
-        boolean active = loadOrder && mod.name.equals(activeModName);
-        String status = active ? t("active-status") : (loadOrder ? t("dependency-status") : t("available-status"));
+        boolean current = mod.name.equals(activeModName);
+        String status = current ? t("current-status") : (chainItem ? t("dependency-status") : t("available-status"));
         TextView meta = text(tf("mod-version", "status", status, "version", mod.version), 12, MUTED, false);
         meta.setPadding(0, dp(8), 0, 0);
         card.addView(meta);
@@ -385,35 +417,6 @@ public class MainActivity extends Activity {
         return card;
     }
 
-    private boolean handleModDrop(DragEvent event, boolean targetLoadOrder) {
-        if (!(event.getLocalState() instanceof DragPayload)) {
-            return false;
-        }
-        switch (event.getAction()) {
-            case DragEvent.ACTION_DRAG_STARTED:
-            case DragEvent.ACTION_DRAG_ENTERED:
-            case DragEvent.ACTION_DRAG_LOCATION:
-            case DragEvent.ACTION_DRAG_EXITED:
-            case DragEvent.ACTION_DRAG_ENDED:
-                return true;
-            case DragEvent.ACTION_DROP:
-                DragPayload payload = (DragPayload) event.getLocalState();
-                if (targetLoadOrder) {
-                    activateMod(payload.mod);
-                }
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private void activateMod(ModInfo mod) {
-        activeModName = mod.name;
-        writeActiveProjectConfig(mod.name);
-        loadMods();
-        showMods();
-    }
-
     private void loadMods() {
         SoupruneStorageClient.InventorySnapshot snapshot;
         try {
@@ -426,8 +429,8 @@ public class MainActivity extends Activity {
             return;
         }
 
-        loadOrderMods.clear();
-        availableMods.clear();
+        startupChainMods.clear();
+        totalMods.clear();
         missingDependencyNames.clear();
 
         java.util.Map<String, SoupruneStorageClient.ModInfo> modsByName = new java.util.HashMap<>();
@@ -444,30 +447,28 @@ public class MainActivity extends Activity {
             state = ModListOrganizer.organize(snapshot.activeMod, snapshot.mods);
         } catch (IllegalStateException error) {
             appendLog(tf("mod-list-failed", "error", error.getMessage()));
+            activeModName = snapshot.activeMod;
+            currentModExists = false;
             for (SoupruneStorageClient.ModInfo mod : snapshot.mods) {
-                availableMods.add(modInfo(mod));
+                totalMods.add(modInfo(mod));
             }
-            activeModName = "";
             return;
         }
         activeModName = state.currentModName;
+        currentModExists = state.currentModExists;
         missingDependencyNames.addAll(state.missingDependencyNames);
 
         for (String name : state.startupChainNames) {
             SoupruneStorageClient.ModInfo mod = modsByName.get(name);
             if (mod != null) {
-                loadOrderMods.add(modInfo(mod));
+                startupChainMods.add(modInfo(mod));
             }
         }
 
-        java.util.Set<String> startupNames = new java.util.HashSet<>(state.startupChainNames);
         for (String name : state.allModNames) {
-            if (startupNames.contains(name)) {
-                continue;
-            }
             SoupruneStorageClient.ModInfo mod = modsByName.get(name);
             if (mod != null) {
-                availableMods.add(modInfo(mod));
+                totalMods.add(modInfo(mod));
             }
         }
     }
@@ -923,16 +924,6 @@ public class MainActivity extends Activity {
         return view;
     }
 
-    private LinearLayout columnHeader(String left, String right) {
-        LinearLayout row = horizontal();
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(12), dp(10), dp(12), dp(10));
-        row.setBackgroundColor(Color.rgb(241, 244, 236));
-        row.addView(text(left, 14, INK, true), new LinearLayout.LayoutParams(0, -2, 1));
-        row.addView(text(right, 12, MUTED, false));
-        return row;
-    }
-
     private LinearLayout rowTitle(String heading, String detail) {
         LinearLayout view = vertical();
         view.addView(text(heading, 16, INK, true));
@@ -1073,11 +1064,4 @@ public class MainActivity extends Activity {
         }
     }
 
-    private static final class DragPayload {
-        final ModInfo mod;
-
-        DragPayload(ModInfo mod) {
-            this.mod = mod;
-        }
-    }
 }
