@@ -8,46 +8,61 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class ModListOrganizerTest {
     @Test
-    public void derivesLoadOrderFromActiveModDependencies() {
-        ModListOrganizer.State state = ModListOrganizer.organize(Arrays.asList(
-                mod("mad_dummy_example", true, "undertale_preset@0.1.0"),
-                mod("undertale_preset", false),
-                mod("deltarune_preset", false)
+    public void derivesStartupChainFromConfiguredCurrentMod() {
+        ModListOrganizer.State state = ModListOrganizer.organize("mad_dummy_example", Arrays.asList(
+                mod("mad_dummy_example", "undertale_preset@0.1.0"),
+                mod("undertale_preset"),
+                mod("deltarune_preset")
         ));
 
-        assertEquals(Arrays.asList("undertale_preset", "mad_dummy_example"), state.loadOrderNames);
-        assertEquals(Collections.singletonList("deltarune_preset"), state.availableNames);
-        assertEquals("mad_dummy_example", state.activeName);
+        assertEquals("mad_dummy_example", state.currentModName);
+        assertTrue(state.currentModExists);
+        assertEquals(Arrays.asList("undertale_preset", "mad_dummy_example"), state.startupChainNames);
+        assertEquals(Arrays.asList("deltarune_preset", "mad_dummy_example", "undertale_preset"), state.allModNames);
         assertEquals(Collections.emptyList(), state.missingDependencyNames);
     }
 
     @Test
-    public void leavesEverythingAvailableWhenConfigHasNoActiveMod() {
-        ModListOrganizer.State state = ModListOrganizer.organize(Arrays.asList(
-                mod("mad_dummy_example", false, "undertale_preset@0.1.0"),
-                mod("undertale_preset", false)
+    public void reportsMissingCurrentModWithoutDroppingTotalList() {
+        ModListOrganizer.State state = ModListOrganizer.organize("ghost_mod", Arrays.asList(
+                mod("mad_dummy_example", "undertale_preset@0.1.0"),
+                mod("undertale_preset")
         ));
 
-        assertEquals(Collections.emptyList(), state.loadOrderNames);
-        assertEquals(Arrays.asList("mad_dummy_example", "undertale_preset"), state.availableNames);
-        assertEquals("", state.activeName);
+        assertEquals("ghost_mod", state.currentModName);
+        assertFalse(state.currentModExists);
+        assertEquals(Collections.emptyList(), state.startupChainNames);
+        assertEquals(Arrays.asList("mad_dummy_example", "undertale_preset"), state.allModNames);
+        assertEquals(Collections.singletonList("ghost_mod"), state.missingDependencyNames);
     }
 
     @Test
-    public void recordsMissingDependenciesWithoutDroppingActiveMod() {
-        ModListOrganizer.State state = ModListOrganizer.organize(Arrays.asList(
-                mod("mad_dummy_example", true, "undertale_preset@0.1.0")
+    public void recordsMissingDependenciesWithoutDroppingCurrentMod() {
+        ModListOrganizer.State state = ModListOrganizer.organize("mad_dummy_example", Arrays.asList(
+                mod("mad_dummy_example", "undertale_preset@0.1.0")
         ));
 
-        assertEquals(Collections.singletonList("mad_dummy_example"), state.loadOrderNames);
-        assertEquals(Collections.emptyList(), state.availableNames);
+        assertEquals("mad_dummy_example", state.currentModName);
+        assertTrue(state.currentModExists);
+        assertEquals(Collections.singletonList("mad_dummy_example"), state.startupChainNames);
+        assertEquals(Collections.singletonList("mad_dummy_example"), state.allModNames);
         assertEquals(Collections.singletonList("undertale_preset"), state.missingDependencyNames);
     }
 
-    private static SoupruneStorageClient.ModInfo mod(String name, boolean active, String... dependencies) {
+    @Test(expected = IllegalStateException.class)
+    public void rejectsCyclicDependencies() {
+        ModListOrganizer.organize("a", Arrays.asList(
+                mod("a", "b@0.1.0"),
+                mod("b", "a@0.1.0")
+        ));
+    }
+
+    private static SoupruneStorageClient.ModInfo mod(String name, String... dependencies) {
         List<String> dependencyList = new ArrayList<>();
         dependencyList.addAll(Arrays.asList(dependencies));
         return new SoupruneStorageClient.ModInfo(
@@ -55,7 +70,7 @@ public class ModListOrganizerTest {
                 "0.1.0",
                 "SoupRune/projects/" + name,
                 dependencyList,
-                active
+                false
         );
     }
 }

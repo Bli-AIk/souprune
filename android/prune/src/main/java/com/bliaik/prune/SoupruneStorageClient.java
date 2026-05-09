@@ -317,7 +317,6 @@ public final class SoupruneStorageClient {
             return dependencies;
         }
 
-        @Override
         public boolean isActive() {
             return active;
         }

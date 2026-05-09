@@ -1,6 +1,7 @@
 package com.bliaik.prune;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -16,14 +17,12 @@ public final class ModListOrganizer {
         String getName();
 
         List<String> getDependencies();
-
-        boolean isActive();
     }
 
-    public static State organize(List<? extends ModEntry> discoveredMods) {
+    public static State organize(String currentModName, List<? extends ModEntry> discoveredMods) {
+        String normalizedCurrent = normalizeName(currentModName);
         Map<String, ModEntry> modsByName = new LinkedHashMap<>();
-        List<String> discoveredNames = new ArrayList<>();
-        String activeName = "";
+        List<String> allNames = new ArrayList<>();
 
         for (ModEntry mod : discoveredMods) {
             if (mod == null) {
@@ -34,43 +33,34 @@ public final class ModListOrganizer {
                 continue;
             }
             modsByName.put(name, mod);
-            discoveredNames.add(name);
-            if (activeName.isEmpty() && mod.isActive()) {
-                activeName = name;
-            }
+            allNames.add(name);
         }
+        Collections.sort(allNames);
 
-        List<String> loadOrder = new ArrayList<>();
-        List<String> missingDependencies = new ArrayList<>();
-        if (!activeName.isEmpty()) {
-            resolveLoadOrder(
-                    activeName,
+        List<String> startupChain = new ArrayList<>();
+        List<String> missing = new ArrayList<>();
+        boolean exists = normalizedCurrent.isEmpty() || modsByName.containsKey(normalizedCurrent);
+        if (!normalizedCurrent.isEmpty()) {
+            resolveStartupChain(
+                    normalizedCurrent,
                     modsByName,
                     new LinkedHashSet<>(),
                     new HashSet<>(),
-                    loadOrder,
-                    missingDependencies
+                    startupChain,
+                    missing
             );
         }
 
-        Set<String> loaded = new HashSet<>(loadOrder);
-        List<String> available = new ArrayList<>();
-        for (String name : discoveredNames) {
-            if (!loaded.contains(name)) {
-                available.add(name);
-            }
-        }
-
-        return new State(loadOrder, available, activeName, missingDependencies);
+        return new State(normalizedCurrent, exists, startupChain, allNames, missing);
     }
 
-    private static void resolveLoadOrder(
+    private static void resolveStartupChain(
             String name,
             Map<String, ModEntry> modsByName,
             LinkedHashSet<String> visiting,
             Set<String> visited,
-            List<String> loadOrder,
-            List<String> missingDependencies
+            List<String> startupChain,
+            List<String> missing
     ) {
         if (visited.contains(name)) {
             return;
@@ -81,21 +71,30 @@ public final class ModListOrganizer {
 
         ModEntry mod = modsByName.get(name);
         if (mod == null) {
-            addUnique(missingDependencies, name);
+            addUnique(missing, name);
             visiting.remove(name);
             return;
         }
 
-        for (String rawDependency : mod.getDependencies()) {
-            String dependency = dependencyName(rawDependency);
-            if (!dependency.isEmpty()) {
-                resolveLoadOrder(dependency, modsByName, visiting, visited, loadOrder, missingDependencies);
-            }
+        for (String dependency : dependencyNames(mod.getDependencies())) {
+            resolveStartupChain(dependency, modsByName, visiting, visited, startupChain, missing);
         }
 
         visiting.remove(name);
         visited.add(name);
-        loadOrder.add(name);
+        startupChain.add(name);
+    }
+
+    private static List<String> dependencyNames(List<String> rawDependencies) {
+        List<String> dependencies = new ArrayList<>();
+        for (String rawDependency : rawDependencies) {
+            String dependency = dependencyName(rawDependency);
+            if (!dependency.isEmpty()) {
+                dependencies.add(dependency);
+            }
+        }
+        Collections.sort(dependencies);
+        return dependencies;
     }
 
     private static String dependencyName(String dependency) {
@@ -118,20 +117,23 @@ public final class ModListOrganizer {
     }
 
     public static final class State {
-        public final List<String> loadOrderNames;
-        public final List<String> availableNames;
-        public final String activeName;
+        public final String currentModName;
+        public final boolean currentModExists;
+        public final List<String> startupChainNames;
+        public final List<String> allModNames;
         public final List<String> missingDependencyNames;
 
         State(
-                List<String> loadOrderNames,
-                List<String> availableNames,
-                String activeName,
+                String currentModName,
+                boolean currentModExists,
+                List<String> startupChainNames,
+                List<String> allModNames,
                 List<String> missingDependencyNames
         ) {
-            this.loadOrderNames = loadOrderNames;
-            this.availableNames = availableNames;
-            this.activeName = activeName;
+            this.currentModName = currentModName;
+            this.currentModExists = currentModExists;
+            this.startupChainNames = startupChainNames;
+            this.allModNames = allModNames;
             this.missingDependencyNames = missingDependencyNames;
         }
     }

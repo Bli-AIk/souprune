@@ -441,7 +441,7 @@ public class MainActivity extends Activity {
         projectResolutionScale = snapshot.resolutionScale;
         ModListOrganizer.State state;
         try {
-            state = ModListOrganizer.organize(snapshot.mods);
+            state = ModListOrganizer.organize(snapshot.activeMod, snapshot.mods);
         } catch (IllegalStateException error) {
             appendLog(tf("mod-list-failed", "error", error.getMessage()));
             for (SoupruneStorageClient.ModInfo mod : snapshot.mods) {
@@ -450,17 +450,21 @@ public class MainActivity extends Activity {
             activeModName = "";
             return;
         }
-        activeModName = state.activeName;
+        activeModName = state.currentModName;
         missingDependencyNames.addAll(state.missingDependencyNames);
 
-        for (String name : state.loadOrderNames) {
+        for (String name : state.startupChainNames) {
             SoupruneStorageClient.ModInfo mod = modsByName.get(name);
             if (mod != null) {
                 loadOrderMods.add(modInfo(mod));
             }
         }
 
-        for (String name : state.availableNames) {
+        java.util.Set<String> startupNames = new java.util.HashSet<>(state.startupChainNames);
+        for (String name : state.allModNames) {
+            if (startupNames.contains(name)) {
+                continue;
+            }
             SoupruneStorageClient.ModInfo mod = modsByName.get(name);
             if (mod != null) {
                 availableMods.add(modInfo(mod));
