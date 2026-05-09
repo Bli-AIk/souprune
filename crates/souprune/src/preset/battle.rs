@@ -134,20 +134,16 @@ fn setup_battle_camera(
         camera.is_active = false;
     }
 
-    // On Android, use Fixed scaling (viewport system handles aspect ratio)
     #[cfg(target_os = "android")]
-    let projection = Projection::Orthographic(OrthographicProjection {
-        scaling_mode: bevy::camera::ScalingMode::Fixed {
-            width: 320.0,
-            height: 240.0,
-        },
-        ..OrthographicProjection::default_2d()
-    });
+    let projection = battle_projection(&config.render, zoom, BattleProjectionPlatform::Android);
     #[cfg(not(target_os = "android"))]
-    let projection = Projection::Orthographic(OrthographicProjection {
-        scale: zoom / scale_value as f32,
-        ..OrthographicProjection::default_2d()
-    });
+    let projection = battle_projection(
+        &config.render,
+        zoom,
+        BattleProjectionPlatform::Desktop {
+            resolution_scale: scale_value,
+        },
+    );
 
     info!(
         "[Battle] Inherited camera settings: order={}, has_render_target={}",
@@ -173,6 +169,35 @@ fn setup_battle_camera(
     ));
     if let Some(target) = inherited_target {
         battle_cam.insert(target);
+    }
+}
+
+#[derive(Clone, Copy)]
+enum BattleProjectionPlatform {
+    Android,
+    Desktop { resolution_scale: u32 },
+}
+
+fn battle_projection(
+    render_config: &crate::config::RenderConfig,
+    battle_camera_zoom: f32,
+    platform: BattleProjectionPlatform,
+) -> Projection {
+    match platform {
+        BattleProjectionPlatform::Android => Projection::Orthographic(OrthographicProjection {
+            scaling_mode: bevy::camera::ScalingMode::Fixed {
+                width: render_config.base_resolution_width as f32,
+                height: render_config.base_resolution_height as f32,
+            },
+            scale: battle_camera_zoom,
+            ..OrthographicProjection::default_2d()
+        }),
+        BattleProjectionPlatform::Desktop { resolution_scale } => {
+            Projection::Orthographic(OrthographicProjection {
+                scale: battle_camera_zoom / resolution_scale as f32,
+                ..OrthographicProjection::default_2d()
+            })
+        }
     }
 }
 
@@ -225,5 +250,54 @@ fn cleanup_battle_input_manager(
 ) {
     for entity in query.iter() {
         commands.entity(entity).despawn();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::camera::CameraProjection;
+
+    fn visible_size(mut projection: Projection, viewport_width: f32, viewport_height: f32) -> Vec2 {
+        let Projection::Orthographic(ref mut orthographic) = projection else {
+            panic!("expected orthographic projection");
+        };
+        orthographic.update(viewport_width, viewport_height);
+        Vec2::new(
+            orthographic.area.width().abs(),
+            orthographic.area.height().abs(),
+        )
+    }
+
+    #[test]
+    fn android_battle_projection_applies_battle_zoom_to_fixed_base_resolution() {
+        let size = visible_size(
+            battle_projection(
+                &crate::config::RenderConfig::default(),
+                2.0,
+                BattleProjectionPlatform::Android,
+            ),
+            1920.0,
+            1080.0,
+        );
+
+        assert_eq!(size, Vec2::new(640.0, 480.0));
+    }
+
+    #[test]
+    fn desktop_battle_projection_keeps_existing_resolution_scale_mapping() {
+        let size = visible_size(
+            battle_projection(
+                &crate::config::RenderConfig::default(),
+                2.0,
+                BattleProjectionPlatform::Desktop {
+                    resolution_scale: 2,
+                },
+            ),
+            640.0,
+            480.0,
+        );
+
+        assert_eq!(size, Vec2::new(640.0, 480.0));
     }
 }

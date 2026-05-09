@@ -282,34 +282,6 @@ fn builtin_wasm_candidates() -> Vec<std::path::PathBuf> {
     candidates
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn builtin_candidates_include_packaged_layouts() {
-        let candidates = builtin_wasm_candidates();
-        assert!(
-            candidates
-                .iter()
-                .any(|p| p == &std::path::PathBuf::from("builtins/souprune_builtins.wasm"))
-        );
-        assert!(
-            candidates
-                .iter()
-                .any(|p| p == &std::path::PathBuf::from("assets/builtins/souprune_builtins.wasm"))
-        );
-    }
-
-    #[cfg(target_os = "android")]
-    #[test]
-    fn android_builtin_candidate_uses_private_storage() {
-        assert!(builtin_wasm_candidates().iter().any(|p| {
-            p == &crate::config::android_private_base_path().join("builtins/souprune_builtins.wasm")
-        }));
-    }
-}
-
 fn load_mods_system(
     mut behavior_registry: ResMut<BehaviorRegistry>,
     mut danmaku_registry: ResMut<DanmakuRegistry>,
@@ -466,5 +438,33 @@ fn dispatch_mode_call(
             "on_mode_exit"
         };
         wasm_tracer.record(&loaded.name, "mode-lifecycle", method, elapsed);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builtin_candidates_include_packaged_layouts() {
+        let candidates = builtin_wasm_candidates();
+        assert!(
+            candidates
+                .iter()
+                .any(|p| p == &std::path::PathBuf::from("builtins/souprune_builtins.wasm"))
+        );
+        assert!(
+            candidates
+                .iter()
+                .any(|p| p == &std::path::PathBuf::from("assets/builtins/souprune_builtins.wasm"))
+        );
+    }
+
+    #[cfg(target_os = "android")]
+    #[test]
+    fn android_builtin_candidate_uses_private_storage() {
+        assert!(builtin_wasm_candidates().iter().any(|p| {
+            p == &crate::config::android_private_base_path().join("builtins/souprune_builtins.wasm")
+        }));
     }
 }
