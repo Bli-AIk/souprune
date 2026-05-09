@@ -17,6 +17,18 @@ ignore = [
     # paste is used by metal, kira, rav1e (Bevy/image dependencies)
     # No security vulnerability, just unmaintained status
     "RUSTSEC-2024-0436",
+    # GTK bindings pulled by Dioxus desktop still depend on proc-macro-error.
+    "RUSTSEC-2024-0370",
+    # Dioxus desktop currently uses GTK3 bindings through wry/tao on Linux.
+    "RUSTSEC-2024-0411",
+    "RUSTSEC-2024-0412",
+    "RUSTSEC-2024-0413",
+    "RUSTSEC-2024-0414",
+    "RUSTSEC-2024-0415",
+    "RUSTSEC-2024-0416",
+    "RUSTSEC-2024-0418",
+    "RUSTSEC-2024-0419",
+    "RUSTSEC-2024-0420",
 ]
 
 [licenses]
