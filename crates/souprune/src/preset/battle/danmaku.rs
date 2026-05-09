@@ -113,6 +113,7 @@ fn battle_damage_detection_system(
     mut last_player_state: Local<Option<(Vec2, f64)>>,
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
+    mut audio_cache: ResMut<crate::core::audio::AudioSourceCache>,
 ) {
     let Ok((player_transform, player_hitbox)) = player_query.single() else {
         return;
@@ -225,7 +226,12 @@ fn battle_damage_detection_system(
 
             // Play hurt sound from config
             if let Some(sound_path) = &invincibility_config.damage_sound {
-                crate::core::audio::play_sound_full_path(&audio, &asset_server, sound_path);
+                crate::core::audio::play_sound_full_path(
+                    &audio,
+                    &asset_server,
+                    &mut audio_cache,
+                    sound_path,
+                );
             }
 
             info!(

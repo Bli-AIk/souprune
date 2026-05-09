@@ -113,6 +113,7 @@ fn register_item_action_extensions(app: &mut App) {
             ctx.global_facts,
             ctx.audio,
             ctx.asset_server,
+            ctx.audio_cache,
             ctx.enum_registry,
             start_dialogue,
             &ctx.config.game.dialogue_view_default,

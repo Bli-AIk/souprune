@@ -67,18 +67,18 @@ alias generate-mods := build-mods
 
 # clippy
 clippy:
-    cargo clippy --all-targets --all-features -- -D warnings
+    cargo clippy --all-targets --all-features --no-deps -- -D warnings
 
 
 # clippy_local
 clippy_local:
-    cargo clippy -p {{project}} --all-targets --all-features -- -D warnings
+    cargo clippy -p {{project}} --all-targets --all-features --no-deps -- -D warnings
 
 # 对所有 mod crate 运行 clippy
 clippy-mods:
     @for toml in $(find projects -mindepth 2 -maxdepth 3 -name Cargo.toml | sort); do \
         crate_id=$(echo "$toml" | sed 's#^projects/##; s#/Cargo.toml$##; s#/#-#g'); \
-        cargo clippy --manifest-path "$toml" --target wasm32-wasip2 --target-dir "{{workspace_root}}/target/mod-clippy/$crate_id" --all-targets --all-features -- -D warnings || exit $?; \
+        cargo clippy --manifest-path "$toml" --target wasm32-wasip2 --target-dir "{{workspace_root}}/target/mod-clippy/$crate_id" --all-targets --all-features --no-deps -- -D warnings || exit $?; \
     done
     @echo "Clippy passed for all mods"
 

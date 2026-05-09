@@ -242,6 +242,7 @@ fn apply_food_effects(
     global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
     audio: &bevy_kira_audio::Audio,
     asset_server: &AssetServer,
+    audio_cache: &mut crate::core::audio::AudioSourceCache,
 ) -> i64 {
     let mut total_healed: i64 = 0;
 
@@ -258,7 +259,7 @@ fn apply_food_effects(
     }
 
     if let Some(clip_path) = item_use_audio(item_id, global_facts) {
-        audio::play_sound_full_path(audio, asset_server, &clip_path);
+        audio::play_sound_full_path(audio, asset_server, audio_cache, &clip_path);
     }
 
     // Handle inventory mutation: consume or replace with child item
@@ -296,6 +297,7 @@ pub(crate) fn execute_use_item(
     global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
     audio: &bevy_kira_audio::Audio,
     asset_server: &AssetServer,
+    audio_cache: &mut crate::core::audio::AudioSourceCache,
     enum_registry: &EnumRegistry,
     start_dialogue: bool,
     dialogue_view_default: &str,
@@ -323,7 +325,14 @@ pub(crate) fn execute_use_item(
 
     match type_str.as_str() {
         "Food" => {
-            actual_healed = apply_food_effects(&item_id, index, global_facts, audio, asset_server);
+            actual_healed = apply_food_effects(
+                &item_id,
+                index,
+                global_facts,
+                audio,
+                asset_server,
+                audio_cache,
+            );
         }
         "Weapon" => {
             let old_weapon = global_facts

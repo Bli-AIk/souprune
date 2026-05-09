@@ -78,7 +78,7 @@ jobs:
               fi
             done < scripts/workspace_ignore.txt
           fi
-          cargo clippy --workspace --all-targets --all-features $EXCLUDES -- -D warnings
+          cargo clippy --workspace --all-targets --all-features --no-deps $EXCLUDES -- -D warnings
 
       - name: Lint checks
         run: bash scripts/tokei_check.sh

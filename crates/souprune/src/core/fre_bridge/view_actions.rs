@@ -74,6 +74,7 @@ fn process_event_view_actions(
     active_view_query: &mut Query<&mut ViewRoot, With<ActiveView>>,
     audio: &bevy_kira_audio::Audio,
     asset_server: &AssetServer,
+    audio_cache: &mut audio::AudioSourceCache,
     global_facts: &mut LayeredFactDatabase,
     pending_events: &mut PendingFactEvents,
     trigger_history: &mut Option<ResMut<crate::extra::debug::RuleTriggerHistory>>,
@@ -137,6 +138,7 @@ fn process_event_view_actions(
                     global_facts,
                     audio,
                     asset_server,
+                    audio_cache,
                     enum_registry,
                     souprune_config,
                     fact_history,
@@ -163,6 +165,7 @@ pub fn process_view_actions_system(
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
+    mut audio_cache: ResMut<audio::AudioSourceCache>,
     mut global_facts: ResMut<LayeredFactDatabase>,
     mut pending_events: ResMut<PendingFactEvents>,
     mut trigger_history: Option<ResMut<crate::extra::debug::RuleTriggerHistory>>,
@@ -192,6 +195,7 @@ pub fn process_view_actions_system(
             &mut active_view_query,
             &audio,
             &asset_server,
+            &mut audio_cache,
             &mut global_facts,
             &mut pending_events,
             &mut trigger_history,
@@ -212,6 +216,7 @@ fn execute_action(
     global_facts: &mut LayeredFactDatabase,
     audio: &bevy_kira_audio::Audio,
     asset_server: &AssetServer,
+    audio_cache: &mut audio::AudioSourceCache,
     enum_registry: &EnumRegistry,
     souprune_config: &SoupruneConfig,
     fact_history: &mut crate::core::trace::FactChangeHistory,
@@ -222,11 +227,11 @@ fn execute_action(
     match action {
         GameActionDef::PlaySound(sound_name) => {
             debug!("FRE Bridge: PlaySound({})", sound_name);
-            audio::play_sound(audio, asset_server, sound_name);
+            audio::play_sound(audio, asset_server, audio_cache, sound_name);
         }
         GameActionDef::PlaySoundFullPath(path) => {
             debug!("FRE Bridge: PlaySoundFullPath({})", path);
-            audio::play_sound_full_path(audio, asset_server, path);
+            audio::play_sound_full_path(audio, asset_server, audio_cache, path);
         }
         GameActionDef::SetLocalFact(key, value) => {
             let combined = CombinedFactReader::new(local_facts, global_facts);
@@ -269,6 +274,7 @@ fn execute_action(
                 global_facts,
                 audio,
                 asset_server,
+                audio_cache,
                 enum_registry,
                 config: souprune_config,
                 fact_history,

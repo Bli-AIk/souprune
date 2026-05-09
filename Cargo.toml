@@ -39,6 +39,7 @@ bevy_mortar_bond = { path = "crates/bevy_mortar_bond" }
 bevy_ecs_typewriter = { path = "crates/bevy_ecs_typewriter" }
 bevy_alight_motion = { path = "crates/bevy_alight_motion" }
 bevy_bitmap_text = { path = "crates/bevy_bitmap_text" }
+cpal = { path = "third_party/cpal-0.15.3-android" }
 
 [workspace.lints.rust]
 
