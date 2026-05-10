@@ -34,6 +34,8 @@ ai_check.sh
 logs/
 dev/
 dev_review/
+superpowers/
+**/superpowers/
 
 # System
 .DS_Store
