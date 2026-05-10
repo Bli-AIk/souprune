@@ -45,7 +45,7 @@
 [submodule "crates/prune"]
 	path = crates/prune
 	url = https://github.com/Bli-AIk/prune
-	branch = feat/init
+	branch = init/prune-manager-crate
 [submodule "third_party/cpal-0.15.3-android"]
 	path = third_party/cpal-0.15.3-android
 	url = https://github.com/Bli-AIk/cpal.git

@@ -111,6 +111,7 @@ fn battle_damage_detection_system(
         With<crate::core::danmaku::Bullet>,
     >,
     mut last_player_state: Local<Option<(Vec2, f64)>>,
+    mut last_damage_log_time: Local<f64>,
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
     mut audio_cache: ResMut<crate::core::audio::AudioSourceCache>,
@@ -143,23 +144,12 @@ fn battle_damage_detection_system(
 
     // Debug: Count bullets
     let bullet_count = bullet_query.iter().count();
-    if bullet_count > 0 {
-        // Only log occasionally to avoid spam (every second or so)
-        static mut LAST_LOG_TIME: f64 = 0.0;
-        let should_log = unsafe {
-            if current_time - LAST_LOG_TIME > 1.0 {
-                LAST_LOG_TIME = current_time;
-                true
-            } else {
-                false
-            }
-        };
-        if should_log {
-            info!(
-                "[Battle Damage] Found {} bullets, player at {:?}",
-                bullet_count, player_center
-            );
-        }
+    if bullet_count > 0 && current_time - *last_damage_log_time > 1.0 {
+        *last_damage_log_time = current_time;
+        info!(
+            "[Battle Damage] Found {} bullets, player at {:?}",
+            bullet_count, player_center
+        );
     }
 
     for (
