@@ -161,6 +161,7 @@ pub fn chase_damage_detection_system(
     mut player_invincibility: ResMut<PlayerInvincibility>,
     mut layered_db: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
     audio: Res<bevy_kira_audio::Audio>,
+    mut audio_cache: ResMut<crate::core::audio::AudioSourceCache>,
     player_query: Query<
         (
             &Transform,
@@ -287,7 +288,12 @@ pub fn chase_damage_detection_system(
 
             // Play hurt sound from config
             if let Some(sound_path) = &chase_config.damage_ui.damage_sound {
-                crate::core::audio::play_sound_full_path(&audio, &asset_server, sound_path);
+                crate::core::audio::play_sound_full_path(
+                    &audio,
+                    &asset_server,
+                    &mut audio_cache,
+                    sound_path,
+                );
             }
 
             info!(

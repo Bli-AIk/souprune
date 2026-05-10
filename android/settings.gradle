@@ -6,4 +6,6 @@ pluginManagement {
     }
 }
 rootProject.name = "SoupRune"
-include ':app'
+include ':prune'
+project(':prune').projectDir = file('../crates/prune/android')
+include ':souprune'

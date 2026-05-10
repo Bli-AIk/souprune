@@ -17,13 +17,14 @@ members = [
     "crates/souprune_lint",
     "crates/cauld-ron",
     "crates/souprune_cauld_ron",
+    "crates/prune",
 ]
 
 # Exclude mortar submodule - it has its own workspace
 # souprune_mod_test is WASM-target only, build with: cargo build -p souprune_mod_test --target wasm32-wasip2
 exclude = [
     "crates/mortar",
-    "crates/iyes_perf_ui",
+    "third_party/iyes_perf_ui",
     "crates/souprune_editor",
     "crates/souprune_mod_test",
     "crates/souprune_builtins",
@@ -32,12 +33,13 @@ exclude = [
 # Use local submodule/workspace crates during development
 [patch.crates-io]
 mortar_compiler = { path = "crates/mortar/crates/mortar_compiler" }
-iyes_perf_ui = { path = "crates/iyes_perf_ui" }
+iyes_perf_ui = { path = "third_party/iyes_perf_ui" }
 bevy_fact_rule_event = { path = "crates/bevy_fact_rule_event" }
 bevy_mortar_bond = { path = "crates/bevy_mortar_bond" }
 bevy_ecs_typewriter = { path = "crates/bevy_ecs_typewriter" }
 bevy_alight_motion = { path = "crates/bevy_alight_motion" }
 bevy_bitmap_text = { path = "crates/bevy_bitmap_text" }
+cpal = { path = "third_party/cpal-0.15.3-android" }
 
 [workspace.lints.rust]
 

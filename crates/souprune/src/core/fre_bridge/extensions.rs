@@ -22,6 +22,7 @@ pub struct ViewActionExecCtx<'a> {
     pub global_facts: &'a mut bevy_fact_rule_event::LayeredFactDatabase,
     pub audio: &'a bevy_kira_audio::Audio,
     pub asset_server: &'a AssetServer,
+    pub audio_cache: &'a mut crate::core::audio::AudioSourceCache,
     pub enum_registry: &'a bevy_fact_rule_event::EnumRegistry,
     pub config: &'a crate::config::SoupruneConfig,
     pub fact_history: &'a mut crate::core::trace::FactChangeHistory,

@@ -64,7 +64,7 @@ regex = "1.10"
 bevy_rand = { version = "0.14", features = ["wyrand"] }
 rand = "0.10"
 bevy_bitmap_text = "0.2"
-bevy_kira_audio = { version = "0.25", features = ["wav", "ogg", "flac", "mp3"] }
+bevy_kira_audio = { version = "0.25", features = ["wav", "ogg", "flac", "mp3", "android_shared_stdcxx"] }
 anyhow = "1.0.100"
 async-channel = "2"
 tracing-appender = "0.2.4"
@@ -128,17 +128,7 @@ package = "com.bliaik.souprune"
 label = "SoupRune"
 [package.metadata.android.sdk]
 target_sdk_version = 35
-min_sdk_version = 26
-
-[[package.metadata.android.uses_permission]]
-name = "android.permission.READ_EXTERNAL_STORAGE"
-
-[[package.metadata.android.uses_permission]]
-name = "android.permission.WRITE_EXTERNAL_STORAGE"
-max_sdk_version = 28
-
-[[package.metadata.android.uses_permission]]
-name = "android.permission.MANAGE_EXTERNAL_STORAGE"
+min_sdk_version = 27
 
 [package.metadata.android.application]
 debuggable = true

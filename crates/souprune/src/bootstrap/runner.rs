@@ -13,6 +13,8 @@
 //! 只在进程构建阶段有意义的逻辑，应当放在这里，而不是混进玩法代码里。
 
 use crate::app_state::app_setup;
+#[cfg(target_os = "android")]
+use crate::bootstrap::logging::android_panic_log_path;
 use crate::bootstrap::logging::setup_logging;
 use crate::bootstrap::plugins::{
     get_bevy_default_plugins, get_file_importer_plugins, get_game_plugins, get_third_plugins,
@@ -40,15 +42,18 @@ pub fn run() {
             );
             eprintln!("{}", msg);
             use std::io::Write;
-            if let Ok(mut f) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("/sdcard/SoupRune/panic.log")
+            if let Some(path) = android_panic_log_path()
+                && let Ok(mut f) = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(path)
             {
                 let _ = f.write_all(msg.as_bytes());
             }
         }));
-        let _ = std::fs::remove_file("/sdcard/SoupRune/panic.log");
+        if let Some(path) = android_panic_log_path() {
+            let _ = std::fs::remove_file(path);
+        }
         eprintln!("[SoupRune] run() started on Android");
         eprintln!(
             "[SoupRune] projects base: {:?}",

@@ -93,6 +93,7 @@ pub(crate) fn backpack_state_transition_system(
 pub(crate) fn state_transition_sound_system(
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
+    mut audio_cache: ResMut<crate::core::audio::AudioSourceCache>,
     sub_state: Res<State<SequenceSubState>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     mut tracker: ResMut<StateTransitionTracker>,
@@ -108,7 +109,7 @@ pub(crate) fn state_transition_sound_system(
             && let Some(state_def) = state_config.get(prev_state)
             && let Some(ref sound_path) = state_def.on_exit_sound
         {
-            audio::play_sound_full_path(&audio, &asset_server, sound_path);
+            audio::play_sound_full_path(&audio, &asset_server, &mut audio_cache, sound_path);
             debug!(
                 "Playing on_exit_sound for state '{}': {}",
                 prev_state, sound_path
@@ -118,7 +119,7 @@ pub(crate) fn state_transition_sound_system(
         if let Some(state_def) = state_config.get(current_state)
             && let Some(ref sound_path) = state_def.on_enter_sound
         {
-            audio::play_sound_full_path(&audio, &asset_server, sound_path);
+            audio::play_sound_full_path(&audio, &asset_server, &mut audio_cache, sound_path);
             debug!(
                 "Playing on_enter_sound for state '{}': {}",
                 current_state, sound_path

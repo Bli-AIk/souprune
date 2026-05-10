@@ -13,9 +13,10 @@
 [submodule "crates/mortar"]
 	path = crates/mortar
 	url = git@github.com:Bli-AIk/mortar.git
-[submodule "crates/iyes_perf_ui"]
-	path = crates/iyes_perf_ui
+[submodule "third_party/iyes_perf_ui"]
+	path = third_party/iyes_perf_ui
 	url = git@github.com:Bli-AIk/iyes_perf_ui.git
+	branch = bevy-0-18
 [submodule "crates/flambe"]
 	path = crates/flambe
 	url = git@github.com:Bli-AIk/flambe.git
@@ -41,3 +42,11 @@
 [submodule "projects/deltarune_preset"]
 	path = projects/deltarune_preset
 	url = https://github.com/Bli-AIk/souprune_deltarune_preset.git
+[submodule "crates/prune"]
+	path = crates/prune
+	url = https://github.com/Bli-AIk/prune
+	branch = init/prune-manager-crate
+[submodule "third_party/cpal-0.15.3-android"]
+	path = third_party/cpal-0.15.3-android
+	url = https://github.com/Bli-AIk/cpal.git
+	branch = souprune/android-low-latency

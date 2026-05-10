@@ -8,7 +8,7 @@ android {
 
     defaultConfig {
         applicationId "com.bliaik.souprune"
-        minSdk 26
+        minSdk 27
         targetSdk 35
         versionCode 1
         versionName "0.5.1"
@@ -26,18 +26,10 @@ android {
         }
     }
 
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-
-    buildFeatures {
-        prefab true
-    }
-
     sourceSets {
         main {
             jniLibs.srcDirs = ['src/main/jniLibs']
+            assets.srcDirs = ['src/main/assets', '../../assets']
         }
     }
 }
@@ -51,7 +43,8 @@ configurations.all {
 }
 
 dependencies {
-    implementation 'androidx.games:games-activity:2.0.2'
+    implementation 'androidx.games:games-activity:4.4.0'
+    implementation 'androidx.core:core:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.10.0'
+    testImplementation 'junit:junit:4.13.2'
 }
