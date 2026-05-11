@@ -15,8 +15,8 @@
 #
 # The script:
 #   1. Builds a release binary (unless --skip-build)
-#   2. Copies maintained project submodules from an explicit allowlist
-#   3. Copies only git-tracked files per mod + root-level .wasm files
+#   2. Auto-discovers project mods from projects/*/mod.toml
+#   3. Copies git-tracked files + .wasm + .build/ (WASM binaries) per mod
 #   4. Creates a distributable archive in dist/
 
 set -euo pipefail
@@ -24,7 +24,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECT="souprune"
-PROJECT_MODS=("undertale_preset" "mad_dummy_example")
+# Auto-discover mods from projects/*/mod.toml
+PROJECT_MODS=()
+for mod_dir in projects/*/; do
+    mod_name="$(basename "$mod_dir")"
+    [[ "$mod_name" == "config.toml" ]] && continue
+    [[ -f "${mod_dir}mod.toml" ]] && PROJECT_MODS+=("$mod_name")
+done
 
 # --- Target resolution ---
 resolve_target() {
@@ -170,6 +176,14 @@ for mod_name in "${PROJECT_MODS[@]}"; do
     done
     # Also copy .wasm files (gitignored but needed at runtime)
     find "${mod_dir}" -maxdepth 1 -name '*.wasm' -exec cp {} "dist/${DIST}/${mod_dir}/" \;
+    # Copy .build/ directory (runtime.wasm + content.wasm + manifest, gitignored but required at runtime)
+    if [[ -d "${mod_dir}/.build" ]]; then
+        echo "📦 Including built WASM for: ${mod_name}"
+        mkdir -p "dist/${DIST}/${mod_dir}/.build"
+        cp "${mod_dir}/.build/runtime.wasm" "dist/${DIST}/${mod_dir}/.build/" 2>/dev/null || true
+        cp "${mod_dir}/.build/content.wasm" "dist/${DIST}/${mod_dir}/.build/" 2>/dev/null || true
+        cp "${mod_dir}/.build/cauld-ron-output-manifest.toml" "dist/${DIST}/${mod_dir}/.build/" 2>/dev/null || true
+    fi
 done
 
 # --- Archive ---
