@@ -66,6 +66,7 @@ impl Plugin for FREBridgePlugin {
                     view_actions::handle_switch_state_system,
                 )
                     .chain()
+                    .after(crate::core::input::InputTransactionSet)
                     .after(FRESystemSet::EmitEvents)
                     .before(FRESystemSet::ProcessRules),
             );

@@ -32,11 +32,15 @@ pub use transaction::*;
 use crate::core::ron_loader::RonAssetLoader;
 use bevy::app::{App, Plugin};
 use bevy::asset::AssetApp;
+use bevy::prelude::IntoScheduleConfigs;
+use leafwing_input_manager::plugin::InputManagerSystem;
 
 pub(crate) struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
+
         // Note: ActionRegistry and PlayerInputSettings are initialized in lib.rs
         // from the RON configuration file before this plugin is added.
         //
@@ -44,6 +48,13 @@ impl Plugin for InputPlugin {
         // 已在 lib.rs 中从 RON 配置文件初始化。
         app.init_asset::<InputConfig>()
             .register_asset_loader(RonAssetLoader::<InputConfig>::new(&["input.ron"]))
-            .add_plugins(touch::TouchPlugin);
+            .add_message::<InputEnvelopeEvent>()
+            .add_plugins(touch::TouchPlugin)
+            .add_systems(
+                schedule,
+                transaction::emit_input_envelopes_system
+                    .in_set(InputTransactionSet)
+                    .after(InputManagerSystem::ManualControl),
+            );
     }
 }
