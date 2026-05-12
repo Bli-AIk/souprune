@@ -3,7 +3,9 @@
 //! 视图元素系统，带有撤销/重做/重置的历史跟踪。
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::FactDatabase;
+use bevy_fact_rule_event::{FactDatabase, FactValue};
+
+use crate::core::input::{Direction, InputCommand};
 
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
@@ -103,6 +105,26 @@ pub struct ViewRoot {
 }
 
 impl ViewRoot {
+    /// Local fact storing the latest View-owned navigation direction.
+    ///
+    /// 保存最近一次 View 自有导航方向的局部事实。
+    pub const INPUT_NAVIGATION: &'static str = "view:input:navigation";
+
+    /// Local fact set when the View receives a confirm request.
+    ///
+    /// View 收到确认请求时设置的局部事实。
+    pub const INPUT_CONFIRM_REQUESTED: &'static str = "view:input:confirm_requested";
+
+    /// Local fact set when the View receives a cancel request.
+    ///
+    /// View 收到取消请求时设置的局部事实。
+    pub const INPUT_CANCEL_REQUESTED: &'static str = "view:input:cancel_requested";
+
+    /// Local fact set when the View receives a menu request.
+    ///
+    /// View 收到菜单请求时设置的局部事实。
+    pub const INPUT_MENU_REQUESTED: &'static str = "view:input:menu_requested";
+
     /// Create a new ViewRoot from a layout path.
     ///
     /// 从布局路径创建新的 ViewRoot。
@@ -124,6 +146,67 @@ impl ViewRoot {
     /// 移除 `.view.ron` 扩展名，并将 `/` 和 `.` 替换为 `_`。
     pub fn namespace_from_path(path: &str) -> String {
         path.trim_end_matches(".view.ron").replace(['/', '.'], "_")
+    }
+
+    /// Apply a semantic input command through View-owned control methods.
+    ///
+    /// 通过 View 自有的受控方法应用语义输入命令。
+    pub fn apply_input_command(&mut self, command: &InputCommand) {
+        match command {
+            InputCommand::Navigate(direction) => self.request_navigation(*direction),
+            InputCommand::Confirm => self.request_confirm(),
+            InputCommand::Cancel => self.request_cancel(),
+            InputCommand::Menu => self.request_menu(),
+        }
+    }
+
+    /// Request View-owned navigation.
+    ///
+    /// 请求 View 自有导航。
+    pub fn request_navigation(&mut self, direction: Direction) {
+        let direction_name = match direction {
+            Direction::Up => "up",
+            Direction::Down => "down",
+            Direction::Left => "left",
+            Direction::Right => "right",
+        };
+        self.local_facts.set(Self::INPUT_NAVIGATION, direction_name);
+
+        if let Some(selection) = self.local_facts.get_int("selection") {
+            let next = match direction {
+                Direction::Up | Direction::Left => selection - 1,
+                Direction::Down | Direction::Right => selection + 1,
+            };
+            self.local_facts.set("selection", FactValue::Int(next));
+        }
+    }
+
+    /// Request View-owned confirmation.
+    ///
+    /// 请求 View 自有确认。
+    pub fn request_confirm(&mut self) {
+        self.local_facts
+            .set(Self::INPUT_CONFIRM_REQUESTED, FactValue::Bool(true));
+        if self.local_facts.contains("confirm_pressed") {
+            self.local_facts
+                .set("confirm_pressed", FactValue::Bool(true));
+        }
+    }
+
+    /// Request View-owned cancellation.
+    ///
+    /// 请求 View 自有取消。
+    pub fn request_cancel(&mut self) {
+        self.local_facts
+            .set(Self::INPUT_CANCEL_REQUESTED, FactValue::Bool(true));
+    }
+
+    /// Request View-owned menu activation.
+    ///
+    /// 请求 View 自有菜单激活。
+    pub fn request_menu(&mut self) {
+        self.local_facts
+            .set(Self::INPUT_MENU_REQUESTED, FactValue::Bool(true));
     }
 }
 

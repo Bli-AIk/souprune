@@ -149,6 +149,12 @@ impl Plugin for CoreViewPlugin {
             )
             .add_systems(
                 schedule,
+                super::input::dispatch_view_input_system
+                    .after(crate::core::input::InputTransactionSet)
+                    .before(crate::core::fre_bridge::process_view_actions_system),
+            )
+            .add_systems(
+                schedule,
                 ron_view::spawn_dynamic_view_system
                     .before(crate::core::fre_bridge::process_view_actions_system)
                     .in_set(ViewUpdate),
