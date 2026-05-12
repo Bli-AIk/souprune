@@ -103,6 +103,37 @@ pub const STATE_SEQUENCE_SUB_STATE: &str = "state:sequence_sub_state";
 /// 当前 AppState 名称
 pub const STATE_APP_STATE: &str = "state:app_state";
 
+// ── Semantic input events ─────────────────────────────────────────
+
+/// Navigate up input event.
+///
+/// 向上导航输入事件。
+pub const INPUT_NAVIGATE_UP: &str = "input:navigate_up";
+/// Navigate down input event.
+///
+/// 向下导航输入事件。
+pub const INPUT_NAVIGATE_DOWN: &str = "input:navigate_down";
+/// Navigate left input event.
+///
+/// 向左导航输入事件。
+pub const INPUT_NAVIGATE_LEFT: &str = "input:navigate_left";
+/// Navigate right input event.
+///
+/// 向右导航输入事件。
+pub const INPUT_NAVIGATE_RIGHT: &str = "input:navigate_right";
+/// Confirm input event.
+///
+/// 确认输入事件。
+pub const INPUT_CONFIRM: &str = "input:confirm";
+/// Cancel input event.
+///
+/// 取消输入事件。
+pub const INPUT_CANCEL: &str = "input:cancel";
+/// Menu input event.
+///
+/// 菜单输入事件。
+pub const INPUT_MENU: &str = "input:menu";
+
 // ── View internal control facts ────────────────────────────────────
 
 /// 请求关闭当前 View 的局部标志

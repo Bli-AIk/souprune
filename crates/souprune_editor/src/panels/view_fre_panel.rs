@@ -212,9 +212,6 @@ fn render_rule_def(ui: &mut egui::Ui, rule: &GameRuleDef, index: usize) {
 fn format_event(ev: &RuleEventDef) -> String {
     match ev {
         RuleEventDef::Event(s) => s.clone(),
-        RuleEventDef::ActionEvent { action, kind } => {
-            format!("action:{action}:{kind:?}")
-        }
     }
 }
 

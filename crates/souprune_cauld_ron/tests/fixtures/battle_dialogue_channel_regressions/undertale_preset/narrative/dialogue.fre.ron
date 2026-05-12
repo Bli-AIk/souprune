@@ -15,7 +15,7 @@
 //    structure globally, please edit the Cauld-ron source schema/configuration
 //    instead of modifying this file directly.
 // =============================================================================
-// Generated at: 2026-04-30 21:05:12 +08:00
+// Generated at: 2026-05-12 13:43:27 +00:00
 
 (
     scope: Local,
@@ -26,10 +26,7 @@
     rules: [
         (
             id: "dialogue_advance_on_confirm",
-            event: ActionEvent(
-                action: "Confirm",
-                kind: JustPressed,
-            ),
+            event: Event("input:confirm"),
             conditions: [
                 "$dialogue:has_focus == true",
                 "$dialogue:typewriter_playing == false",
@@ -45,10 +42,7 @@
         ),
         (
             id: "dialogue_skip_on_confirm",
-            event: ActionEvent(
-                action: "Confirm",
-                kind: JustPressed,
-            ),
+            event: Event("input:confirm"),
             conditions: [
                 "$dialogue:has_focus == true",
                 "$dialogue:typewriter_playing == true",
@@ -64,10 +58,7 @@
         ),
         (
             id: "dialogue_skip_on_cancel",
-            event: ActionEvent(
-                action: "Cancel",
-                kind: JustPressed,
-            ),
+            event: Event("input:cancel"),
             conditions: [
                 "$dialogue:has_focus == true",
                 "$dialogue:typewriter_playing == true",
@@ -83,10 +74,7 @@
         ),
         (
             id: "battle_narration_advance_on_confirm",
-            event: ActionEvent(
-                action: "Confirm",
-                kind: JustPressed,
-            ),
+            event: Event("input:confirm"),
             conditions: [
                 "$dialogue:battle_narration:has_focus == true",
                 "$dialogue:battle_narration:typewriter_playing == false",
@@ -102,10 +90,7 @@
         ),
         (
             id: "battle_narration_skip_on_cancel",
-            event: ActionEvent(
-                action: "Cancel",
-                kind: JustPressed,
-            ),
+            event: Event("input:cancel"),
             conditions: [
                 "$depth == 0",
                 "$dialogue:battle_narration:has_focus == true",
@@ -122,10 +107,7 @@
         ),
         (
             id: "battle_enemy_speech_advance_on_confirm",
-            event: ActionEvent(
-                action: "Confirm",
-                kind: JustPressed,
-            ),
+            event: Event("input:confirm"),
             conditions: [
                 "$dialogue:battle_enemy_speech:has_focus == true",
                 "$dialogue:battle_enemy_speech:typewriter_playing == false",
@@ -141,10 +123,7 @@
         ),
         (
             id: "battle_enemy_speech_skip_on_confirm",
-            event: ActionEvent(
-                action: "Confirm",
-                kind: JustPressed,
-            ),
+            event: Event("input:confirm"),
             conditions: [
                 "$dialogue:battle_enemy_speech:has_focus == true",
                 "$dialogue:battle_enemy_speech:typewriter_playing == true",
@@ -160,10 +139,7 @@
         ),
         (
             id: "battle_enemy_speech_skip_on_cancel",
-            event: ActionEvent(
-                action: "Cancel",
-                kind: JustPressed,
-            ),
+            event: Event("input:cancel"),
             conditions: [
                 "$depth == 0",
                 "$dialogue:battle_enemy_speech:has_focus == true",

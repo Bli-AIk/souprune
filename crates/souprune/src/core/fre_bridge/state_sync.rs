@@ -1,22 +1,17 @@
-//! Mirrors runtime app/input state into FRE facts and emits FRE input events.
+//! Mirrors runtime app state into FRE facts and emits state-change FRE events.
 //!
-//! 把运行时的状态与输入同步进 FRE 事实，同时产生对应的 FRE 输入事件。
+//! 把运行时状态同步进 FRE 事实，同时产生状态变化对应的 FRE 事件。
 //!
-//! Keeps the rule engine aware of two moving pieces: which app state
-//! the game is currently in, and which high-level actions were just pressed or
-//! released. Without this synchronization layer, FRE rules could not react to
-//! mode changes or to the input abstraction built by Souprune's action system.
+//! Keeps the rule engine aware of which app state the game is currently in.
+//! Input is bridged through `fre_bridge::input` from unified input envelopes.
 //!
-//! 让规则引擎持续感知两类变化：游戏当前处于哪个应用状态，以及哪些
-//! 高层输入动作刚刚被按下或释放。没有这层同步，FRE 规则就无法对模式变化
-//! 或 Souprune 输入系统抽象出来的动作作出响应。
+//! 让规则引擎持续感知游戏当前处于哪个应用状态。
+//! 输入则由 `fre_bridge::input` 从统一输入事务桥接。
 
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
-use leafwing_input_manager::action_state::ActionState;
 
 use crate::core::fre_facts;
-use crate::core::input::{Action, ActionRegistry, ActionStateExt};
 use crate::core::mode::{AppState, SequenceSubState};
 
 pub(crate) fn state_facts_need_sync(
@@ -63,38 +58,6 @@ pub fn sync_state_to_facts_system(
     if let Some(state) = app_state {
         let state_name = format!("{:?}", state.get());
         facts.set_if_changed(fre_facts::STATE_APP_STATE, FactValue::String(state_name));
-    }
-}
-
-pub fn action_to_fre_event_system(
-    registry: Res<ActionRegistry>,
-    query: Query<&ActionState<Action>>,
-    mut event_writer: MessageWriter<FactEvent>,
-) {
-    let Some(action_state) = query.iter().next() else {
-        return;
-    };
-
-    for action_name in registry.all_actions() {
-        let action_name_lower = action_name.to_lowercase();
-
-        if action_state.action_just_pressed(&registry, action_name) {
-            let event_id = format!("action:{}:just_pressed", action_name_lower);
-            info!(
-                "FRE Bridge: {} just_pressed, emitting {}",
-                action_name, event_id
-            );
-            event_writer.write(FactEvent::new(event_id));
-        }
-
-        if action_state.action_just_released(&registry, action_name) {
-            let event_id = format!("action:{}:just_released", action_name_lower);
-            debug!(
-                "FRE Bridge: {} just_released, emitting {}",
-                action_name, event_id
-            );
-            event_writer.write(FactEvent::new(event_id));
-        }
     }
 }
 

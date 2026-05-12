@@ -32,25 +32,30 @@ pub fn preview_input_to_fre_system(
     }
 
     for (keycode, action_name) in key_map.0.iter() {
-        let action_lower = action_name.to_lowercase();
+        let Some(event_id) = semantic_input_event_id(action_name) else {
+            continue;
+        };
 
         if keys.just_pressed(*keycode) {
-            let event_id = format!("action:{}:just_pressed", action_lower);
             info!(
                 "[ViewPreview] FRE: {} just_pressed → {}",
                 action_name, event_id
             );
             event_writer.write(bevy_fact_rule_event::FactEvent::new(event_id));
         }
+    }
+}
 
-        if keys.just_released(*keycode) {
-            let event_id = format!("action:{}:just_released", action_lower);
-            debug!(
-                "[ViewPreview] FRE: {} just_released → {}",
-                action_name, event_id
-            );
-            event_writer.write(bevy_fact_rule_event::FactEvent::new(event_id));
-        }
+fn semantic_input_event_id(action_name: &str) -> Option<&'static str> {
+    match action_name {
+        "Up" => Some(souprune::core::fre_facts::INPUT_NAVIGATE_UP),
+        "Down" => Some(souprune::core::fre_facts::INPUT_NAVIGATE_DOWN),
+        "Left" => Some(souprune::core::fre_facts::INPUT_NAVIGATE_LEFT),
+        "Right" => Some(souprune::core::fre_facts::INPUT_NAVIGATE_RIGHT),
+        "Confirm" => Some(souprune::core::fre_facts::INPUT_CONFIRM),
+        "Cancel" => Some(souprune::core::fre_facts::INPUT_CANCEL),
+        "Menu" => Some(souprune::core::fre_facts::INPUT_MENU),
+        _ => None,
     }
 }
 

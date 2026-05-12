@@ -15,6 +15,7 @@ mod collision_bridge;
 mod custom_dispatch;
 pub(crate) mod eval;
 pub mod extensions;
+mod input;
 mod state_sync;
 mod view_actions;
 
@@ -58,7 +59,7 @@ impl Plugin for FREBridgePlugin {
                 (
                     state_sync::sync_state_to_facts_system
                         .run_if(state_sync::state_facts_need_sync),
-                    state_sync::action_to_fre_event_system,
+                    input::dispatch_fre_input_system,
                     state_sync::mode_change_to_fre_event_system,
                     collision_bridge::collision_to_fact_bridge_system,
                     view_actions::process_view_actions_system,

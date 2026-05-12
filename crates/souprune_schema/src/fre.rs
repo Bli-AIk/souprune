@@ -42,25 +42,13 @@ pub enum FreFactModificationDef {
 }
 
 // ============================================================================
-// Action / Event Types
+// Event Types
 // ============================================================================
-
-/// Kind of action event (press state).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum ActionEventKind {
-    JustPressed,
-    Pressed,
-    JustReleased,
-}
 
 /// Serializable event definition.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RuleEventDef {
     Event(String),
-    ActionEvent {
-        action: String,
-        kind: ActionEventKind,
-    },
 }
 
 impl Default for RuleEventDef {
