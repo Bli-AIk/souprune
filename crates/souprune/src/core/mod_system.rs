@@ -53,6 +53,8 @@ impl Plugin for ModPlugin {
                 schedule,
                 (
                     behaviors::init_behaviors_system,
+                    behaviors::dispatch_behavior_input_system
+                        .after(crate::core::input::InputTransactionSet),
                     behaviors::update_behaviors_system,
                 )
                     .chain()
