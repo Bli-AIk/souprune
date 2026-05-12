@@ -15,10 +15,122 @@ use std::collections::HashMap;
 // Input Configuration (input.ron)
 // ============================================================================
 
+/// Keyboard key used by an input binding.
+///
+/// 输入绑定使用的键盘按键。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+pub enum KeyboardKey {
+    ArrowUp,
+    ArrowDown,
+    ArrowLeft,
+    ArrowRight,
+    KeyA,
+    KeyB,
+    KeyC,
+    KeyD,
+    KeyE,
+    KeyF,
+    KeyG,
+    KeyH,
+    KeyI,
+    KeyJ,
+    KeyK,
+    KeyL,
+    KeyM,
+    KeyN,
+    KeyO,
+    KeyP,
+    KeyQ,
+    KeyR,
+    KeyS,
+    KeyT,
+    KeyU,
+    KeyV,
+    KeyW,
+    KeyX,
+    KeyY,
+    KeyZ,
+    Digit0,
+    Digit1,
+    Digit2,
+    Digit3,
+    Digit4,
+    Digit5,
+    Digit6,
+    Digit7,
+    Digit8,
+    Digit9,
+    Numpad0,
+    Numpad1,
+    Numpad2,
+    Numpad3,
+    Numpad4,
+    Numpad5,
+    Numpad6,
+    Numpad7,
+    Numpad8,
+    Numpad9,
+    NumpadAdd,
+    NumpadSubtract,
+    NumpadMultiply,
+    NumpadDivide,
+    NumpadDecimal,
+    NumpadEnter,
+    F1,
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
+    F10,
+    F11,
+    F12,
+    Insert,
+    Delete,
+    Home,
+    End,
+    PageUp,
+    PageDown,
+    Enter,
+    Escape,
+    Space,
+    Tab,
+    Backspace,
+    CapsLock,
+    NumLock,
+    ScrollLock,
+    Pause,
+    PrintScreen,
+    ShiftLeft,
+    ShiftRight,
+    ControlLeft,
+    ControlRight,
+    AltLeft,
+    AltRight,
+    SuperLeft,
+    SuperRight,
+    Minus,
+    Equal,
+    BracketLeft,
+    BracketRight,
+    Backslash,
+    Semicolon,
+    Quote,
+    Backquote,
+    Comma,
+    Period,
+    Slash,
+}
+
 /// Input binding.
+///
+/// 输入绑定。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum InputBinding {
-    Key(String),
+    Key(KeyboardKey),
     Gamepad(String),
     Touch(String),
 }
@@ -60,7 +172,9 @@ pub struct TouchOverlayConfig {
     pub scale: Option<f32>,
 }
 
-/// Input configuration — top-level `input.ron` schema.
+/// Input configuration - top-level `input.ron` schema.
+///
+/// 输入配置 - 顶层 `input.ron` schema。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct InputConfig {
     #[serde(serialize_with = "crate::ordered_map::serialize_ordered_map")]

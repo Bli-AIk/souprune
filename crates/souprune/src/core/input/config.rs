@@ -70,7 +70,7 @@ impl fmt::Display for ConfigError {
 impl std::error::Error for ConfigError {}
 
 pub use souprune_schema::config::{
-    InputBinding, NavigationConfig, TouchAnchor, TouchButtonDef, TouchControllerDef,
+    InputBinding, KeyboardKey, NavigationConfig, TouchAnchor, TouchButtonDef, TouchControllerDef,
     TouchOverlayConfig, UIConfig,
 };
 
@@ -121,12 +121,12 @@ impl TouchLayoutDef {
 /// ```ron
 /// (
 ///     actions: {
-///         "Up": [Key("ArrowUp"), Key("KeyW"), Gamepad("DPadUp")],
-///         "Down": [Key("ArrowDown"), Key("KeyS"), Gamepad("DPadDown")],
-///         "Left": [Key("ArrowLeft"), Key("KeyA"), Gamepad("DPadLeft")],
-///         "Right": [Key("ArrowRight"), Key("KeyD"), Gamepad("DPadRight")],
-///         "Confirm": [Key("KeyZ"), Key("Enter"), Gamepad("South")],
-///         "Cancel": [Key("KeyX"), Key("ShiftLeft"), Gamepad("East")],
+///         "Up": [Key(ArrowUp), Key(KeyW), Gamepad("DPadUp")],
+///         "Down": [Key(ArrowDown), Key(KeyS), Gamepad("DPadDown")],
+///         "Left": [Key(ArrowLeft), Key(KeyA), Gamepad("DPadLeft")],
+///         "Right": [Key(ArrowRight), Key(KeyD), Gamepad("DPadRight")],
+///         "Confirm": [Key(KeyZ), Key(Enter), Gamepad("South")],
+///         "Cancel": [Key(KeyX), Key(ShiftLeft), Gamepad("East")],
 ///     },
 ///
 ///     // Optional: Navigation configuration (flat, not nested)
@@ -235,12 +235,8 @@ impl InputConfig {
     /// Insert a single binding into the input map for the given action slot.
     fn insert_binding(&self, map: &mut InputMap<Action>, slot: Action, binding: &InputBinding) {
         match binding {
-            InputBinding::Key(key_str) => {
-                if let Some(keycode) = Self::parse_keycode(key_str) {
-                    map.insert(slot, keycode);
-                } else {
-                    warn!("Unknown key code in input config: {}", key_str);
-                }
+            InputBinding::Key(key) => {
+                map.insert(slot, Self::keycode_from_keyboard_key(*key));
             }
             InputBinding::Gamepad(button_str) => {
                 if let Some(button) = Self::parse_gamepad_button(button_str) {
@@ -271,151 +267,149 @@ impl InputConfig {
         map: &mut HashMap<KeyCode, String>,
     ) {
         for binding in bindings {
-            let InputBinding::Key(key_str) = binding else {
+            let InputBinding::Key(key) = binding else {
                 continue;
             };
-            if let Some(kc) = Self::parse_keycode(key_str) {
-                map.insert(kc, name.to_owned());
-            }
+            map.insert(Self::keycode_from_keyboard_key(*key), name.to_owned());
         }
     }
 
-    /// Parse key code string to KeyCode enum.
+    /// Convert a schema keyboard key to Bevy's KeyCode.
     ///
-    /// 将按键代码字符串解析为 KeyCode 枚举。
-    fn parse_keycode(key: &str) -> Option<KeyCode> {
+    /// 将 schema 键盘按键转换为 Bevy 的 KeyCode。
+    fn keycode_from_keyboard_key(key: KeyboardKey) -> KeyCode {
+        use KeyboardKey::*;
+
         match key {
             // Arrow keys
             // 方向键
-            "ArrowUp" => Some(KeyCode::ArrowUp),
-            "ArrowDown" => Some(KeyCode::ArrowDown),
-            "ArrowLeft" => Some(KeyCode::ArrowLeft),
-            "ArrowRight" => Some(KeyCode::ArrowRight),
+            ArrowUp => KeyCode::ArrowUp,
+            ArrowDown => KeyCode::ArrowDown,
+            ArrowLeft => KeyCode::ArrowLeft,
+            ArrowRight => KeyCode::ArrowRight,
 
             // Letter keys
             // 字母键
-            "KeyA" => Some(KeyCode::KeyA),
-            "KeyB" => Some(KeyCode::KeyB),
-            "KeyC" => Some(KeyCode::KeyC),
-            "KeyD" => Some(KeyCode::KeyD),
-            "KeyE" => Some(KeyCode::KeyE),
-            "KeyF" => Some(KeyCode::KeyF),
-            "KeyG" => Some(KeyCode::KeyG),
-            "KeyH" => Some(KeyCode::KeyH),
-            "KeyI" => Some(KeyCode::KeyI),
-            "KeyJ" => Some(KeyCode::KeyJ),
-            "KeyK" => Some(KeyCode::KeyK),
-            "KeyL" => Some(KeyCode::KeyL),
-            "KeyM" => Some(KeyCode::KeyM),
-            "KeyN" => Some(KeyCode::KeyN),
-            "KeyO" => Some(KeyCode::KeyO),
-            "KeyP" => Some(KeyCode::KeyP),
-            "KeyQ" => Some(KeyCode::KeyQ),
-            "KeyR" => Some(KeyCode::KeyR),
-            "KeyS" => Some(KeyCode::KeyS),
-            "KeyT" => Some(KeyCode::KeyT),
-            "KeyU" => Some(KeyCode::KeyU),
-            "KeyV" => Some(KeyCode::KeyV),
-            "KeyW" => Some(KeyCode::KeyW),
-            "KeyX" => Some(KeyCode::KeyX),
-            "KeyY" => Some(KeyCode::KeyY),
-            "KeyZ" => Some(KeyCode::KeyZ),
+            KeyA => KeyCode::KeyA,
+            KeyB => KeyCode::KeyB,
+            KeyC => KeyCode::KeyC,
+            KeyD => KeyCode::KeyD,
+            KeyE => KeyCode::KeyE,
+            KeyF => KeyCode::KeyF,
+            KeyG => KeyCode::KeyG,
+            KeyH => KeyCode::KeyH,
+            KeyI => KeyCode::KeyI,
+            KeyJ => KeyCode::KeyJ,
+            KeyK => KeyCode::KeyK,
+            KeyL => KeyCode::KeyL,
+            KeyM => KeyCode::KeyM,
+            KeyN => KeyCode::KeyN,
+            KeyO => KeyCode::KeyO,
+            KeyP => KeyCode::KeyP,
+            KeyQ => KeyCode::KeyQ,
+            KeyR => KeyCode::KeyR,
+            KeyS => KeyCode::KeyS,
+            KeyT => KeyCode::KeyT,
+            KeyU => KeyCode::KeyU,
+            KeyV => KeyCode::KeyV,
+            KeyW => KeyCode::KeyW,
+            KeyX => KeyCode::KeyX,
+            KeyY => KeyCode::KeyY,
+            KeyZ => KeyCode::KeyZ,
 
             // Number keys (main keyboard)
             // 数字键（主键盘）
-            "Digit0" => Some(KeyCode::Digit0),
-            "Digit1" => Some(KeyCode::Digit1),
-            "Digit2" => Some(KeyCode::Digit2),
-            "Digit3" => Some(KeyCode::Digit3),
-            "Digit4" => Some(KeyCode::Digit4),
-            "Digit5" => Some(KeyCode::Digit5),
-            "Digit6" => Some(KeyCode::Digit6),
-            "Digit7" => Some(KeyCode::Digit7),
-            "Digit8" => Some(KeyCode::Digit8),
-            "Digit9" => Some(KeyCode::Digit9),
+            Digit0 => KeyCode::Digit0,
+            Digit1 => KeyCode::Digit1,
+            Digit2 => KeyCode::Digit2,
+            Digit3 => KeyCode::Digit3,
+            Digit4 => KeyCode::Digit4,
+            Digit5 => KeyCode::Digit5,
+            Digit6 => KeyCode::Digit6,
+            Digit7 => KeyCode::Digit7,
+            Digit8 => KeyCode::Digit8,
+            Digit9 => KeyCode::Digit9,
 
             // Numpad keys
             // 小键盘
-            "Numpad0" => Some(KeyCode::Numpad0),
-            "Numpad1" => Some(KeyCode::Numpad1),
-            "Numpad2" => Some(KeyCode::Numpad2),
-            "Numpad3" => Some(KeyCode::Numpad3),
-            "Numpad4" => Some(KeyCode::Numpad4),
-            "Numpad5" => Some(KeyCode::Numpad5),
-            "Numpad6" => Some(KeyCode::Numpad6),
-            "Numpad7" => Some(KeyCode::Numpad7),
-            "Numpad8" => Some(KeyCode::Numpad8),
-            "Numpad9" => Some(KeyCode::Numpad9),
-            "NumpadAdd" => Some(KeyCode::NumpadAdd),
-            "NumpadSubtract" => Some(KeyCode::NumpadSubtract),
-            "NumpadMultiply" => Some(KeyCode::NumpadMultiply),
-            "NumpadDivide" => Some(KeyCode::NumpadDivide),
-            "NumpadDecimal" => Some(KeyCode::NumpadDecimal),
-            "NumpadEnter" => Some(KeyCode::NumpadEnter),
+            Numpad0 => KeyCode::Numpad0,
+            Numpad1 => KeyCode::Numpad1,
+            Numpad2 => KeyCode::Numpad2,
+            Numpad3 => KeyCode::Numpad3,
+            Numpad4 => KeyCode::Numpad4,
+            Numpad5 => KeyCode::Numpad5,
+            Numpad6 => KeyCode::Numpad6,
+            Numpad7 => KeyCode::Numpad7,
+            Numpad8 => KeyCode::Numpad8,
+            Numpad9 => KeyCode::Numpad9,
+            NumpadAdd => KeyCode::NumpadAdd,
+            NumpadSubtract => KeyCode::NumpadSubtract,
+            NumpadMultiply => KeyCode::NumpadMultiply,
+            NumpadDivide => KeyCode::NumpadDivide,
+            NumpadDecimal => KeyCode::NumpadDecimal,
+            NumpadEnter => KeyCode::NumpadEnter,
 
             // Function keys
             // 功能键
-            "F1" => Some(KeyCode::F1),
-            "F2" => Some(KeyCode::F2),
-            "F3" => Some(KeyCode::F3),
-            "F4" => Some(KeyCode::F4),
-            "F5" => Some(KeyCode::F5),
-            "F6" => Some(KeyCode::F6),
-            "F7" => Some(KeyCode::F7),
-            "F8" => Some(KeyCode::F8),
-            "F9" => Some(KeyCode::F9),
-            "F10" => Some(KeyCode::F10),
-            "F11" => Some(KeyCode::F11),
-            "F12" => Some(KeyCode::F12),
+            F1 => KeyCode::F1,
+            F2 => KeyCode::F2,
+            F3 => KeyCode::F3,
+            F4 => KeyCode::F4,
+            F5 => KeyCode::F5,
+            F6 => KeyCode::F6,
+            F7 => KeyCode::F7,
+            F8 => KeyCode::F8,
+            F9 => KeyCode::F9,
+            F10 => KeyCode::F10,
+            F11 => KeyCode::F11,
+            F12 => KeyCode::F12,
 
             // Navigation keys
             // 导航键
-            "Insert" => Some(KeyCode::Insert),
-            "Delete" => Some(KeyCode::Delete),
-            "Home" => Some(KeyCode::Home),
-            "End" => Some(KeyCode::End),
-            "PageUp" => Some(KeyCode::PageUp),
-            "PageDown" => Some(KeyCode::PageDown),
+            Insert => KeyCode::Insert,
+            Delete => KeyCode::Delete,
+            Home => KeyCode::Home,
+            End => KeyCode::End,
+            PageUp => KeyCode::PageUp,
+            PageDown => KeyCode::PageDown,
 
             // Special keys
             // 特殊键
-            "Enter" => Some(KeyCode::Enter),
-            "Escape" => Some(KeyCode::Escape),
-            "Space" => Some(KeyCode::Space),
-            "Tab" => Some(KeyCode::Tab),
-            "Backspace" => Some(KeyCode::Backspace),
-            "CapsLock" => Some(KeyCode::CapsLock),
-            "NumLock" => Some(KeyCode::NumLock),
-            "ScrollLock" => Some(KeyCode::ScrollLock),
-            "Pause" => Some(KeyCode::Pause),
-            "PrintScreen" => Some(KeyCode::PrintScreen),
+            Enter => KeyCode::Enter,
+            Escape => KeyCode::Escape,
+            Space => KeyCode::Space,
+            Tab => KeyCode::Tab,
+            Backspace => KeyCode::Backspace,
+            CapsLock => KeyCode::CapsLock,
+            NumLock => KeyCode::NumLock,
+            ScrollLock => KeyCode::ScrollLock,
+            Pause => KeyCode::Pause,
+            PrintScreen => KeyCode::PrintScreen,
 
             // Modifier keys
             // 修饰键
-            "ShiftLeft" => Some(KeyCode::ShiftLeft),
-            "ShiftRight" => Some(KeyCode::ShiftRight),
-            "ControlLeft" => Some(KeyCode::ControlLeft),
-            "ControlRight" => Some(KeyCode::ControlRight),
-            "AltLeft" => Some(KeyCode::AltLeft),
-            "AltRight" => Some(KeyCode::AltRight),
-            "SuperLeft" => Some(KeyCode::SuperLeft),
-            "SuperRight" => Some(KeyCode::SuperRight),
+            ShiftLeft => KeyCode::ShiftLeft,
+            ShiftRight => KeyCode::ShiftRight,
+            ControlLeft => KeyCode::ControlLeft,
+            ControlRight => KeyCode::ControlRight,
+            AltLeft => KeyCode::AltLeft,
+            AltRight => KeyCode::AltRight,
+            SuperLeft => KeyCode::SuperLeft,
+            SuperRight => KeyCode::SuperRight,
 
             // Punctuation and symbols
             // 标点符号
-            "Minus" => Some(KeyCode::Minus),
-            "Equal" => Some(KeyCode::Equal),
-            "BracketLeft" => Some(KeyCode::BracketLeft),
-            "BracketRight" => Some(KeyCode::BracketRight),
-            "Backslash" => Some(KeyCode::Backslash),
-            "Semicolon" => Some(KeyCode::Semicolon),
-            "Quote" => Some(KeyCode::Quote),
-            "Backquote" => Some(KeyCode::Backquote),
-            "Comma" => Some(KeyCode::Comma),
-            "Period" => Some(KeyCode::Period),
-            "Slash" => Some(KeyCode::Slash),
-
-            _ => None,
+            Minus => KeyCode::Minus,
+            Equal => KeyCode::Equal,
+            BracketLeft => KeyCode::BracketLeft,
+            BracketRight => KeyCode::BracketRight,
+            Backslash => KeyCode::Backslash,
+            Semicolon => KeyCode::Semicolon,
+            Quote => KeyCode::Quote,
+            Backquote => KeyCode::Backquote,
+            Comma => KeyCode::Comma,
+            Period => KeyCode::Period,
+            Slash => KeyCode::Slash,
         }
     }
 
@@ -469,8 +463,8 @@ mod tests {
             #![enable(implicit_some)]
             (
                 actions: {
-                    "TestUp": [Key("ArrowUp"), Key("KeyW")],
-                    "TestConfirm": [Key("Enter"), Gamepad("South")],
+                    "TestUp": [Key(ArrowUp), Key(KeyW)],
+                    "TestConfirm": [Key(Enter), Gamepad("South")],
                 },
                 navigation: (
                     up: "TestUp",
@@ -498,6 +492,21 @@ mod tests {
     }
 
     #[test]
+    fn test_input_config_rejects_unknown_keyboard_key_variant() {
+        let ron = r#"
+            #![enable(implicit_some)]
+            (
+                actions: {
+                    "TestUp": [Key(NotARealKey)],
+                },
+            )
+        "#;
+
+        let err = ron::de::from_str::<InputConfig>(ron);
+        assert!(err.is_err());
+    }
+
+    #[test]
     fn test_input_config_build_registry() {
         let config = InputConfig(SchemaInputConfig {
             actions: [
@@ -519,34 +528,31 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_keycode_extended() {
-        // Function keys
-        assert_eq!(InputConfig::parse_keycode("F1"), Some(KeyCode::F1));
-        assert_eq!(InputConfig::parse_keycode("F12"), Some(KeyCode::F12));
-
-        // Numpad
+    fn test_keyboard_key_to_keycode_mapping() {
         assert_eq!(
-            InputConfig::parse_keycode("Numpad0"),
-            Some(KeyCode::Numpad0)
+            InputConfig::keycode_from_keyboard_key(KeyboardKey::F1),
+            KeyCode::F1
         );
         assert_eq!(
-            InputConfig::parse_keycode("NumpadEnter"),
-            Some(KeyCode::NumpadEnter)
+            InputConfig::keycode_from_keyboard_key(KeyboardKey::F12),
+            KeyCode::F12
         );
-
-        // Navigation
-        assert_eq!(InputConfig::parse_keycode("Insert"), Some(KeyCode::Insert));
-        assert_eq!(InputConfig::parse_keycode("Delete"), Some(KeyCode::Delete));
-        assert_eq!(InputConfig::parse_keycode("Home"), Some(KeyCode::Home));
-        assert_eq!(InputConfig::parse_keycode("End"), Some(KeyCode::End));
-        assert_eq!(InputConfig::parse_keycode("PageUp"), Some(KeyCode::PageUp));
         assert_eq!(
-            InputConfig::parse_keycode("PageDown"),
-            Some(KeyCode::PageDown)
+            InputConfig::keycode_from_keyboard_key(KeyboardKey::Numpad0),
+            KeyCode::Numpad0
         );
-
-        // Unknown key
-        assert_eq!(InputConfig::parse_keycode("UnknownKey"), None);
+        assert_eq!(
+            InputConfig::keycode_from_keyboard_key(KeyboardKey::NumpadEnter),
+            KeyCode::NumpadEnter
+        );
+        assert_eq!(
+            InputConfig::keycode_from_keyboard_key(KeyboardKey::Insert),
+            KeyCode::Insert
+        );
+        assert_eq!(
+            InputConfig::keycode_from_keyboard_key(KeyboardKey::PageDown),
+            KeyCode::PageDown
+        );
     }
 
     #[test]

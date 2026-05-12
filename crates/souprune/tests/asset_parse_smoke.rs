@@ -5,6 +5,7 @@
 #[path = "test_support.rs"]
 mod test_support;
 
+use bevy::input::keyboard::KeyCode;
 use souprune::core;
 
 fn read_project_file(project_name: &str, relative: &str) -> String {
@@ -35,6 +36,22 @@ fn input_config_assets_parse() {
         assert!(
             !input.actions.is_empty(),
             "input config should define actions for {project_name}"
+        );
+        let keycode_to_action = input.build_keycode_to_action_map();
+        assert_eq!(
+            keycode_to_action.get(&KeyCode::KeyZ).map(String::as_str),
+            Some("Confirm"),
+            "Confirm key should be mapped for {project_name}"
+        );
+        assert_eq!(
+            keycode_to_action.get(&KeyCode::KeyX).map(String::as_str),
+            Some("Cancel"),
+            "Cancel key should be mapped for {project_name}"
+        );
+        assert_eq!(
+            keycode_to_action.get(&KeyCode::KeyC).map(String::as_str),
+            Some("Menu"),
+            "Menu key should be mapped for {project_name}"
         );
         parsed_any = true;
     }
