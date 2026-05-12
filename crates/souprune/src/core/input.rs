@@ -22,10 +22,12 @@ pub mod actions;
 pub mod config;
 pub(crate) mod resources;
 pub mod touch;
+pub mod transaction;
 
 pub use actions::*;
 pub use config::*;
 pub(crate) use resources::*;
+pub use transaction::*;
 
 use crate::core::ron_loader::RonAssetLoader;
 use bevy::app::{App, Plugin};

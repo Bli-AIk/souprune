@@ -1,9 +1,117 @@
-//! Core data types for danmaku and spawn pattern interfaces.
+//! Core data types for input, danmaku, and spawn pattern interfaces.
 //!
-//! 弹幕和生成模式接口的核心数据类型。
+//! 输入、弹幕和生成模式接口的核心数据类型。
 
 use crate::context::Vec2;
-use crate::exports;
+use crate::{Action, exports};
+
+/// High-level input context identifier.
+///
+/// 高层输入上下文标识。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputContextId {
+    Overworld,
+    Battle,
+    Dialogue,
+    View,
+    Custom(String),
+}
+
+/// Target receiving an input command.
+///
+/// 接收输入命令的目标。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputTarget {
+    ActiveView,
+    FreScope,
+    Behavior(String),
+}
+
+/// Navigation direction used by input commands.
+///
+/// 输入命令使用的导航方向。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+/// Semantic input command after raw actions are normalized.
+///
+/// 原始动作被标准化之后得到的语义输入命令。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputCommand {
+    Navigate(Direction),
+    Confirm,
+    Cancel,
+    Menu,
+}
+
+impl From<Action> for InputCommand {
+    fn from(action: Action) -> Self {
+        match action {
+            Action::Up => Self::Navigate(Direction::Up),
+            Action::Down => Self::Navigate(Direction::Down),
+            Action::Left => Self::Navigate(Direction::Left),
+            Action::Right => Self::Navigate(Direction::Right),
+            Action::Confirm => Self::Confirm,
+            Action::Cancel => Self::Cancel,
+            Action::Menu => Self::Menu,
+        }
+    }
+}
+
+/// A lightweight input effect request emitted by input handlers.
+///
+/// 输入处理器发出的轻量输入效果请求。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputEffect {
+    EmitEvent(String),
+    OpenView(String),
+    CloseView,
+}
+
+/// A single input transaction traveling through the routing layer.
+///
+/// 经过路由层流转的一笔输入事务。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct InputEnvelope {
+    pub context: InputContextId,
+    pub target: InputTarget,
+    pub command: InputCommand,
+    pub source_action: String,
+}
+
+impl InputEnvelope {
+    /// Create a new input envelope.
+    ///
+    /// 创建一个新的输入事务封装。
+    pub fn new(
+        context: InputContextId,
+        target: InputTarget,
+        command: InputCommand,
+        source_action: impl Into<String>,
+    ) -> Self {
+        Self {
+            context,
+            target,
+            command,
+            source_action: source_action.into(),
+        }
+    }
+}
+
+/// Result of handling an input transaction.
+///
+/// 处理输入事务后的结果。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputResult {
+    Ignored,
+    Consumed(Vec<InputEffect>),
+    PassThrough(Vec<InputEffect>),
+}
 
 /// Bullet context for danmaku callbacks.
 #[derive(Debug, Clone)]

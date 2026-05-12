@@ -54,7 +54,10 @@ pub use traits::{
     ActionParam, Behavior, CustomActionHandler, DanmakuBehavior, ModeLifecycle, RuleAction,
     RuleDef, RuleModification, RuleProvider, SpawnPatternBehavior,
 };
-pub use types::{BulletContext, BulletOutput, SpawnContext, SpawnOutput, SpawnParam};
+pub use types::{
+    BulletContext, BulletOutput, Direction, InputCommand, InputContextId, InputEffect,
+    InputEnvelope, InputResult, InputTarget, SpawnContext, SpawnOutput, SpawnParam,
+};
 
 // Generate guest bindings from the WIT interface
 wit_bindgen::generate!({
@@ -108,7 +111,8 @@ pub mod prelude {
         RuleDef, RuleModification, RuleProvider, SpawnPatternBehavior,
     };
     pub use crate::{
-        Action, BulletContext, BulletOutput, SpawnContext, SpawnOutput, SpawnParam, export_mod,
+        Action, BulletContext, BulletOutput, Direction, InputCommand, InputContextId, InputEffect,
+        InputEnvelope, InputResult, InputTarget, SpawnContext, SpawnOutput, SpawnParam, export_mod,
     };
 }
 
