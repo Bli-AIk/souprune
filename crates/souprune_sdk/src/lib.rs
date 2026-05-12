@@ -174,6 +174,17 @@ macro_rules! export_mod {
                 self.inner.borrow_mut().on_enter(&mut ctx);
             }
 
+            fn on_input(
+                &self,
+                input_context: $crate::exports::souprune::plugin::behavior::InputContextId,
+                command: $crate::exports::souprune::plugin::behavior::InputCommand,
+            ) {
+                let mut ctx = $crate::context::Context::new();
+                let input_context = $crate::InputContextId::from_wit(&input_context);
+                let command = $crate::InputCommand::from_wit(command);
+                self.inner.borrow_mut().on_input(&mut ctx, input_context, command);
+            }
+
             fn on_update(&self, delta_time: f32) {
                 let mut ctx = $crate::context::Context::new();
                 self.inner.borrow_mut().on_update(&mut ctx, delta_time);

@@ -101,10 +101,50 @@ interface host-api {
 interface behavior {
     use host-api.{vec2};
 
+    /// High-level input context kind.
+    ///
+    /// 高层输入上下文类别。
+    enum input-context-kind {
+        overworld,
+        battle,
+        dialogue,
+        view,
+        custom,
+    }
+
+    /// High-level input context identifier.
+    ///
+    /// 高层输入上下文标识。
+    record input-context-id {
+        kind: input-context-kind,
+        custom-name: option<string>,
+    }
+
+    /// Navigation direction used by input commands.
+    ///
+    /// 输入命令使用的导航方向。
+    enum direction {
+        up,
+        down,
+        left,
+        right,
+    }
+
+    /// Semantic input command delivered to a behavior.
+    ///
+    /// 传递给行为的语义输入命令。
+    variant input-command {
+        navigate(direction),
+        confirm,
+        cancel,
+        menu,
+    }
+
     /// Lifecycle callbacks for a single behavior instance.
     resource behavior-instance {
         constructor(id: string);
         on-enter: func();
+        on-input: func(context: input-context-id, command: input-command);
         on-update: func(delta-time: f32);
         on-exit: func();
     }

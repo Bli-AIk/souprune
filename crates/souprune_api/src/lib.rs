@@ -27,6 +27,40 @@ pub enum Action {
     Menu = 6,
 }
 
+/// High-level input context identifier, mirrors the WIT `input-context-id` record.
+///
+/// 高层输入上下文标识，对应 WIT 中的 `input-context-id` 记录。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputContextId {
+    Overworld,
+    Battle,
+    Dialogue,
+    View,
+    Custom(String),
+}
+
+/// Navigation direction used by input commands, mirrors the WIT `direction` enum.
+///
+/// 输入命令使用的导航方向，对应 WIT 中的 `direction` 枚举。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+/// Semantic input command, mirrors the WIT `input-command` variant.
+///
+/// 语义输入命令，对应 WIT 中的 `input-command` 变体。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputCommand {
+    Navigate(Direction),
+    Confirm,
+    Cancel,
+    Menu,
+}
+
 /// 2D vector, mirrors the WIT `vec2` record.
 ///
 /// 二维向量，对应 WIT 中的 `vec2` 记录。

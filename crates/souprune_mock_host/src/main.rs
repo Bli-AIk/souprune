@@ -178,6 +178,18 @@ fn main() -> anyhow::Result<()> {
             .behavior_instance()
             .call_on_enter(&mut store, instance)?;
 
+        let input_context = exports::souprune::plugin::behavior::InputContextId {
+            kind: exports::souprune::plugin::behavior::InputContextKind::Battle,
+            custom_name: None,
+        };
+        let input_command = exports::souprune::plugin::behavior::InputCommand::Confirm;
+        behavior_iface.behavior_instance().call_on_input(
+            &mut store,
+            instance,
+            &input_context,
+            input_command,
+        )?;
+
         behavior_iface
             .behavior_instance()
             .call_on_update(&mut store, instance, 0.016)?;

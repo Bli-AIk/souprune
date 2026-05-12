@@ -38,6 +38,19 @@ pub enum Direction {
     Right,
 }
 
+impl Direction {
+    #[doc(hidden)]
+    pub fn from_wit(direction: exports::souprune::plugin::behavior::Direction) -> Self {
+        use exports::souprune::plugin::behavior::Direction as WitDirection;
+        match direction {
+            WitDirection::Up => Self::Up,
+            WitDirection::Down => Self::Down,
+            WitDirection::Left => Self::Left,
+            WitDirection::Right => Self::Right,
+        }
+    }
+}
+
 /// Semantic input command after raw actions are normalized.
 ///
 /// 原始动作被标准化之后得到的语义输入命令。
@@ -47,6 +60,35 @@ pub enum InputCommand {
     Confirm,
     Cancel,
     Menu,
+}
+
+impl InputContextId {
+    #[doc(hidden)]
+    pub fn from_wit(context: &exports::souprune::plugin::behavior::InputContextId) -> Self {
+        use exports::souprune::plugin::behavior::InputContextKind as WitInputContextKind;
+        match context.kind {
+            WitInputContextKind::Overworld => Self::Overworld,
+            WitInputContextKind::Battle => Self::Battle,
+            WitInputContextKind::Dialogue => Self::Dialogue,
+            WitInputContextKind::View => Self::View,
+            WitInputContextKind::Custom => {
+                Self::Custom(context.custom_name.clone().unwrap_or_default())
+            }
+        }
+    }
+}
+
+impl InputCommand {
+    #[doc(hidden)]
+    pub fn from_wit(command: exports::souprune::plugin::behavior::InputCommand) -> Self {
+        use exports::souprune::plugin::behavior::InputCommand as WitInputCommand;
+        match command {
+            WitInputCommand::Navigate(direction) => Self::Navigate(Direction::from_wit(direction)),
+            WitInputCommand::Confirm => Self::Confirm,
+            WitInputCommand::Cancel => Self::Cancel,
+            WitInputCommand::Menu => Self::Menu,
+        }
+    }
 }
 
 impl From<Action> for InputCommand {

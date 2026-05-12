@@ -178,7 +178,7 @@ editor:
 
 # WASM Mod 构建（编译测试 mod 为 WASM 组件）
 wasm-build:
-    cargo build -p souprune_mod_test --target wasm32-wasip2
+    CARGO_TARGET_DIR={{workspace_root}}/target cargo build --manifest-path crates/souprune_mod_test/Cargo.toml --target wasm32-wasip2
 
 # WASM Mod 测试（用 mock host 加载运行）
 wasm-test: wasm-build
