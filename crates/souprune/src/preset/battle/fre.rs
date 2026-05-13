@@ -14,6 +14,7 @@ mod bridge;
 
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::sequencer::SequenceRulesHandle;
+use crate::preset::battle::menu_state::{BattleMenuStateTracker, sync_battle_menu_state_system};
 use crate::preset::battle_runtime::BattleUpdate;
 use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;
@@ -28,9 +29,7 @@ pub use action_handlers::{
     apply_pending_damage_system, has_pending_damage, setup_battle_action_handlers_system,
 };
 pub use bridge::{
-    ActOptionsTracker, ChapterCompletedEvent, ItemDisplayTracker, copy_enemy_act_data_system,
-    emit_chapter_completed_events_system, has_chapter_completed_events,
-    sync_item_display_names_system,
+    ChapterCompletedEvent, emit_chapter_completed_events_system, has_chapter_completed_events,
 };
 
 /// System set for Battle FRE processing.
@@ -56,8 +55,7 @@ impl Plugin for BattleFREPlugin {
     fn build(&self, app: &mut App) {
         let schedule = crate::game_schedule(app);
         app.add_message::<ChapterCompletedEvent>()
-            .init_resource::<ActOptionsTracker>()
-            .init_resource::<ItemDisplayTracker>()
+            .init_resource::<BattleMenuStateTracker>()
             .configure_sets(schedule, BattleFRESet.in_set(BattleUpdate))
             .add_systems(
                 schedule,
@@ -74,8 +72,7 @@ impl Plugin for BattleFREPlugin {
                     register_battle_rules_system,
                     emit_chapter_completed_events_system.run_if(has_chapter_completed_events),
                     apply_pending_damage_system.run_if(has_pending_damage),
-                    copy_enemy_act_data_system,
-                    sync_item_display_names_system,
+                    sync_battle_menu_state_system,
                     // Note: Battle UI navigation is now handled by FRE rules in battle_menu.fre.ron
                     // The core::fre_bridge::FREBridgePlugin provides ActionEvent-to-FRE conversion
                     // 注意：战斗 UI 导航现在由 battle_menu.fre.ron 中的 FRE 规则处理

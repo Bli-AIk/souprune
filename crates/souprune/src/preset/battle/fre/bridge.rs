@@ -17,10 +17,7 @@
 //! 旧的硬编码导航系统已被移除。
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactEvent, FactReader, FactValue, LayeredFactDatabase};
-
-use crate::core::view::ViewRoot;
-use crate::core::view::components::ActiveView;
+use bevy_fact_rule_event::{FactEvent, LayeredFactDatabase};
 
 /// Event emitted when a Chapter completes.
 /// This is an internal Bevy event used to bridge Sequencer → FRE.
@@ -109,296 +106,76 @@ pub fn emit_chapter_completed_events_system(
     }
 }
 
-/// Resource to track the last seen depth and menu_context values.
-/// Used to detect transitions into ACT options mode.
-///
-/// 追踪上次看到的 depth 和 menu_context 值的资源。
-/// 用于检测进入 ACT 选项模式的转换。
-#[derive(Resource, Default)]
-pub struct ActOptionsTracker {
-    pub last_depth: Option<i64>,
-    pub last_menu_context: Option<i64>,
-    /// The enemy index for which ACT data was last copied.
-    /// 上次复制 ACT 数据的敌人索引。
-    pub last_enemy_index: Option<i64>,
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::fre_bridge::evaluate_local_fact_value;
+    use crate::core::game_action::{GameActionDef, GameFreAsset};
+    use crate::core::view::ViewRoot;
+    use bevy_fact_rule_event::{CombinedFactReader, EnumRegistry, FactValue};
 
-/// System to copy enemy ACT data to ViewRoot when entering ACT options.
-/// When depth is 2 and menu_context is 1 (ACT), copies the
-/// selected enemy's ACT data to current_enemy_* local facts.
-/// Also ensures act_count is set for proper navigation.
-///
-/// 进入 ACT 选项时复制敌人 ACT 数据到 ViewRoot 的系统。
-/// 当 depth 为 2 且 menu_context 为 1（ACT）时，复制选中敌人的 ACT 数据到
-/// current_enemy_* 局部 facts。同时确保设置 act_count 以正确导航。
-pub fn copy_enemy_act_data_system(
-    mut tracker: ResMut<ActOptionsTracker>,
-    mut view_roots: Query<&mut ViewRoot, With<ActiveView>>,
-    layered_db: Res<LayeredFactDatabase>,
-) {
-    // Get current depth and menu_context from ViewRoot local_facts
-    let Ok(mut view_root) = view_roots.single_mut() else {
-        return;
-    };
-
-    let current_depth = view_root.local_state().get_int("depth").unwrap_or(0);
-    let current_menu_context = view_root.local_state().get_int("menu_context").unwrap_or(0);
-    let enemy_selection = view_root
-        .local_state()
-        .get_int("enemy_selection")
-        .unwrap_or(0);
-
-    // Check if we're in ACT options mode (depth 2, menu_context 1)
-    // 检查是否处于 ACT 选项模式（depth 2, menu_context 1）
-    let in_act_options = current_depth == 2 && current_menu_context == 1;
-
-    // Check if we need to copy data:
-    // 1. Just entered ACT options (transition)
-    // 2. In ACT options but act_count is still 0 (data not yet copied)
-    // 3. Enemy selection changed while in ACT options
-    //
-    // 检查是否需要复制数据：
-    // 1. 刚进入 ACT 选项（转换）
-    // 2. 处于 ACT 选项但 act_count 仍为 0（数据尚未复制）
-    // 3. 在 ACT 选项中敌人选择已更改
-    let current_act_count = view_root.local_state().get_int("act_count").unwrap_or(0);
-    let entered_act_options =
-        in_act_options && (tracker.last_depth != Some(2) || tracker.last_menu_context != Some(1));
-    let act_count_not_set = in_act_options && current_act_count == 0;
-    let enemy_changed = in_act_options
-        && tracker
-            .last_enemy_index
-            .is_some_and(|idx| idx != enemy_selection);
-
-    let need_copy = entered_act_options || act_count_not_set || enemy_changed;
-
-    if need_copy {
-        copy_act_data_for_enemy(&mut view_root, &layered_db, &mut tracker, enemy_selection);
-    }
-
-    // Update tracker
-    tracker.last_depth = Some(current_depth);
-    tracker.last_menu_context = Some(current_menu_context);
-}
-
-/// Resource to track item display name sync state.
-///
-/// 追踪物品显示名称同步状态的资源。
-#[derive(Resource, Default)]
-pub struct ItemDisplayTracker {
-    last_in_item_mode: bool,
-    last_inventory_len: usize,
-}
-
-/// System to sync `item_display_names` and page info to ViewRoot local facts when in ITEM mode.
-///
-/// 在 ITEM 模式下同步 `item_display_names` 和分页信息到 ViewRoot 局部事实的系统。
-pub fn sync_item_display_names_system(
-    mut tracker: ResMut<ItemDisplayTracker>,
-    mut view_roots: Query<&mut ViewRoot, With<ActiveView>>,
-    layered_db: Res<LayeredFactDatabase>,
-    mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
-) {
-    let Ok(mut view_root) = view_roots.single_mut() else {
-        return;
-    };
-
-    let depth = view_root.local_state().get_int("depth").unwrap_or(0);
-    let menu_context = view_root.local_state().get_int("menu_context").unwrap_or(0);
-    let in_item_mode = depth == 1 && menu_context == 2;
-
-    if !in_item_mode {
-        tracker.last_in_item_mode = false;
-        return;
-    }
-
-    let inventory = layered_db
-        .get_string_list("player:inventory")
-        .map(|v| v.to_vec())
-        .unwrap_or_default();
-    let inv_len = inventory.len();
-
-    let entered = !tracker.last_in_item_mode;
-    let changed = inv_len != tracker.last_inventory_len;
-
-    if entered || changed {
-        let display_names: Vec<String> = inventory
+    #[test]
+    fn act_menu_state_comes_from_fre_rule_dynamic_enemy_data() {
+        let fre: GameFreAsset = ron::from_str(include_str!(
+            "../../../../../../projects/undertale_preset/battle/rules/menu_confirm.fre.ron"
+        ))
+        .expect("undertale menu_confirm fre should parse");
+        let act_rule = fre
+            .rules
             .iter()
-            .map(|item_id| resolve_item_display_name(item_id, &layered_db, &mortar_strings))
-            .collect();
+            .find(|rule| {
+                rule.actions.iter().any(|action| {
+                    matches!(action, GameActionDef::SetLocalFact(key, _) if key == "act_count")
+                })
+            })
+            .expect("menu_confirm should contain an ACT submenu confirmation rule");
 
-        view_root
-            .local_state_mut_for_owner()
-            .set("item_display_names", FactValue::StringList(display_names));
-        view_root
-            .local_state_mut_for_owner()
-            .set("item_count", FactValue::Int(inv_len as i64));
-    }
+        let mut enum_registry = EnumRegistry::default();
+        enum_registry.register_from_asset(&fre);
+        let mut global_facts = LayeredFactDatabase::new();
+        global_facts.set("mad_dummy.act_count", FactValue::Int(2));
+        global_facts.set(
+            "mad_dummy.action_labels",
+            FactValue::StringList(vec!["Check".into(), "Talk".into()]),
+        );
+        global_facts.set(
+            "mad_dummy.action_sequences",
+            FactValue::StringList(vec![
+                "check.sequence.ron".into(),
+                "talk.sequence.ron".into(),
+            ]),
+        );
+        global_facts.set(
+            "mad_dummy.action_params",
+            FactValue::StringList(vec!["check".into(), "talk".into()]),
+        );
 
-    // Update page info every frame in item mode
-    let item_selection = view_root
-        .local_state()
-        .get_int("item_selection")
-        .unwrap_or(0);
-    let page = item_selection / 4 + 1;
-    let page_count = ((inv_len as i64) + 3) / 4;
-    view_root
-        .local_state_mut_for_owner()
-        .set("item_page", FactValue::Int(page));
-    view_root
-        .local_state_mut_for_owner()
-        .set("item_page_count", FactValue::Int(page_count));
+        let mut view_root = ViewRoot::new("battle/view/undertale.view.ron".to_string());
+        view_root.set_local_value("interactable", true);
+        view_root.set_local_value("depth", FactValue::Int(1));
+        view_root.set_local_value("menu_context", FactValue::Int(1));
+        view_root.set_local_value("enemy_selection", FactValue::Int(0));
+        view_root.set_local_value(
+            "enemy_ids",
+            FactValue::StringList(vec!["mad_dummy".to_string()]),
+        );
 
-    tracker.last_in_item_mode = true;
-    tracker.last_inventory_len = inv_len;
-}
-
-/// Resolve an item's display name for the battle menu.
-/// Checks for a `battle_name` constant in the item's mortar file; falls back to locale name.
-fn resolve_item_display_name(
-    item_id: &str,
-    global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
-    mortar_strings: &crate::extra::mortar::MortarStringTable,
-) -> String {
-    // Try mortar-based battle_name first
-    if let Some(mortar_ns) = global_facts.get_string(&format!("items:{item_id}.mortar_ns")) {
-        let battle_key = format!("{mortar_ns}:battle_name");
-        if let Some(name) = mortar_strings.get(&battle_key) {
-            return name.to_string();
+        for action in &act_rule.actions {
+            if let GameActionDef::SetLocalFact(key, value) = action {
+                let combined = CombinedFactReader::new(view_root.local_state(), &global_facts);
+                let fact_value = evaluate_local_fact_value(key, value, &combined, &enum_registry);
+                view_root.set_local_value(key.as_str(), fact_value);
+            }
         }
-    }
-    // Fall back to locale key
-    if let Some(locale_key) = global_facts.get_string(&format!("items:{item_id}.locale_key")) {
-        return mortar_strings.resolve(locale_key).to_string();
-    }
-    format!("??? ({})", item_id)
-}
 
-/// Copy the selected enemy's ACT data from the layered database into ViewRoot local_facts.
-/// Looks up action_labels, action_sequences, action_params, and act_count using
-/// multiple naming patterns (global, id-prefixed, index-prefixed).
-fn copy_act_data_for_enemy(
-    view_root: &mut ViewRoot,
-    layered_db: &LayeredFactDatabase,
-    tracker: &mut ActOptionsTracker,
-    enemy_selection: i64,
-) {
-    // Get enemy IDs array - clone to avoid borrow issues
-    // Fall back to enemy_names if enemy_ids is not available
-    let enemy_ids_opt = view_root
-        .local_state()
-        .get_string_list("enemy_ids")
-        .or_else(|| view_root.local_state().get_string_list("enemy_names"))
-        .map(|v| v.to_vec());
-
-    let Some(ids) = enemy_ids_opt else { return };
-    let enemy_index = enemy_selection as usize;
-    if enemy_index >= ids.len() {
-        return;
-    }
-
-    let enemy_id = ids[enemy_index].clone();
-    info!(
-        "ACT Options: Entering for enemy ID '{}' (index {})",
-        enemy_id, enemy_index
-    );
-
-    // Try to find enemy action data with various naming patterns
-    // Pattern 1: "action_labels" (global, for single-enemy demo)
-    // Pattern 2: "dummy.action_labels" (id prefix)
-    // Pattern 3: "enemy_0.action_labels" (index prefix)
-    let lower_id = enemy_id.to_lowercase();
-
-    // Get action_labels (display names)
-    let action_labels = layered_db
-        .get_string_list("action_labels")
-        .or_else(|| layered_db.get_string_list(&format!("{lower_id}.action_labels")))
-        .or_else(|| layered_db.get_string_list(&format!("enemy_{enemy_index}.action_labels")))
-        .map(|v| v.to_vec());
-
-    // Get action_sequences (sequence paths)
-    let action_sequences = layered_db
-        .get_string_list("action_sequences")
-        .or_else(|| layered_db.get_string_list(&format!("{lower_id}.action_sequences")))
-        .or_else(|| layered_db.get_string_list(&format!("enemy_{enemy_index}.action_sequences")))
-        .map(|v| v.to_vec());
-
-    // Get action_params (parameters for sequences)
-    let action_params = layered_db
-        .get_string_list("action_params")
-        .or_else(|| layered_db.get_string_list(&format!("{lower_id}.action_params")))
-        .or_else(|| layered_db.get_string_list(&format!("enemy_{enemy_index}.action_params")))
-        .map(|v| v.to_vec());
-
-    // Get act_count
-    let act_count = layered_db
-        .get_int("act_count")
-        .or_else(|| layered_db.get_int(&format!("{lower_id}.act_count")))
-        .or_else(|| layered_db.get_int(&format!("enemy_{enemy_index}.act_count")));
-
-    // Set action facts in ViewRoot local_facts using generic naming
-    let labels_len = action_labels.as_ref().map(|k| k.len());
-    if let Some(labels) = action_labels {
-        info!(
-            "ACT Options: Found {} action labels for {}",
-            labels.len(),
-            enemy_id
+        assert_eq!(
+            view_root.local_state().get_string("current_enemy_id"),
+            Some("mad_dummy")
         );
-        view_root
-            .local_state_mut_for_owner()
-            .set("action_labels", FactValue::StringList(labels));
-    } else {
-        warn!(
-            "ACT Options: No action_labels found for enemy ID '{}'",
-            enemy_id
+        assert_eq!(view_root.local_state().get_int("act_count"), Some(2));
+        assert_eq!(
+            view_root.local_state().get_string_list("action_labels"),
+            Some(&["Check".to_string(), "Talk".to_string()][..])
         );
     }
-
-    if let Some(sequences) = action_sequences {
-        info!(
-            "ACT Options: Found {} action sequences for {}",
-            sequences.len(),
-            enemy_id
-        );
-        view_root
-            .local_state_mut_for_owner()
-            .set("action_sequences", FactValue::StringList(sequences));
-    } else {
-        warn!(
-            "ACT Options: No action_sequences found for enemy ID '{}'",
-            enemy_id
-        );
-    }
-
-    if let Some(params) = action_params {
-        info!(
-            "ACT Options: Found {} action params for {}",
-            params.len(),
-            enemy_id
-        );
-        view_root
-            .local_state_mut_for_owner()
-            .set("action_params", FactValue::StringList(params));
-    } else {
-        warn!(
-            "ACT Options: No action_params found for enemy ID '{}'",
-            enemy_id
-        );
-    }
-
-    if let Some(count) = act_count {
-        info!("ACT Options: act_count = {} for {}", count, enemy_id);
-        view_root
-            .local_state_mut_for_owner()
-            .set("act_count", FactValue::Int(count));
-    } else if let Some(len) = labels_len {
-        // Fall back to length of action_labels
-        info!("ACT Options: Using labels.len() = {} as act_count", len);
-        view_root
-            .local_state_mut_for_owner()
-            .set("act_count", FactValue::Int(len as i64));
-    }
-
-    // Update tracker with current enemy index
-    tracker.last_enemy_index = Some(enemy_selection);
 }

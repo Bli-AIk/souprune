@@ -27,6 +27,7 @@ pub mod alight_motion_integration;
 pub mod collision;
 pub mod danmaku;
 pub mod fre;
+pub mod menu_state;
 pub mod speech_bubble;
 
 use crate::core::input::{Action, PlayerInputSettings};
