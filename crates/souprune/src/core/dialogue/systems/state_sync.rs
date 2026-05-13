@@ -219,9 +219,7 @@ pub fn replay_typewriter_on_depth_resume_system(
         }
 
         for mut view_root in active_view_query.iter_mut() {
-            view_root
-                .local_state_mut_for_owner()
-                .set("dialogue_text", FactValue::String(String::new()));
+            view_root.set_local_value("dialogue_text", FactValue::String(String::new()));
         }
     } else {
         for mut typewriter in typewriter_query.iter_mut() {

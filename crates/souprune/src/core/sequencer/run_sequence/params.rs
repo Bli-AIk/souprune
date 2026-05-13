@@ -28,9 +28,17 @@ const PARAM_PREFIX: &str = "_param_";
 
 /// Inject sequence parameters into a ViewRoot's LocalState.
 ///
+/// This is a sequencer-owned construction/update write for the currently
+/// running sequence, not a generic runtime consumer mutation path.
+///
 /// For `Expr("$key")` lookups, checks the ViewRoot's own LocalState first
 /// (where parent RunSequence params are stored) before falling back to
 /// the LayeredFactDatabase.
+///
+/// 向 ViewRoot 的 LocalState 注入序列参数。
+///
+/// 这是序列器拥有的构建/更新写入，用于当前运行的序列，
+/// 不是普通运行时 consumer 的任意可变入口。
 pub(super) fn inject_sequence_params(
     view_root: &mut ViewRoot,
     params: &HashMap<String, FactValueMatch>,
@@ -43,9 +51,7 @@ pub(super) fn inject_sequence_params(
             warn!("RunSequence: Failed to evaluate param '{}'", key);
             continue;
         };
-        view_root
-            .local_state_mut_for_owner()
-            .set(prefixed_key, fact_value.clone());
+        view_root.set_local_value(prefixed_key, fact_value.clone());
         info!("RunSequence: Injected param '{}' = {:?}", key, fact_value);
     }
 }

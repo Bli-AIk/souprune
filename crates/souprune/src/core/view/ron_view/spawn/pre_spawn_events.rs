@@ -85,9 +85,7 @@ fn apply_pre_spawn_set_local_fact_actions(
             &combined,
             enum_registry,
         );
-        view_root
-            .local_state_mut_for_owner()
-            .set(key.as_str(), fact_value);
+        view_root.set_local_value(key.as_str(), fact_value);
     }
 }
 
@@ -99,9 +97,7 @@ mod tests {
     #[test]
     fn pre_spawn_event_applies_set_local_fact_before_initial_spawn() {
         let mut view_root = ViewRoot::new("overworld/backpack.view.ron".into());
-        view_root
-            .local_state_mut_for_owner()
-            .set("info_box_y_offset", 0);
+        view_root.set_local_value("info_box_y_offset", 0);
 
         let mut layered_db = LayeredFactDatabase::new();
         layered_db.set_global("overworld:player_screen_y", FactValue::Float(130.1));

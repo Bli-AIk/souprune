@@ -5,6 +5,7 @@
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactDatabase, FactReader, FactValue};
 
+use crate::core::fre_facts;
 use crate::core::input::{Direction, InputCommand};
 
 #[cfg(feature = "debug")]
@@ -227,6 +228,14 @@ impl FactReader for LocalState {
 /// let _ = &view_root.local_facts;
 /// ```
 ///
+/// ```compile_fail
+/// use bevy_fact_rule_event::FactValue;
+/// use souprune::core::view::ViewRoot;
+///
+/// let view_root = ViewRoot::new("battle/menu.view.ron".to_string());
+/// view_root.local_state().set("selection", FactValue::Int(1));
+/// ```
+///
 /// 视图根 - 标记视图布局的根实体并定义其命名空间。
 ///
 /// `local_facts` 刻意保持私有；读取请使用 `local_state()`，写入只能通过
@@ -301,10 +310,41 @@ impl ViewRoot {
         &mut self.local_state
     }
 
-    /// Set a local fact from debug tooling.
+    /// Set a local state value from a View-owning system.
     ///
-    /// 从调试工具设置局部 fact。
-    pub fn set_local_fact_for_debug(
+    /// 从 View 拥有系统设置局部状态值。
+    pub(crate) fn set_local_value(&mut self, key: impl Into<String>, value: impl Into<FactValue>) {
+        self.local_state.set(key, value);
+    }
+
+    /// Remove a local state value from a View-owning system.
+    ///
+    /// 从 View 拥有系统移除局部状态值。
+    pub(crate) fn remove_local_value(&mut self, key: &str) -> Option<FactValue> {
+        self.local_state.remove(key)
+    }
+
+    /// Request this View to close through its controlled state channel.
+    ///
+    /// 通过受控状态通道请求关闭此 View。
+    pub(crate) fn request_close(&mut self) {
+        self.set_local_value(fre_facts::VIEW_CLOSE_REQUESTED, FactValue::Bool(true));
+    }
+
+    /// Request a sequence sub-state switch through its controlled state channel.
+    ///
+    /// 通过受控状态通道请求切换序列子状态。
+    pub(crate) fn switch_state(&mut self, state_name: impl Into<String>) {
+        self.set_local_value(
+            fre_facts::VIEW_SWITCH_STATE,
+            FactValue::String(state_name.into()),
+        );
+    }
+
+    /// Override a local fact from debug tooling.
+    ///
+    /// 从调试工具覆盖局部 fact。
+    pub fn override_local_value_for_debug(
         &mut self,
         key: impl Into<String>,
         value: impl Into<FactValue>,
@@ -312,10 +352,10 @@ impl ViewRoot {
         self.local_state.set(key, value);
     }
 
-    /// Clear local state from debug tooling.
+    /// Clear local state from debug tooling as an explicit override.
     ///
-    /// 从调试工具清空局部状态。
-    pub fn clear_local_state_for_debug(&mut self) {
+    /// 作为显式调试覆盖清空局部状态。
+    pub fn clear_local_state_for_debug_override(&mut self) {
         self.local_state.clear();
     }
 
@@ -673,13 +713,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn view_root_exposes_local_state_readonly_and_owner_mutation() {
+    fn view_root_exposes_readonly_local_state_and_controlled_writes() {
         let mut view_root = ViewRoot::new("battle/menu.view.ron".to_string());
 
-        view_root
-            .local_state_mut_for_owner()
-            .set("selection", FactValue::Int(2));
+        view_root.set_local_value("selection", FactValue::Int(2));
+        view_root.request_close();
+        view_root.switch_state("dialogue");
 
         assert_eq!(view_root.local_state().get_int("selection"), Some(2));
+        assert_eq!(
+            view_root.local_state().get_bool("view:close_requested"),
+            Some(true)
+        );
+        assert_eq!(
+            view_root.local_state().get_string("view:switch_state"),
+            Some("dialogue")
+        );
+
+        assert_eq!(
+            view_root.remove_local_value("selection"),
+            Some(FactValue::Int(2))
+        );
+        assert_eq!(view_root.local_state().get_int("selection"), None);
     }
 }

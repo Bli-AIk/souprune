@@ -63,9 +63,7 @@ mod tests {
     #[test]
     fn navigate_down_changes_selection_through_view_control_method() {
         let mut view_root = ViewRoot::new("tests/menu.view.ron".to_string());
-        view_root
-            .local_state_mut_for_owner()
-            .set("selection", FactValue::Int(0));
+        view_root.set_local_value("selection", FactValue::Int(0));
 
         view_root.apply_input_command(&InputCommand::Navigate(Direction::Down));
 
@@ -84,9 +82,7 @@ mod tests {
             .add_systems(Update, super::dispatch_view_input_system);
 
         let mut view_root = ViewRoot::new("tests/menu.view.ron".to_string());
-        view_root
-            .local_state_mut_for_owner()
-            .set("confirm_pressed", false);
+        view_root.set_local_value("confirm_pressed", false);
         app.world_mut().spawn((view_root, ActiveView));
         app.world_mut()
             .write_message(InputEnvelopeEvent::new(InputEnvelope::new(

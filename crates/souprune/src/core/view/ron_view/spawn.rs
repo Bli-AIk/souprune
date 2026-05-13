@@ -147,23 +147,17 @@ fn process_interface_requirement(
                 match value {
                     bevy_fact_rule_event::FactValue::String(s) => {
                         let resolved = resolve_simple_localization(s, mortar_strings);
-                        view_root
-                            .local_state_mut_for_owner()
-                            .set(key.clone(), resolved);
+                        view_root.set_local_value(key.clone(), resolved);
                     }
                     bevy_fact_rule_event::FactValue::StringList(list) => {
                         let resolved_list: Vec<String> = list
                             .iter()
                             .map(|s| resolve_simple_localization(s, mortar_strings))
                             .collect();
-                        view_root
-                            .local_state_mut_for_owner()
-                            .set(key.clone(), resolved_list);
+                        view_root.set_local_value(key.clone(), resolved_list);
                     }
                     _ => {
-                        view_root
-                            .local_state_mut_for_owner()
-                            .set(key.clone(), value.clone());
+                        view_root.set_local_value(key.clone(), value.clone());
                     }
                 }
             }
@@ -275,18 +269,10 @@ pub fn spawn_ron_view_for_entity(
         for (key, value) in facts {
             use crate::core::view::layout::InitialFactValue;
             match value {
-                InitialFactValue::Int(i) => {
-                    view_root.local_state_mut_for_owner().set(key.clone(), *i)
-                }
-                InitialFactValue::Float(f) => {
-                    view_root.local_state_mut_for_owner().set(key.clone(), *f)
-                }
-                InitialFactValue::Bool(b) => {
-                    view_root.local_state_mut_for_owner().set(key.clone(), *b)
-                }
-                InitialFactValue::String(s) => view_root
-                    .local_state_mut_for_owner()
-                    .set(key.clone(), s.clone()),
+                InitialFactValue::Int(i) => view_root.set_local_value(key.clone(), *i),
+                InitialFactValue::Float(f) => view_root.set_local_value(key.clone(), *f),
+                InitialFactValue::Bool(b) => view_root.set_local_value(key.clone(), *b),
+                InitialFactValue::String(s) => view_root.set_local_value(key.clone(), s.clone()),
                 InitialFactValue::StringList(list) => {
                     // Resolve localization references in string list items
                     // 解析字符串列表项中的本地化引用
@@ -294,13 +280,11 @@ pub fn spawn_ron_view_for_entity(
                         .iter()
                         .map(|s| resolve_simple_localization(s, mortar_strings))
                         .collect();
-                    view_root
-                        .local_state_mut_for_owner()
-                        .set(key.clone(), resolved_list)
+                    view_root.set_local_value(key.clone(), resolved_list)
                 }
-                InitialFactValue::IntList(list) => view_root
-                    .local_state_mut_for_owner()
-                    .set(key.clone(), list.clone()),
+                InitialFactValue::IntList(list) => {
+                    view_root.set_local_value(key.clone(), list.clone())
+                }
             }
         }
         info!(

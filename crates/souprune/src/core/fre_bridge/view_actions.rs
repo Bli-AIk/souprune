@@ -134,9 +134,7 @@ fn process_event_view_actions(
             for action in &rule.actions {
                 execute_action(
                     action,
-                    view_root
-                        .local_state_mut_for_owner()
-                        .as_facts_mut_for_owner(),
+                    &mut view_root,
                     global_facts,
                     audio,
                     asset_server,
@@ -214,7 +212,7 @@ pub fn process_view_actions_system(
 
 fn execute_action(
     action: &GameActionDef,
-    local_facts: &mut bevy_fact_rule_event::FactDatabase,
+    view_root: &mut ViewRoot,
     global_facts: &mut LayeredFactDatabase,
     audio: &bevy_kira_audio::Audio,
     asset_server: &AssetServer,
@@ -226,6 +224,20 @@ fn execute_action(
     rule_id: &str,
     extensions: &ViewActionExtensions,
 ) {
+    if execute_view_state_action(
+        action,
+        view_root,
+        global_facts,
+        enum_registry,
+        fact_history,
+        frame_number,
+        rule_id,
+    )
+    .is_some()
+    {
+        return;
+    }
+
     match action {
         GameActionDef::PlaySound(sound_name) => {
             debug!("FRE Bridge: PlaySound({})", sound_name);
@@ -235,31 +247,9 @@ fn execute_action(
             debug!("FRE Bridge: PlaySoundFullPath({})", path);
             audio::play_sound_full_path(audio, asset_server, audio_cache, path);
         }
-        GameActionDef::SetLocalFact(key, value) => {
-            let combined = CombinedFactReader::new(local_facts, global_facts);
-            let fact_value = evaluate_local_fact_value(key, value, &combined, enum_registry);
-            let old = local_facts.get_by_str(key).cloned();
-            fact_history.record(
-                format!("local:{key}"),
-                old,
-                fact_value.clone(),
-                rule_id,
-                frame_number,
-            );
-            info!("FRE Bridge: SetLocalFact({}, {:?})", key, fact_value);
-            local_facts.set(key.as_str(), fact_value);
-        }
-        GameActionDef::CloseView => {
-            debug!("FRE Bridge: CloseView");
-            local_facts.set(fre_facts::VIEW_CLOSE_REQUESTED, FactValue::Bool(true));
-        }
-        GameActionDef::SwitchState(state_name) => {
-            debug!("FRE Bridge: SwitchState({})", state_name);
-            local_facts.set(
-                fre_facts::VIEW_SWITCH_STATE,
-                FactValue::String(state_name.clone()),
-            );
-        }
+        GameActionDef::SetLocalFact(_, _)
+        | GameActionDef::CloseView
+        | GameActionDef::SwitchState(_) => {}
         GameActionDef::EmitEvent(event_id) => {
             debug!("FRE Bridge: EmitEvent({})", event_id);
         }
@@ -271,6 +261,9 @@ fn execute_action(
             action_type,
             params,
         } => {
+            let local_facts = view_root
+                .local_state_mut_for_owner()
+                .as_facts_mut_for_owner();
             let mut ctx = ViewActionExecCtx {
                 local_facts,
                 global_facts,
@@ -296,6 +289,45 @@ fn execute_action(
     }
 }
 
+fn execute_view_state_action(
+    action: &GameActionDef,
+    view_root: &mut ViewRoot,
+    global_facts: &LayeredFactDatabase,
+    enum_registry: &EnumRegistry,
+    fact_history: &mut crate::core::trace::FactChangeHistory,
+    frame_number: u64,
+    rule_id: &str,
+) -> Option<()> {
+    match action {
+        GameActionDef::SetLocalFact(key, value) => {
+            let combined = CombinedFactReader::new(view_root.local_state(), global_facts);
+            let fact_value = evaluate_local_fact_value(key, value, &combined, enum_registry);
+            let old = view_root.local_state().get_by_str(key).cloned();
+            fact_history.record(
+                format!("local:{key}"),
+                old,
+                fact_value.clone(),
+                rule_id,
+                frame_number,
+            );
+            info!("FRE Bridge: SetLocalFact({}, {:?})", key, fact_value);
+            view_root.set_local_value(key.as_str(), fact_value);
+            Some(())
+        }
+        GameActionDef::CloseView => {
+            debug!("FRE Bridge: CloseView");
+            view_root.request_close();
+            Some(())
+        }
+        GameActionDef::SwitchState(state_name) => {
+            debug!("FRE Bridge: SwitchState({})", state_name);
+            view_root.switch_state(state_name.clone());
+            Some(())
+        }
+        _ => None,
+    }
+}
+
 pub fn handle_switch_state_system(
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
     mut next_state: ResMut<NextState<SequenceSubState>>,
@@ -308,9 +340,38 @@ pub fn handle_switch_state_system(
             let state_name = state_name.clone();
             info!("FRE Bridge: Switching to state '{}'", state_name);
             next_state.set(SequenceSubState::new(&state_name));
-            view_root
-                .local_state_mut_for_owner()
-                .remove(fre_facts::VIEW_SWITCH_STATE);
+            view_root.remove_local_value(fre_facts::VIEW_SWITCH_STATE);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy_fact_rule_event::{EnumRegistry, LayeredFactDatabase, LocalFactValue};
+
+    #[test]
+    fn set_local_fact_updates_active_view_through_controlled_write() {
+        let mut view_root = ViewRoot::new("tests/menu.view.ron".to_string());
+        view_root.set_local_value("selection", FactValue::Int(0));
+        let global_facts = LayeredFactDatabase::new();
+        let enum_registry = EnumRegistry::default();
+        let mut fact_history = crate::core::trace::FactChangeHistory::default();
+
+        execute_view_state_action(
+            &GameActionDef::SetLocalFact(
+                "selection".to_string(),
+                LocalFactValue::Expr("$selection + 1".to_string()),
+            ),
+            &mut view_root,
+            &global_facts,
+            &enum_registry,
+            &mut fact_history,
+            1,
+            "test_rule",
+        )
+        .expect("SetLocalFact should be a view-state action");
+
+        assert_eq!(view_root.local_state().get_int("selection"), Some(1));
     }
 }

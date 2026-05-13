@@ -90,9 +90,7 @@ pub fn process_set_view_fact_system(
             };
 
             if let Some(fv) = fact_value {
-                view_root
-                    .local_state_mut_for_owner()
-                    .set(key.as_str(), fv.clone());
+                view_root.set_local_value(key.as_str(), fv.clone());
                 info!("[Battle] SetViewFact: Set '{}' = {:?}", key, fv);
             }
         } else {
@@ -100,5 +98,34 @@ pub fn process_set_view_fact_system(
         }
 
         commands.entity(chapter_entity).insert(ChapterFinished);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::sequencer::chapter_schema::Chapter;
+    use crate::core::sequencer::context::ActiveChapter;
+
+    #[test]
+    fn set_view_fact_updates_active_view_through_controlled_write() {
+        let mut app = App::new();
+        app.add_systems(Update, process_set_view_fact_system);
+
+        app.world_mut()
+            .spawn((ViewRoot::new("tests/menu.view.ron".to_string()), ActiveView));
+        app.world_mut().spawn(ActiveChapter {
+            chapter: Chapter::SetViewFact {
+                key: "selection".to_string(),
+                value: FactValueMatch::Int(3),
+            },
+            parent: None,
+        });
+
+        app.update();
+
+        let mut query = app.world_mut().query::<&ViewRoot>();
+        let view_root = query.single(app.world()).unwrap();
+        assert_eq!(view_root.local_state().get_int("selection"), Some(3));
     }
 }
