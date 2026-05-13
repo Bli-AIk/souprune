@@ -38,8 +38,8 @@ mod tests {
         );
     }
 
-    fn boundary(width: f32, height: f32) -> BattleBoxBoundary {
-        BattleBoxBoundary {
+    fn boundary(width: f32, height: f32) -> CollisionBoundary {
+        CollisionBoundary {
             center: Vec2::ZERO,
             half_size: Vec2::new(width / 2.0, height / 2.0),
         }

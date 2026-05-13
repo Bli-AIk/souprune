@@ -11,7 +11,7 @@ use crate::core::battle_box::{
     BoundToBattleBox, GapPolicy, MergeBattleBoxes, SplitAxis, SplitBattleBox,
 };
 use crate::core::battle_runtime::{BattleMovementSet, BattleUpdate};
-use crate::core::collision::{BattleBoxBoundary, PhysicsCollider};
+use crate::core::collision::{CollisionBoundary, PhysicsCollider};
 use crate::core::mod_system::BehaviorParams;
 use crate::core::view::components::ViewBox;
 use crate::core::view::sdf_view_shape::spawn_view_box_sdf_children;
@@ -93,7 +93,7 @@ impl Plugin for BattleCollisionPlugin {
 pub struct BattleBoxSplitAnimation {
     /// Original unsplit source boundary.
     /// 原始未分裂的源边界。
-    pub original_boundary: BattleBoxBoundary,
+    pub original_boundary: CollisionBoundary,
     /// Axis used to split the source box.
     /// 源框分裂所用的轴。
     pub split_axis: SplitAxis,
@@ -144,19 +144,19 @@ pub struct BattleBoxMergeAnimation {
     pub box_entity_b: Entity,
     /// Starting boundary for box A.
     /// box A 的起始边界。
-    pub start_boundary_a: BattleBoxBoundary,
+    pub start_boundary_a: CollisionBoundary,
     /// Starting boundary for box B.
     /// box B 的起始边界。
-    pub start_boundary_b: BattleBoxBoundary,
+    pub start_boundary_b: CollisionBoundary,
     /// Target boundary for box A at the end of the merge.
     /// merge 结束时 box A 的目标边界。
-    pub target_boundary_a: BattleBoxBoundary,
+    pub target_boundary_a: CollisionBoundary,
     /// Target boundary for box B at the end of the merge.
     /// merge 结束时 box B 的目标边界。
-    pub target_boundary_b: BattleBoxBoundary,
+    pub target_boundary_b: CollisionBoundary,
     /// Final merged boundary to spawn on completion.
     /// 动画完成后生成的最终合并边界。
-    pub merged_boundary: BattleBoxBoundary,
+    pub merged_boundary: CollisionBoundary,
     /// Visual style to apply during animation.
     /// 动画期间应用的视觉样式。
     pub visual_style: BattleBoxVisualStyle,
@@ -193,7 +193,7 @@ struct BattleBoxCandidate {
     kind: BattleBoxSourceKind,
     active: bool,
     collision_enabled: bool,
-    boundary: Option<BattleBoxBoundary>,
+    boundary: Option<CollisionBoundary>,
     visual_style: BattleBoxVisualStyle,
 }
 
@@ -221,9 +221,9 @@ impl BattleBoxCandidate {
 struct MergeAnimationPlan {
     axis: SplitAxis,
     ordered_indices: (usize, usize),
-    target_boundary_a: BattleBoxBoundary,
-    target_boundary_b: BattleBoxBoundary,
-    merged_boundary: BattleBoxBoundary,
+    target_boundary_a: CollisionBoundary,
+    target_boundary_b: CollisionBoundary,
+    merged_boundary: CollisionBoundary,
 }
 
 // ─── Systems ────────────────────────────────────────────────────────
@@ -250,7 +250,7 @@ pub(crate) fn constrain_player_to_battle_box_system(
         (With<BattleBox>, Without<ViewBox>, Without<PhysicsCollider>),
     >,
 ) {
-    let mut live_boxes: Vec<(String, BattleBoxBoundary)> = Vec::new();
+    let mut live_boxes: Vec<(String, CollisionBoundary)> = Vec::new();
     for (tf, vb, id, state) in ui_boxes.iter() {
         if let Some(boundary) = resolve_boundary(tf, Some(vb), None, state) {
             live_boxes.push((id.0.clone(), boundary));

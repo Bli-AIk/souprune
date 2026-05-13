@@ -19,8 +19,8 @@ use super::geometry::{retire_battle_box, split_rect_box};
 use super::*;
 use std::collections::VecDeque;
 
-fn lerp_boundary(start: &BattleBoxBoundary, end: &BattleBoxBoundary, t: f32) -> BattleBoxBoundary {
-    BattleBoxBoundary {
+fn lerp_boundary(start: &CollisionBoundary, end: &CollisionBoundary, t: f32) -> CollisionBoundary {
+    CollisionBoundary {
         center: start.center.lerp(end.center, t),
         half_size: start.half_size.lerp(end.half_size, t),
     }
@@ -36,7 +36,7 @@ pub(super) fn finalize_merged_battle_box(
     player_query: &mut Query<&mut BoundToBattleBox, With<BehaviorParams>>,
     source_boxes: &(String, String),
     result_box: &str,
-    merged_boundary: &BattleBoxBoundary,
+    merged_boundary: &CollisionBoundary,
     visual_style: &BattleBoxVisualStyle,
 ) {
     for entity in source_entities {
@@ -65,7 +65,7 @@ pub(super) fn spawn_standalone_box(
     sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
     color_materials: &mut ResMut<Assets<ColorMaterial>>,
     id: &str,
-    boundary: &BattleBoxBoundary,
+    boundary: &CollisionBoundary,
     visual_style: &BattleBoxVisualStyle,
 ) {
     let view_box = visual_style.to_view_box(boundary.half_size.x * 2.0, boundary.half_size.y * 2.0);
@@ -104,7 +104,7 @@ pub(super) fn spawn_standalone_box(
 pub(super) fn spawn_standalone_box_entity(
     commands: &mut Commands,
     id: &str,
-    boundary: &BattleBoxBoundary,
+    boundary: &CollisionBoundary,
     visual_style: &BattleBoxVisualStyle,
 ) -> Entity {
     commands
@@ -285,7 +285,7 @@ pub(super) fn animate_battle_box_merge_system(
 
 fn apply_boundary_to_box(
     box_entity: Entity,
-    boundary: &BattleBoxBoundary,
+    boundary: &CollisionBoundary,
     visual_style: &BattleBoxVisualStyle,
     box_query: &mut Query<(&mut Transform, &mut AlightMotionBattleBoxBounds)>,
     child_query: &Query<&Children>,
@@ -316,7 +316,7 @@ fn apply_boundary_to_box(
 /// Update SDF visual for a battle box entity during animation.
 fn update_sdf_visual(
     box_entity: &Entity,
-    boundary: &BattleBoxBoundary,
+    boundary: &CollisionBoundary,
     visual_style: &BattleBoxVisualStyle,
     child_query: &Query<&Children>,
     shape_query: &mut Query<(

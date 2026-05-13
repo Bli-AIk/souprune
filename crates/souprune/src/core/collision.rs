@@ -12,14 +12,14 @@
 //! 该模块提供碰撞检测组件、SDF函数和工具函数。
 //! 具体的碰撞系统在 app_state 模块中实现。
 
-pub mod battle_collision;
 pub(crate) mod components;
 pub mod events;
+pub mod primitives;
 pub mod systems;
 
-pub use battle_collision::*;
 pub use components::*;
 pub use events::{CollisionEventBuffer, CollisionType};
+pub use primitives::*;
 pub use systems::{SdfCollisionConfig, collect_nearby_colliders, resolve_sdf_collision};
 
 use bevy::app::*;

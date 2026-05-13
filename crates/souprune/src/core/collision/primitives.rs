@@ -1,8 +1,8 @@
-//! # battle_collision.rs
+//! # primitives.rs
 //!
-//! Battle scene collision system using SDF for box boundaries.
+//! Generic collision primitives using SDF for collider and boundary geometry.
 //!
-//! Battle 场景碰撞系统，使用 SDF 实现边界碰撞。
+//! 使用 SDF 描述碰撞体与边界几何的通用碰撞 primitive。
 
 use super::systems::sdf_box;
 use bevy::prelude::*;
@@ -53,20 +53,20 @@ impl TriggerCollider {
     }
 }
 
-/// Boundary defined by a UI box using SDF
+/// Rectangular collision boundary using SDF.
 ///
-/// 使用 SDF 定义的 UI 边界
+/// 使用 SDF 定义的矩形碰撞边界。
 #[derive(Component, Debug, Clone)]
-pub struct BattleBoxBoundary {
+pub struct CollisionBoundary {
     pub half_size: Vec2,
     pub center: Vec2,
 }
 
-impl BattleBoxBoundary {
-    /// Create boundary from UI box dimensions
+impl CollisionBoundary {
+    /// Create boundary from rectangular dimensions.
     ///
-    /// 从 UI 框尺寸创建边界
-    pub fn from_ui_box(width: f32, height: f32, center: Vec2) -> Self {
+    /// 从矩形尺寸创建边界。
+    pub fn from_rect_size(width: f32, height: f32, center: Vec2) -> Self {
         Self {
             half_size: Vec2::new(width / 2.0, height / 2.0),
             center,
@@ -110,7 +110,7 @@ impl BattleBoxBoundary {
         };
 
         // Create adjusted boundary for SDF calculation
-        let adjusted_boundary = BattleBoxBoundary {
+        let adjusted_boundary = CollisionBoundary {
             half_size: effective_half_size,
             center: self.center,
         };

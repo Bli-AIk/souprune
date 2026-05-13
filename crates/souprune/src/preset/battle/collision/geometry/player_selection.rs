@@ -16,7 +16,7 @@
 use super::*;
 
 fn signed_distance_to_box_with_collider(
-    boundary: &BattleBoxBoundary,
+    boundary: &CollisionBoundary,
     player_pos: Vec2,
     collider: &PhysicsCollider,
 ) -> f32 {
@@ -25,7 +25,7 @@ fn signed_distance_to_box_with_collider(
         PhysicsCollider::Box { half_size } => *half_size,
     };
     let effective_half_size = (boundary.half_size - collider_half_size).max(Vec2::ZERO);
-    BattleBoxBoundary {
+    CollisionBoundary {
         half_size: effective_half_size,
         center: boundary.center,
     }
@@ -36,8 +36,8 @@ fn signed_distance_to_box_with_collider(
 pub(in crate::preset::battle::collision) fn select_box_id_for_player(
     player_pos: Vec2,
     collider: &PhysicsCollider,
-    box_a: &BattleBoxBoundary,
-    box_b: &BattleBoxBoundary,
+    box_a: &CollisionBoundary,
+    box_b: &CollisionBoundary,
     id_a: &str,
     id_b: &str,
 ) -> String {
@@ -59,7 +59,7 @@ pub(in crate::preset::battle::collision) fn choose_box_index_for_player(
     current_bound: Option<&str>,
     player_pos: Vec2,
     collider: &PhysicsCollider,
-    candidates: &[(String, BattleBoxBoundary)],
+    candidates: &[(String, CollisionBoundary)],
 ) -> Option<usize> {
     if candidates.is_empty() {
         return None;
