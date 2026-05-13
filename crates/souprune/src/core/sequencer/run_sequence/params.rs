@@ -38,11 +38,15 @@ pub(super) fn inject_sequence_params(
 ) {
     for (key, value) in params {
         let prefixed_key = format!("{}{}", PARAM_PREFIX, key);
-        let Some(fact_value) = resolve_fact_value(value, layered_db, &view_root.local_facts) else {
+        let Some(fact_value) =
+            resolve_fact_value(value, layered_db, view_root.local_state().as_facts())
+        else {
             warn!("RunSequence: Failed to evaluate param '{}'", key);
             continue;
         };
-        view_root.local_facts.set(prefixed_key, fact_value.clone());
+        view_root
+            .local_state_mut_for_owner()
+            .set(prefixed_key, fact_value.clone());
         info!("RunSequence: Injected param '{}' = {:?}", key, fact_value);
     }
 }

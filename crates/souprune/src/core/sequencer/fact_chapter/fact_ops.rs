@@ -119,7 +119,7 @@ fn resolve_expr_value(
         fact_key,
         view_root.is_some()
     );
-    let from_view = view_root.and_then(|vr| vr.local_facts.get_by_str(fact_key).cloned());
+    let from_view = view_root.and_then(|vr| vr.local_state().get_by_str(fact_key).cloned());
     let from_db = layered_db.get_by_str(fact_key).cloned();
     info!(
         "ModifyFact Expr: '{}' -> view={:?}, db={:?}",

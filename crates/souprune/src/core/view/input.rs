@@ -63,13 +63,15 @@ mod tests {
     #[test]
     fn navigate_down_changes_selection_through_view_control_method() {
         let mut view_root = ViewRoot::new("tests/menu.view.ron".to_string());
-        view_root.local_facts.set("selection", FactValue::Int(0));
+        view_root
+            .local_state_mut_for_owner()
+            .set("selection", FactValue::Int(0));
 
         view_root.apply_input_command(&InputCommand::Navigate(Direction::Down));
 
-        assert_eq!(view_root.local_facts.get_int("selection"), Some(1));
+        assert_eq!(view_root.local_state().get_int("selection"), Some(1));
         assert_eq!(
-            view_root.local_facts.get_string("view:input:navigation"),
+            view_root.local_state().get_string("view:input:navigation"),
             Some("down")
         );
     }
@@ -82,7 +84,9 @@ mod tests {
             .add_systems(Update, super::dispatch_view_input_system);
 
         let mut view_root = ViewRoot::new("tests/menu.view.ron".to_string());
-        view_root.local_facts.set("confirm_pressed", false);
+        view_root
+            .local_state_mut_for_owner()
+            .set("confirm_pressed", false);
         app.world_mut().spawn((view_root, ActiveView));
         app.world_mut()
             .write_message(InputEnvelopeEvent::new(InputEnvelope::new(
@@ -98,12 +102,12 @@ mod tests {
         let view_root = query.single(app.world()).unwrap();
         assert_eq!(
             view_root
-                .local_facts
+                .local_state()
                 .get_bool("view:input:confirm_requested"),
             Some(true)
         );
         assert_eq!(
-            view_root.local_facts.get_bool("confirm_pressed"),
+            view_root.local_state().get_bool("confirm_pressed"),
             Some(true)
         );
 

@@ -141,10 +141,10 @@ pub fn copy_enemy_act_data_system(
         return;
     };
 
-    let current_depth = view_root.local_facts.get_int("depth").unwrap_or(0);
-    let current_menu_context = view_root.local_facts.get_int("menu_context").unwrap_or(0);
+    let current_depth = view_root.local_state().get_int("depth").unwrap_or(0);
+    let current_menu_context = view_root.local_state().get_int("menu_context").unwrap_or(0);
     let enemy_selection = view_root
-        .local_facts
+        .local_state()
         .get_int("enemy_selection")
         .unwrap_or(0);
 
@@ -161,7 +161,7 @@ pub fn copy_enemy_act_data_system(
     // 1. 刚进入 ACT 选项（转换）
     // 2. 处于 ACT 选项但 act_count 仍为 0（数据尚未复制）
     // 3. 在 ACT 选项中敌人选择已更改
-    let current_act_count = view_root.local_facts.get_int("act_count").unwrap_or(0);
+    let current_act_count = view_root.local_state().get_int("act_count").unwrap_or(0);
     let entered_act_options =
         in_act_options && (tracker.last_depth != Some(2) || tracker.last_menu_context != Some(1));
     let act_count_not_set = in_act_options && current_act_count == 0;
@@ -203,8 +203,8 @@ pub fn sync_item_display_names_system(
         return;
     };
 
-    let depth = view_root.local_facts.get_int("depth").unwrap_or(0);
-    let menu_context = view_root.local_facts.get_int("menu_context").unwrap_or(0);
+    let depth = view_root.local_state().get_int("depth").unwrap_or(0);
+    let menu_context = view_root.local_state().get_int("menu_context").unwrap_or(0);
     let in_item_mode = depth == 1 && menu_context == 2;
 
     if !in_item_mode {
@@ -228,20 +228,25 @@ pub fn sync_item_display_names_system(
             .collect();
 
         view_root
-            .local_facts
+            .local_state_mut_for_owner()
             .set("item_display_names", FactValue::StringList(display_names));
         view_root
-            .local_facts
+            .local_state_mut_for_owner()
             .set("item_count", FactValue::Int(inv_len as i64));
     }
 
     // Update page info every frame in item mode
-    let item_selection = view_root.local_facts.get_int("item_selection").unwrap_or(0);
+    let item_selection = view_root
+        .local_state()
+        .get_int("item_selection")
+        .unwrap_or(0);
     let page = item_selection / 4 + 1;
     let page_count = ((inv_len as i64) + 3) / 4;
-    view_root.local_facts.set("item_page", FactValue::Int(page));
     view_root
-        .local_facts
+        .local_state_mut_for_owner()
+        .set("item_page", FactValue::Int(page));
+    view_root
+        .local_state_mut_for_owner()
         .set("item_page_count", FactValue::Int(page_count));
 
     tracker.last_in_item_mode = true;
@@ -281,9 +286,9 @@ fn copy_act_data_for_enemy(
     // Get enemy IDs array - clone to avoid borrow issues
     // Fall back to enemy_names if enemy_ids is not available
     let enemy_ids_opt = view_root
-        .local_facts
+        .local_state()
         .get_string_list("enemy_ids")
-        .or_else(|| view_root.local_facts.get_string_list("enemy_names"))
+        .or_else(|| view_root.local_state().get_string_list("enemy_names"))
         .map(|v| v.to_vec());
 
     let Some(ids) = enemy_ids_opt else { return };
@@ -340,7 +345,7 @@ fn copy_act_data_for_enemy(
             enemy_id
         );
         view_root
-            .local_facts
+            .local_state_mut_for_owner()
             .set("action_labels", FactValue::StringList(labels));
     } else {
         warn!(
@@ -356,7 +361,7 @@ fn copy_act_data_for_enemy(
             enemy_id
         );
         view_root
-            .local_facts
+            .local_state_mut_for_owner()
             .set("action_sequences", FactValue::StringList(sequences));
     } else {
         warn!(
@@ -372,7 +377,7 @@ fn copy_act_data_for_enemy(
             enemy_id
         );
         view_root
-            .local_facts
+            .local_state_mut_for_owner()
             .set("action_params", FactValue::StringList(params));
     } else {
         warn!(
@@ -384,13 +389,13 @@ fn copy_act_data_for_enemy(
     if let Some(count) = act_count {
         info!("ACT Options: act_count = {} for {}", count, enemy_id);
         view_root
-            .local_facts
+            .local_state_mut_for_owner()
             .set("act_count", FactValue::Int(count));
     } else if let Some(len) = labels_len {
         // Fall back to length of action_labels
         info!("ACT Options: Using labels.len() = {} as act_count", len);
         view_root
-            .local_facts
+            .local_state_mut_for_owner()
             .set("act_count", FactValue::Int(len as i64));
     }
 

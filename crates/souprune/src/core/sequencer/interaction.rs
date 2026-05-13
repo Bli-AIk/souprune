@@ -70,7 +70,7 @@ pub fn check_await_fact_completion_system(
             // Use View's local_facts + global
             if let Some(view_root) = view_root_query.iter().next() {
                 let combined = bevy_fact_rule_event::CombinedFactReader::new(
-                    &view_root.local_facts,
+                    view_root.local_state().as_facts(),
                     &*global_facts,
                 );
                 evaluate_single_condition(&awaiting.condition, &combined, &enum_registry)

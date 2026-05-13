@@ -462,23 +462,33 @@ pub fn load_fre_into_view_root(
 
     for (key, fact_value) in fre_asset.resolve_facts(enum_registry) {
         match fact_value {
-            FactValue::Int(i) => view_root.local_facts.set(key.clone(), i),
-            FactValue::Float(f) => view_root.local_facts.set(key.clone(), f),
-            FactValue::Bool(b) => view_root.local_facts.set(key.clone(), b),
+            FactValue::Int(i) => view_root.local_state_mut_for_owner().set(key.clone(), i),
+            FactValue::Float(f) => view_root.local_state_mut_for_owner().set(key.clone(), f),
+            FactValue::Bool(b) => view_root.local_state_mut_for_owner().set(key.clone(), b),
             FactValue::String(s) => {
                 let resolved = resolve_simple_localization(&s, mortar_strings);
-                view_root.local_facts.set(key.clone(), resolved)
+                view_root
+                    .local_state_mut_for_owner()
+                    .set(key.clone(), resolved)
             }
             FactValue::StringList(list) => {
                 let resolved_list: Vec<String> = list
                     .iter()
                     .map(|s| resolve_simple_localization(s, mortar_strings))
                     .collect();
-                view_root.local_facts.set(key.clone(), resolved_list)
+                view_root
+                    .local_state_mut_for_owner()
+                    .set(key.clone(), resolved_list)
             }
-            FactValue::IntList(list) => view_root.local_facts.set(key.clone(), list),
-            FactValue::FloatList(list) => view_root.local_facts.set(key.clone(), list),
-            FactValue::BoolList(list) => view_root.local_facts.set(key.clone(), list),
+            FactValue::IntList(list) => {
+                view_root.local_state_mut_for_owner().set(key.clone(), list)
+            }
+            FactValue::FloatList(list) => {
+                view_root.local_state_mut_for_owner().set(key.clone(), list)
+            }
+            FactValue::BoolList(list) => {
+                view_root.local_state_mut_for_owner().set(key.clone(), list)
+            }
         }
     }
 }

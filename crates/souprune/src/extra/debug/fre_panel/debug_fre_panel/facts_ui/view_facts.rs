@@ -41,7 +41,7 @@ pub(super) fn render_view_facts_tab(ui: &mut egui::Ui, world: &mut World) {
                 .unwrap_or_else(|| format!("Entity {:?}", entity));
 
             let facts: Vec<_> = view_root
-                .local_facts
+                .local_state()
                 .iter()
                 .filter(|(k, _)| search_filter.is_empty() || k.contains(&search_filter))
                 .map(|(k, v)| (k.clone(), v.clone()))
@@ -76,7 +76,7 @@ pub(super) fn render_view_facts_tab(ui: &mut egui::Ui, world: &mut World) {
 
         for (entity, key, value) in modifications {
             if let Some(mut view_root) = world.get_mut::<ViewRoot>(entity) {
-                view_root.local_facts.set(key.as_str(), value);
+                view_root.set_local_fact_for_editor(key, value);
             }
         }
     });

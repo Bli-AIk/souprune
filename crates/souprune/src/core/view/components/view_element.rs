@@ -3,7 +3,7 @@
 //! 视图元素系统，带有撤销/重做/重置的历史跟踪。
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactDatabase, FactValue};
+use bevy_fact_rule_event::{FactDatabase, FactReader, FactValue};
 
 use crate::core::input::{Direction, InputCommand};
 
@@ -78,9 +78,159 @@ pub struct ViewElement {
     pub tags: Vec<String>,
 }
 
+/// View-local state owned by a view root.
+///
+/// View 根节点拥有的局部状态。
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub struct LocalState {
+    facts: FactDatabase,
+}
+
+impl LocalState {
+    /// Create an empty local state.
+    ///
+    /// 创建空局部状态。
+    pub fn new() -> Self {
+        Self {
+            facts: FactDatabase::new(),
+        }
+    }
+
+    /// Read a raw fact value by key.
+    ///
+    /// 按 key 读取原始 fact 值。
+    pub fn get_by_str(&self, key: &str) -> Option<&FactValue> {
+        self.facts.get_by_str(key)
+    }
+
+    /// Read an integer fact value.
+    ///
+    /// 读取整数 fact 值。
+    pub fn get_int(&self, key: &str) -> Option<i64> {
+        self.facts.get_int(key)
+    }
+
+    /// Read a float fact value.
+    ///
+    /// 读取浮点 fact 值。
+    pub fn get_float(&self, key: &str) -> Option<f64> {
+        self.facts.get_float(key)
+    }
+
+    /// Read a boolean fact value.
+    ///
+    /// 读取布尔 fact 值。
+    pub fn get_bool(&self, key: &str) -> Option<bool> {
+        self.facts.get_bool(key)
+    }
+
+    /// Read a string fact value.
+    ///
+    /// 读取字符串 fact 值。
+    pub fn get_string(&self, key: &str) -> Option<&str> {
+        self.facts.get_string(key)
+    }
+
+    /// Read a string list fact value.
+    ///
+    /// 读取字符串列表 fact 值。
+    pub fn get_string_list(&self, key: &str) -> Option<&[String]> {
+        self.facts
+            .get_by_str(key)
+            .and_then(FactValue::as_string_list)
+    }
+
+    /// Read an integer list fact value.
+    ///
+    /// 读取整数列表 fact 值。
+    pub fn get_int_list(&self, key: &str) -> Option<&[i64]> {
+        self.facts.get_by_str(key).and_then(FactValue::as_int_list)
+    }
+
+    /// Check whether a fact exists.
+    ///
+    /// 检查 fact 是否存在。
+    pub fn contains(&self, key: &str) -> bool {
+        self.facts.contains(key)
+    }
+
+    /// Check whether this state has no facts.
+    ///
+    /// 检查此状态是否没有 fact。
+    pub fn is_empty(&self) -> bool {
+        self.facts.is_empty()
+    }
+
+    /// Iterate through facts for read-only inspection.
+    ///
+    /// 以只读方式遍历 fact。
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &FactValue)> {
+        self.facts.iter()
+    }
+
+    /// Borrow the current FactDatabase representation.
+    ///
+    /// 借用当前的 FactDatabase 表示。
+    pub(crate) fn as_facts(&self) -> &FactDatabase {
+        &self.facts
+    }
+
+    /// Mutably borrow the current FactDatabase representation for owners.
+    ///
+    /// 为状态拥有者可变借用当前的 FactDatabase 表示。
+    pub(crate) fn as_facts_mut_for_owner(&mut self) -> &mut FactDatabase {
+        &mut self.facts
+    }
+
+    /// Set a fact value from a state owner.
+    ///
+    /// 由状态拥有者设置 fact 值。
+    pub(crate) fn set(&mut self, key: impl Into<String>, value: impl Into<FactValue>) {
+        self.facts.set(key, value);
+    }
+
+    /// Remove a fact value from a state owner.
+    ///
+    /// 由状态拥有者移除 fact 值。
+    pub(crate) fn remove(&mut self, key: &str) -> Option<FactValue> {
+        self.facts.remove(key)
+    }
+
+    /// Clear all facts from a state owner.
+    ///
+    /// 由状态拥有者清空所有 fact。
+    pub(crate) fn clear(&mut self) {
+        self.facts.clear();
+    }
+}
+
+impl FactReader for LocalState {
+    fn get_by_str(&self, key: &str) -> Option<&FactValue> {
+        self.facts.get_by_str(key)
+    }
+
+    fn contains(&self, key: &str) -> bool {
+        self.facts.contains(key)
+    }
+}
+
 /// View Root - marks the root entity of a view layout and defines its namespace.
 ///
+/// `local_facts` is intentionally private; use `local_state()` for reads and
+/// owner-only control methods for writes.
+///
+/// ```compile_fail
+/// use souprune::core::view::ViewRoot;
+///
+/// let view_root = ViewRoot::new("battle/menu.view.ron".to_string());
+/// let _ = &view_root.local_facts;
+/// ```
+///
 /// 视图根 - 标记视图布局的根实体并定义其命名空间。
+///
+/// `local_facts` 刻意保持私有；读取请使用 `local_state()`，写入只能通过
+/// owner 专用控制方法。
 #[derive(Component, Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub struct ViewRoot {
@@ -96,12 +246,12 @@ pub struct ViewRoot {
     /// 示例: "battle/ui/main.view.ron" -> "battle_ui_main"
     pub namespace: String,
 
-    /// Local fact storage for this View instance.
+    /// Local state storage for this View instance.
     /// Automatically cleared when the View is despawned.
     ///
-    /// 此 View 实例的局部事实存储。
+    /// 此 View 实例的局部状态存储。
     /// 当 View 被销毁时自动清空。
-    pub local_facts: FactDatabase,
+    local_state: LocalState,
 }
 
 impl ViewRoot {
@@ -133,8 +283,40 @@ impl ViewRoot {
         Self {
             layout_path,
             namespace,
-            local_facts: FactDatabase::new(),
+            local_state: LocalState::new(),
         }
+    }
+
+    /// Read this view's local state.
+    ///
+    /// 读取此 View 的局部状态。
+    pub fn local_state(&self) -> &LocalState {
+        &self.local_state
+    }
+
+    /// Mutably access local state from an owning system.
+    ///
+    /// 从状态拥有系统可变访问局部状态。
+    pub(crate) fn local_state_mut_for_owner(&mut self) -> &mut LocalState {
+        &mut self.local_state
+    }
+
+    /// Set a local fact from editor tooling.
+    ///
+    /// 从编辑器工具设置局部 fact。
+    pub fn set_local_fact_for_editor(
+        &mut self,
+        key: impl Into<String>,
+        value: impl Into<FactValue>,
+    ) {
+        self.local_state.set(key, value);
+    }
+
+    /// Clear local state from editor preview tooling.
+    ///
+    /// 从编辑器预览工具清空局部状态。
+    pub fn clear_local_state_for_editor(&mut self) {
+        self.local_state.clear();
     }
 
     /// Generate namespace from layout path.
@@ -170,14 +352,14 @@ impl ViewRoot {
             Direction::Left => "left",
             Direction::Right => "right",
         };
-        self.local_facts.set(Self::INPUT_NAVIGATION, direction_name);
+        self.local_state.set(Self::INPUT_NAVIGATION, direction_name);
 
-        if let Some(selection) = self.local_facts.get_int("selection") {
+        if let Some(selection) = self.local_state.get_int("selection") {
             let next = match direction {
                 Direction::Up | Direction::Left => selection - 1,
                 Direction::Down | Direction::Right => selection + 1,
             };
-            self.local_facts.set("selection", FactValue::Int(next));
+            self.local_state.set("selection", FactValue::Int(next));
         }
     }
 
@@ -185,10 +367,10 @@ impl ViewRoot {
     ///
     /// 请求 View 自有确认。
     pub fn request_confirm(&mut self) {
-        self.local_facts
+        self.local_state
             .set(Self::INPUT_CONFIRM_REQUESTED, FactValue::Bool(true));
-        if self.local_facts.contains("confirm_pressed") {
-            self.local_facts
+        if self.local_state.contains("confirm_pressed") {
+            self.local_state
                 .set("confirm_pressed", FactValue::Bool(true));
         }
     }
@@ -197,7 +379,7 @@ impl ViewRoot {
     ///
     /// 请求 View 自有取消。
     pub fn request_cancel(&mut self) {
-        self.local_facts
+        self.local_state
             .set(Self::INPUT_CANCEL_REQUESTED, FactValue::Bool(true));
     }
 
@@ -205,7 +387,7 @@ impl ViewRoot {
     ///
     /// 请求 View 自有菜单激活。
     pub fn request_menu(&mut self) {
-        self.local_facts
+        self.local_state
             .set(Self::INPUT_MENU_REQUESTED, FactValue::Bool(true));
     }
 }
@@ -484,4 +666,20 @@ pub struct PendingViewData {
         std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>,
     /// Handles to FRE assets being loaded for bindings (keeps loading alive).
     pub fre_handles: Vec<bevy::prelude::Handle<crate::core::game_action::GameFreAsset>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn view_root_exposes_local_state_readonly_and_owner_mutation() {
+        let mut view_root = ViewRoot::new("battle/menu.view.ron".to_string());
+
+        view_root
+            .local_state_mut_for_owner()
+            .set("selection", FactValue::Int(2));
+
+        assert_eq!(view_root.local_state().get_int("selection"), Some(2));
+    }
 }

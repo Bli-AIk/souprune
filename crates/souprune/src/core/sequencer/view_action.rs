@@ -90,7 +90,9 @@ pub fn process_set_view_fact_system(
             };
 
             if let Some(fv) = fact_value {
-                view_root.local_facts.set(key.as_str(), fv.clone());
+                view_root
+                    .local_state_mut_for_owner()
+                    .set(key.as_str(), fv.clone());
                 info!("[Battle] SetViewFact: Set '{}' = {:?}", key, fv);
             }
         } else {

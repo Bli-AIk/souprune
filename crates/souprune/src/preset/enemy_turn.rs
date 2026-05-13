@@ -132,7 +132,7 @@ fn resolve_fact_string(
 ) -> String {
     // Check ViewRoot local_facts first (RunSequence params are injected here).
     for view_root in view_roots.iter() {
-        if let Some(s) = view_root.local_facts.get_string(key) {
+        if let Some(s) = view_root.local_state().get_string(key) {
             return s.to_string();
         }
     }

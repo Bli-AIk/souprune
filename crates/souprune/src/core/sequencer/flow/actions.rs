@@ -36,7 +36,7 @@ pub fn process_custom_chapter_system(
     let local_facts = view_roots
         .iter()
         .next()
-        .map(|view_root| &view_root.local_facts);
+        .map(|view_root| view_root.local_state().as_facts());
     for (entity, active_chapter) in query.iter() {
         if let Chapter::Custom {
             action_type,

@@ -63,15 +63,17 @@ fn load_initial_facts_into_view_root(view_root: &mut ViewRoot, layout: &SchemaVi
     let Some(facts) = &layout.facts else { return };
     for (key, value) in facts {
         match value {
-            InitialFactValue::Int(i) => view_root.local_facts.set(key.clone(), *i),
-            InitialFactValue::Float(f) => view_root.local_facts.set(key.clone(), *f),
-            InitialFactValue::Bool(b) => view_root.local_facts.set(key.clone(), *b),
-            InitialFactValue::String(s) => view_root.local_facts.set(key.clone(), s.clone()),
+            InitialFactValue::Int(i) => view_root.set_local_fact_for_editor(key.clone(), *i),
+            InitialFactValue::Float(f) => view_root.set_local_fact_for_editor(key.clone(), *f),
+            InitialFactValue::Bool(b) => view_root.set_local_fact_for_editor(key.clone(), *b),
+            InitialFactValue::String(s) => {
+                view_root.set_local_fact_for_editor(key.clone(), s.clone());
+            }
             InitialFactValue::StringList(list) => {
-                view_root.local_facts.set(key.clone(), list.clone());
+                view_root.set_local_fact_for_editor(key.clone(), list.clone());
             }
             InitialFactValue::IntList(list) => {
-                view_root.local_facts.set(key.clone(), list.clone());
+                view_root.set_local_fact_for_editor(key.clone(), list.clone());
             }
         }
     }
@@ -150,7 +152,7 @@ pub fn preview_play_control_system(
         };
 
         let mut view_root = view_roots.get_mut(view_entity).unwrap().1;
-        view_root.local_facts = bevy_fact_rule_event::FactDatabase::default();
+        view_root.clear_local_state_for_editor();
 
         if let Some(layout) = &editor_state.layout {
             load_initial_facts_into_view_root(&mut view_root, layout);
@@ -194,7 +196,7 @@ pub fn preview_play_control_system(
 
         for entity in &state.preview_entities {
             if let Ok((_, mut view_root)) = view_roots.get_mut(*entity) {
-                view_root.local_facts = bevy_fact_rule_event::FactDatabase::default();
+                view_root.clear_local_state_for_editor();
             }
         }
 

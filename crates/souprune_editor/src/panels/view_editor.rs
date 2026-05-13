@@ -530,9 +530,9 @@ fn render_inspector(ui: &mut egui::Ui, world: &mut World) {
             let mut fre = world.get_resource_or_init::<super::view_fre_panel::ViewFreState>();
             super::view_fre_panel::render_view_fre_section(ui, &mut fre, None);
         }
-        // Live fact simulator bound to ViewRoot.local_facts
+        // Live fact simulator bound to ViewRoot LocalState
         if let Some(mut view_root) = world.get_mut::<ViewRoot>(entity) {
-            super::view_fre_panel::render_live_facts_section(ui, &mut view_root.local_facts);
+            super::view_fre_panel::render_live_facts_section(ui, &mut view_root);
         }
     } else {
         let mut fre = world.get_resource_or_init::<super::view_fre_panel::ViewFreState>();

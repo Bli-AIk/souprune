@@ -60,7 +60,7 @@ fn pre_spawn_rule_conditions_match(
     enum_registry: &bevy_fact_rule_event::EnumRegistry,
     rule: &GameRule,
 ) -> bool {
-    let combined = CombinedFactReader::new(&view_root.local_facts, layered_db);
+    let combined = CombinedFactReader::new(view_root.local_state().as_facts(), layered_db);
     crate::core::fre_bridge::evaluate_conditions(
         &rule.condition_expressions,
         &combined,
@@ -78,14 +78,16 @@ fn apply_pre_spawn_set_local_fact_actions(
         let GameActionDef::SetLocalFact(key, value) = action else {
             continue;
         };
-        let combined = CombinedFactReader::new(&view_root.local_facts, layered_db);
+        let combined = CombinedFactReader::new(view_root.local_state().as_facts(), layered_db);
         let fact_value = crate::core::fre_bridge::evaluate_local_fact_value(
             key,
             value,
             &combined,
             enum_registry,
         );
-        view_root.local_facts.set(key.as_str(), fact_value);
+        view_root
+            .local_state_mut_for_owner()
+            .set(key.as_str(), fact_value);
     }
 }
 
@@ -97,7 +99,9 @@ mod tests {
     #[test]
     fn pre_spawn_event_applies_set_local_fact_before_initial_spawn() {
         let mut view_root = ViewRoot::new("overworld/backpack.view.ron".into());
-        view_root.local_facts.set("info_box_y_offset", 0);
+        view_root
+            .local_state_mut_for_owner()
+            .set("info_box_y_offset", 0);
 
         let mut layered_db = LayeredFactDatabase::new();
         layered_db.set_global("overworld:player_screen_y", FactValue::Float(130.1));
@@ -129,7 +133,7 @@ mod tests {
         );
 
         assert_eq!(
-            view_root.local_facts.get_by_str("info_box_y_offset"),
+            view_root.local_state().get_by_str("info_box_y_offset"),
             Some(&FactValue::Int(135))
         );
     }

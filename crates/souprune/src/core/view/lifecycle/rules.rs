@@ -79,7 +79,7 @@ pub(crate) fn process_pending_view_rules_system(
                 .entity(entity)
                 .remove::<super::super::components::PendingViewRules>();
 
-            view_root.local_facts.set(
+            view_root.local_state_mut_for_owner().set(
                 "view_rules_loaded",
                 bevy_fact_rule_event::FactValue::Bool(true),
             );

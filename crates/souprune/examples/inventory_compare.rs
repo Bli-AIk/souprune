@@ -247,8 +247,8 @@ fn auto_capture(
             return;
         };
 
-        view_root.local_facts.set("depth", case.depth);
-        view_root.local_facts.set("selection", case.selection);
+        view_root.set_local_fact_for_editor("depth", case.depth);
+        view_root.set_local_fact_for_editor("selection", case.selection);
     }
 
     if state.frames_remaining > 0 {

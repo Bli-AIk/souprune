@@ -53,17 +53,17 @@ fn log_condition_not_met(rule: &GameRule, view_root: &ViewRoot) {
         debug!(
             "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, menu_context={:?}, act_selection={:?}, act_count={:?}",
             rule.id,
-            view_root.local_facts.get_int("depth"),
-            view_root.local_facts.get_int("menu_context"),
-            view_root.local_facts.get_int("act_selection"),
-            view_root.local_facts.get_int("act_count")
+            view_root.local_state().get_int("depth"),
+            view_root.local_state().get_int("menu_context"),
+            view_root.local_state().get_int("act_selection"),
+            view_root.local_state().get_int("act_count")
         );
     } else {
         debug!(
             "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, selection={:?}",
             rule.id,
-            view_root.local_facts.get_int("depth"),
-            view_root.local_facts.get_int("selection")
+            view_root.local_state().get_int("depth"),
+            view_root.local_state().get_int("selection")
         );
     }
 }
@@ -96,7 +96,8 @@ fn process_event_view_actions(
                 continue;
             };
 
-            let combined = CombinedFactReader::new(&view_root.local_facts, global_facts);
+            let combined =
+                CombinedFactReader::new(view_root.local_state().as_facts(), global_facts);
             if !evaluate_conditions(&rule.condition_expressions, &combined, enum_registry) {
                 log_condition_not_met(rule, &view_root);
                 continue;
@@ -134,7 +135,9 @@ fn process_event_view_actions(
             for action in &rule.actions {
                 execute_action(
                     action,
-                    &mut view_root.local_facts,
+                    view_root
+                        .local_state_mut_for_owner()
+                        .as_facts_mut_for_owner(),
                     global_facts,
                     audio,
                     asset_server,
@@ -300,13 +303,15 @@ pub fn handle_switch_state_system(
 ) {
     for mut view_root in active_view_query.iter_mut() {
         if let Some(FactValue::String(state_name)) = view_root
-            .local_facts
+            .local_state()
             .get_by_str(fre_facts::VIEW_SWITCH_STATE)
         {
             let state_name = state_name.clone();
             info!("FRE Bridge: Switching to state '{}'", state_name);
             next_state.set(SequenceSubState::new(&state_name));
-            view_root.local_facts.remove(fre_facts::VIEW_SWITCH_STATE);
+            view_root
+                .local_state_mut_for_owner()
+                .remove(fre_facts::VIEW_SWITCH_STATE);
         }
     }
 }

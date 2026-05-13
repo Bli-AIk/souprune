@@ -57,9 +57,10 @@ pub fn evaluate_visible_when_system(
         let view_root = find_view_root_ancestor(entity, &view_root_query, &child_of_query);
 
         let is_visible = if let Some(view_root) = view_root {
-            let player_data = PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
-                .with_resolvers(None, cond_resolvers.as_deref())
-                .with_expr_functions(expr_func_resolvers.as_deref());
+            let player_data =
+                PlayerDataView::with_local_facts(&layered_db, view_root.local_state().as_facts())
+                    .with_resolvers(None, cond_resolvers.as_deref())
+                    .with_expr_functions(expr_func_resolvers.as_deref());
             evaluate_visible_when_expr(&visible_when.expression, &player_data)
         } else {
             let player_data = PlayerDataView::new(&layered_db)

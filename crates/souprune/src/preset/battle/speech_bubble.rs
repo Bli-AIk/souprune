@@ -192,25 +192,25 @@ fn start_battle_speech_bubble_requests(
             .unwrap_or(profile.typewriter_speed);
 
         view_root
-            .local_facts
+            .local_state_mut_for_owner()
             .set("enemy_speech_visible", FactValue::Bool(true));
         view_root
-            .local_facts
+            .local_state_mut_for_owner()
             .set("enemy_speech_bubble_x", FactValue::Float(profile.bubble_x));
         view_root
-            .local_facts
+            .local_state_mut_for_owner()
             .set("enemy_speech_bubble_y", FactValue::Float(profile.bubble_y));
         view_root
-            .local_facts
+            .local_state_mut_for_owner()
             .set("enemy_speech_text_x", FactValue::Float(profile.text_x));
         view_root
-            .local_facts
+            .local_state_mut_for_owner()
             .set("enemy_speech_text_y", FactValue::Float(profile.text_y));
-        view_root.local_facts.set(
+        view_root.local_state_mut_for_owner().set(
             "enemy_speech_text_width",
             FactValue::Float(profile.text_width),
         );
-        view_root.local_facts.set(
+        view_root.local_state_mut_for_owner().set(
             "enemy_speech_bubble_visual",
             FactValue::String(profile.bubble_visual.to_string()),
         );
@@ -298,7 +298,7 @@ fn update_battle_speech_bubble_runtime(
 
     if let Ok(mut view_root) = view_roots.single_mut() {
         view_root
-            .local_facts
+            .local_state_mut_for_owner()
             .set("enemy_speech_visible", FactValue::Bool(false));
     }
 

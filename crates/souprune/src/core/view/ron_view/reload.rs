@@ -142,7 +142,7 @@ pub fn incremental_reload_system(
         // Get local facts from ViewRoot if available
         let local_facts = view_root_query
             .get(root_entity)
-            .map(|vr| &vr.local_facts)
+            .map(|vr| vr.local_state().as_facts())
             .ok();
 
         info!(

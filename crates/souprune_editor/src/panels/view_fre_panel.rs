@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use bevy::prelude::Resource;
 use bevy_fact_rule_event::asset::{FactModificationDef, FactValueDef, RuleEventDef};
 use souprune::editor_api::game_action::{GameActionDef, GameFreAsset, GameRuleDef};
+use souprune::core::view::ViewRoot;
 use souprune_schema::view::DataRequirement;
 
 /// View FRE 编辑器状态。
@@ -125,15 +126,14 @@ pub fn render_view_fre_section(
     changed
 }
 
-/// Render live fact simulator bound to ViewRoot.local_facts during Play mode.
-pub fn render_live_facts_section(
-    ui: &mut egui::Ui,
-    facts: &mut bevy_fact_rule_event::FactDatabase,
-) {
+/// Render live fact simulator bound to ViewRoot LocalState during Play mode.
+///
+/// 在 Play 模式中渲染绑定到 ViewRoot LocalState 的实时 fact 模拟器。
+pub fn render_live_facts_section(ui: &mut egui::Ui, view_root: &mut ViewRoot) {
     egui::CollapsingHeader::new("Fact Simulator (Live)")
         .default_open(true)
         .show(ui, |ui| {
-            render_live_fact_simulator(ui, facts);
+            render_live_fact_simulator(ui, view_root);
         });
 }
 
@@ -334,7 +334,7 @@ fn render_live_fact_value(
     ui: &mut egui::Ui,
     key: &str,
     value: &bevy_fact_rule_event::FactValue,
-    facts: &mut bevy_fact_rule_event::FactDatabase,
+    view_root: &mut ViewRoot,
 ) -> bool {
     use bevy_fact_rule_event::FactValue;
     let mut changed = false;
@@ -342,28 +342,28 @@ fn render_live_fact_value(
         FactValue::Int(v) => {
             let mut f = *v as f64;
             if ui.add(egui::DragValue::new(&mut f).speed(1.0)).changed() {
-                facts.set(key.to_string(), f as i64);
+                view_root.set_local_fact_for_editor(key.to_string(), f as i64);
                 changed = true;
             }
         }
         FactValue::Float(v) => {
             let mut f = *v;
             if ui.add(egui::DragValue::new(&mut f).speed(0.1)).changed() {
-                facts.set(key.to_string(), f);
+                view_root.set_local_fact_for_editor(key.to_string(), f);
                 changed = true;
             }
         }
         FactValue::Bool(v) => {
             let mut b = *v;
             if ui.checkbox(&mut b, "").changed() {
-                facts.set(key.to_string(), b);
+                view_root.set_local_fact_for_editor(key.to_string(), b);
                 changed = true;
             }
         }
         FactValue::String(s) => {
             let mut s = s.clone();
             if ui.text_edit_singleline(&mut s).changed() {
-                facts.set(key.to_string(), s);
+                view_root.set_local_fact_for_editor(key.to_string(), s);
                 changed = true;
             }
         }
@@ -374,27 +374,29 @@ fn render_live_fact_value(
     changed
 }
 
-/// Render Fact Simulator bound to live ViewRoot.local_facts during Play mode.
-fn render_live_fact_simulator(
-    ui: &mut egui::Ui,
-    facts: &mut bevy_fact_rule_event::FactDatabase,
-) -> bool {
+/// Render Fact Simulator bound to live ViewRoot LocalState during Play mode.
+///
+/// 在 Play 模式中渲染绑定到实时 ViewRoot LocalState 的 Fact 模拟器。
+fn render_live_fact_simulator(ui: &mut egui::Ui, view_root: &mut ViewRoot) -> bool {
     use bevy_fact_rule_event::FactValue;
 
     let mut changed = false;
 
-    if facts.is_empty() {
+    if view_root.local_state().is_empty() {
         ui.label("(no facts)");
         return false;
     }
 
-    let entries: Vec<(String, FactValue)> =
-        facts.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+    let entries: Vec<(String, FactValue)> = view_root
+        .local_state()
+        .iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
 
     for (key, value) in &entries {
         ui.horizontal(|ui| {
             ui.monospace(key);
-            changed |= render_live_fact_value(ui, key, value, facts);
+            changed |= render_live_fact_value(ui, key, value, view_root);
         });
     }
 
