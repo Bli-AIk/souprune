@@ -19,9 +19,21 @@ if [ ! -f "$BASELINE_FILE" ]; then
     exit 1
 fi
 
+PYTHON_BIN="${PYTHON:-}"
+if [ -z "$PYTHON_BIN" ]; then
+    if command -v python3 >/dev/null 2>&1; then
+        PYTHON_BIN=python3
+    elif command -v python >/dev/null 2>&1; then
+        PYTHON_BIN=python
+    else
+        echo "Missing Python interpreter: expected python3 or python." >&2
+        exit 1
+    fi
+fi
+
 (
     cd "$ROOT_DIR"
-    python - <<'PY' > "$TMP_CURRENT"
+    "$PYTHON_BIN" - <<'PY' > "$TMP_CURRENT"
 import re
 import subprocess
 

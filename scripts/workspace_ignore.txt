@@ -3,4 +3,3 @@
 # with the main SoupRune code path.
 # One crate directory name per line. Lines starting with # are comments.
 iyes_perf_ui
-souprune_editor

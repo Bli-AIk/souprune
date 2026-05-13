@@ -6,7 +6,6 @@ on:
     types: [opened, closed, synchronize]
     paths:
       - 'crates/souprune/**'
-      - 'crates/souprune_editor/**'
 
 permissions:
   actions: write

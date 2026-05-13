@@ -24,7 +24,6 @@ use crate::core::camera::Followable;
 use crate::core::sprite::ModuleSpriteRegistry;
 use bevy::app::{App, Plugin};
 use bevy::asset::LoadedFolder;
-use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 use std::fs;
 
@@ -213,7 +212,6 @@ fn check_textures_system(
 fn setup_camera_system(
     mut commands: Commands,
     #[cfg(not(target_os = "android"))] resolution_scale: Res<ResolutionScale>,
-    game_schedule: Option<Res<crate::GameUpdateSchedule>>,
     existing: Query<(), With<crate::core::camera::MainGameCamera>>,
     #[cfg(target_os = "android")] config: Option<Res<crate::config::SoupruneConfig>>,
 ) {
@@ -222,12 +220,8 @@ fn setup_camera_system(
         return;
     }
 
-    let is_editor = game_schedule
-        .as_ref()
-        .is_some_and(|gs| gs.0 != Update.intern());
-
     // Android 使用 Fixed 缩放 + viewport 系统保持宽高比（见 android_viewport_system）。
-    // 编辑器和独立游戏使用 WindowSize + scale：render target 分辨率 = base * scale，
+    // 独立游戏使用 WindowSize + scale：render target 分辨率 = base * scale，
     // 相机可视区域 = render_target_size / scale = base_resolution，像素完美。
     #[cfg(target_os = "android")]
     let projection = {
@@ -251,21 +245,13 @@ fn setup_camera_system(
         ..OrthographicProjection::default_2d()
     });
 
-    let mut entity = commands.spawn((
+    commands.spawn((
         Name::new("Overworld Camera2d"),
         Camera2d,
         projection,
         Followable::default(),
         crate::core::camera::MainGameCamera,
     ));
-
-    // 编辑器模式下禁用游戏相机（由 GameViewPlugin 在 Play 时劫持激活）
-    if is_editor {
-        entity.insert(Camera {
-            is_active: false,
-            ..default()
-        });
-    }
 }
 
 fn setup_touch_overlay_system(

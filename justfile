@@ -94,7 +94,6 @@ tokei-check:
 # 架构边界检查
 arch-check:
     @bash ./scripts/check_core_boundaries.sh
-    @bash ./scripts/check_editor_boundaries.sh
 
 alias line := tokei-check
 
@@ -172,9 +171,6 @@ bevy_debug_tracy: prepare-assets-release
 # Souprune Debug Tracy (souprune debug feature + trace)
 soup_debug_tracy: prepare-assets-release
     cargo run -p {{project}} --release --features "trace_tracy,debug"
-
-editor:
-    cargo run --manifest-path crates/souprune_editor/Cargo.toml
 
 # WASM Mod 构建（编译测试 mod 为 WASM 组件）
 wasm-build:

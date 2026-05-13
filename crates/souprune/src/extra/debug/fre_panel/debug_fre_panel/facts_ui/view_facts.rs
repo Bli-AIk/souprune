@@ -76,7 +76,7 @@ pub(super) fn render_view_facts_tab(ui: &mut egui::Ui, world: &mut World) {
 
         for (entity, key, value) in modifications {
             if let Some(mut view_root) = world.get_mut::<ViewRoot>(entity) {
-                view_root.set_local_fact_for_editor(key, value);
+                view_root.set_local_fact_for_debug(key, value);
             }
         }
     });

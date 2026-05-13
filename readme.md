@@ -283,15 +283,12 @@ SoupRune adopts a multi-crate workspace architecture:
 | [`souprune_sdk`](./crates/souprune_sdk)                 | **Development Kit**: Rust WASM guest SDK for building mod components.                       |
 | [`souprune_mod_test`](./crates/souprune_mod_test)       | **Sample Mod**: Example WASM mod component (target: wasm32-wasip2).                         |
 | [`souprune_mock_host`](./crates/souprune_mock_host)     | **Tool**: Standalone test host for loading and running WASM mods via Wasmtime.              |
-| [`souprune_editor`](./crates/souprune_editor)           | **Editor (WIP)**: An egui-based game editor for SoupRune, built on bevy_workbench.          |
 | [`souprune_schema`](./crates/souprune_schema)           | **Schema**: Pure data schema types for SoupRune RON files. No Bevy dependency.              |
 | [`souprune_lint`](./crates/souprune_lint)               | **Linter**: RON file linter for SoupRune projects.                                          |
 | [`bevy_mortar_bond`](./crates/bevy_mortar_bond)         | **Plugin**: Bridge between Mortar scripting and Bevy, handling dialogue and logic.          |
 | [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter)   | **Plugin**: ECS-based typewriter implementation, supporting rich text and multi-language.   |
 | [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event) | **Plugin**: Complex event system based on the "Fact-Rule-Event" model.                      |
 | [`bevy_alight_motion`](./crates/bevy_alight_motion)     | **Plugin**: Integration for parsing and playing Alight Motion animation projects.           |
-| [`bevy_workbench`](./crates/bevy_workbench)             | **Plugin**: A mid-level editor scaffold for Bevy.                                           |
-| [`flambe`](./crates/flambe)                             | **Tool (WIP)**: PC visual editor for Alight Motion projects, powered by bevy_alight_motion. |
 
 ## 🧩 Script Layer Support
 

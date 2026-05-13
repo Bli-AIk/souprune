@@ -301,10 +301,10 @@ impl ViewRoot {
         &mut self.local_state
     }
 
-    /// Set a local fact from editor tooling.
+    /// Set a local fact from debug tooling.
     ///
-    /// 从编辑器工具设置局部 fact。
-    pub fn set_local_fact_for_editor(
+    /// 从调试工具设置局部 fact。
+    pub fn set_local_fact_for_debug(
         &mut self,
         key: impl Into<String>,
         value: impl Into<FactValue>,
@@ -312,10 +312,10 @@ impl ViewRoot {
         self.local_state.set(key, value);
     }
 
-    /// Clear local state from editor preview tooling.
+    /// Clear local state from debug tooling.
     ///
-    /// 从编辑器预览工具清空局部状态。
-    pub fn clear_local_state_for_editor(&mut self) {
+    /// 从调试工具清空局部状态。
+    pub fn clear_local_state_for_debug(&mut self) {
         self.local_state.clear();
     }
 
