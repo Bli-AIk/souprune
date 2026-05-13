@@ -16,6 +16,7 @@ use crate::core::mode::SequenceMode;
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::ActionState;
 use souprune_api::Action as SemanticAction;
+use std::collections::HashSet;
 
 /// System set for generating input transactions from action state.
 ///
@@ -157,6 +158,65 @@ pub enum InputResult {
     PassThrough(Vec<InputEffect>),
 }
 
+/// Current held semantic input state from the unified input layer.
+///
+/// 统一输入层给出的当前按住语义输入状态。
+#[derive(Resource, Debug, Clone, Default)]
+pub struct InputCommandState {
+    pressed_commands: HashSet<InputCommand>,
+    pressed_source_actions: HashSet<String>,
+}
+
+impl InputCommandState {
+    /// Return true when a semantic command is currently held.
+    ///
+    /// 当语义命令当前处于按住状态时返回 true。
+    pub fn command_pressed(&self, command: &InputCommand) -> bool {
+        self.pressed_commands.contains(command)
+    }
+
+    /// Return true when a navigation direction is currently held.
+    ///
+    /// 当导航方向当前处于按住状态时返回 true。
+    pub fn navigation_pressed(&self, direction: Direction) -> bool {
+        self.command_pressed(&InputCommand::Navigate(direction))
+    }
+
+    /// Return true when any navigation direction is currently held.
+    ///
+    /// 当任意导航方向当前处于按住状态时返回 true。
+    pub fn has_navigation_input(&self) -> bool {
+        [
+            Direction::Up,
+            Direction::Down,
+            Direction::Left,
+            Direction::Right,
+        ]
+        .into_iter()
+        .any(|direction| self.navigation_pressed(direction))
+    }
+
+    /// Return true when a configured source action is currently held.
+    ///
+    /// 当配置过的源动作当前处于按住状态时返回 true。
+    pub fn source_action_pressed(&self, source_action: &str) -> bool {
+        self.pressed_source_actions.contains(source_action)
+    }
+
+    pub(crate) fn set_pressed_command(
+        &mut self,
+        command: InputCommand,
+        source_action: impl Into<String>,
+    ) {
+        self.pressed_commands.insert(command);
+        self.pressed_source_actions.insert(source_action.into());
+    }
+
+    fn set_pressed_source_action(&mut self, source_action: impl Into<String>) {
+        self.pressed_source_actions.insert(source_action.into());
+    }
+}
+
 fn configured_input_commands(config: &InputBehaviorConfig) -> Vec<(&str, InputCommand)> {
     let mut commands = Vec::new();
 
@@ -220,6 +280,28 @@ fn collect_input_envelopes(
         .collect()
 }
 
+fn collect_input_command_state(
+    action_state: &ActionState<Action>,
+    registry: &ActionRegistry,
+    behavior_config: &InputBehaviorConfig,
+) -> InputCommandState {
+    let mut state = InputCommandState::default();
+
+    for source_action in registry.all_actions() {
+        if action_state.action_pressed(registry, source_action) {
+            state.set_pressed_source_action(source_action.to_string());
+        }
+    }
+
+    for (source_action, command) in configured_input_commands(behavior_config) {
+        if action_state.action_pressed(registry, source_action) {
+            state.set_pressed_command(command, source_action.to_string());
+        }
+    }
+
+    state
+}
+
 /// Emit input envelope messages from the current action state.
 ///
 /// 从当前动作状态发出输入事务消息。
@@ -228,11 +310,15 @@ pub fn emit_input_envelopes_system(
     behavior_config: Res<InputBehaviorConfig>,
     mode: Option<Res<SequenceMode>>,
     query: Query<&ActionState<Action>>,
+    mut command_state: ResMut<InputCommandState>,
     mut writer: MessageWriter<InputEnvelopeEvent>,
 ) {
     let Some(action_state) = query.iter().next() else {
+        *command_state = InputCommandState::default();
         return;
     };
+
+    *command_state = collect_input_command_state(action_state, &registry, &behavior_config);
 
     let context = context_from_mode(mode.as_deref());
     let target = InputTarget::FreScope;
@@ -354,6 +440,29 @@ mod tests {
         );
 
         assert!(action_state.pressed(&action));
+        assert!(envelopes.is_empty());
+    }
+
+    #[test]
+    fn held_navigation_action_updates_command_state_without_repeating_envelope() {
+        let (registry, config, action) = test_registry_and_config("MoveDown");
+        let mut action_state = ActionState::<Action>::default();
+        action_state.press(&action);
+
+        let now = Instant::now();
+        action_state.tick(now, now);
+
+        let state = collect_input_command_state(&action_state, &registry, &config);
+        let envelopes = collect_input_envelopes(
+            &action_state,
+            &registry,
+            &config,
+            InputContextId::Overworld,
+            InputTarget::FreScope,
+        );
+
+        assert!(state.navigation_pressed(Direction::Down));
+        assert!(state.source_action_pressed("MoveDown"));
         assert!(envelopes.is_empty());
     }
 }

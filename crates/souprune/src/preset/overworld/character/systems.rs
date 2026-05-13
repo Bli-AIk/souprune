@@ -19,51 +19,38 @@
 //! 根据输入和游戏状态管理状态转换。
 
 use crate::core::basic_components::{Facing, Speed};
-use crate::core::input::{Action, ActionRegistry, ActionStateExt, InputBehaviorConfig};
+use crate::core::input::{Direction as InputDirection, InputCommandState};
 use crate::preset::overworld::character::components::{StateRunning, StateWalking};
 use crate::preset::overworld::player::config::PlayerBehavior;
 use bevy::prelude::*;
-use leafwing_input_manager::action_state::*;
 
 pub(crate) fn update_walking_system(
     time: Res<Time>,
-    registry: Res<ActionRegistry>,
-    behavior_config: Res<InputBehaviorConfig>,
-    mut query: Query<
-        (&mut Transform, &mut Facing, &Speed, &ActionState<Action>),
-        With<StateWalking>,
-    >,
+    input_state: Res<InputCommandState>,
+    mut query: Query<(&mut Transform, &mut Facing, &Speed), With<StateWalking>>,
 ) {
-    for (mut transform, facing, speed, action_state) in query.iter_mut() {
+    for (mut transform, facing, speed) in query.iter_mut() {
         apply_walking_step(
             &mut transform,
             facing,
             speed.value,
-            action_state,
-            &registry,
-            &behavior_config,
+            &input_state,
             time.delta_secs(),
         );
     }
 }
 pub(crate) fn update_running_system(
     time: Res<Time>,
-    registry: Res<ActionRegistry>,
-    behavior_config: Res<InputBehaviorConfig>,
+    input_state: Res<InputCommandState>,
     behavior: Res<PlayerBehavior>,
-    mut query: Query<
-        (&mut Transform, &mut Facing, &Speed, &ActionState<Action>),
-        With<StateRunning>,
-    >,
+    mut query: Query<(&mut Transform, &mut Facing, &Speed), With<StateRunning>>,
 ) {
-    for (mut transform, facing, speed, action_state) in query.iter_mut() {
+    for (mut transform, facing, speed) in query.iter_mut() {
         apply_walking_step(
             &mut transform,
             facing,
             speed.value * behavior.run_speed_multiplier,
-            action_state,
-            &registry,
-            &behavior_config,
+            &input_state,
             time.delta_secs(),
         );
     }
@@ -73,33 +60,17 @@ fn apply_walking_step(
     transform: &mut Transform,
     mut facing: Mut<Facing>,
     speed: f32,
-    action_state: &ActionState<Action>,
-    registry: &ActionRegistry,
-    behavior_config: &InputBehaviorConfig,
+    input_state: &InputCommandState,
     delta_secs: f32,
 ) {
     use crate::core::basic_components::*;
 
     let mut direction_vec = Vec2::ZERO;
 
-    // Use behavior config to get action names for navigation
-    // 使用行为配置获取导航的动作名称
-    let up_pressed = behavior_config
-        .nav_up()
-        .map(|name| action_state.action_pressed(registry, name))
-        .unwrap_or(false);
-    let down_pressed = behavior_config
-        .nav_down()
-        .map(|name| action_state.action_pressed(registry, name))
-        .unwrap_or(false);
-    let left_pressed = behavior_config
-        .nav_left()
-        .map(|name| action_state.action_pressed(registry, name))
-        .unwrap_or(false);
-    let right_pressed = behavior_config
-        .nav_right()
-        .map(|name| action_state.action_pressed(registry, name))
-        .unwrap_or(false);
+    let up_pressed = input_state.navigation_pressed(InputDirection::Up);
+    let down_pressed = input_state.navigation_pressed(InputDirection::Down);
+    let left_pressed = input_state.navigation_pressed(InputDirection::Left);
+    let right_pressed = input_state.navigation_pressed(InputDirection::Right);
 
     if up_pressed && !down_pressed {
         direction_vec.y += 1.0;
@@ -133,5 +104,38 @@ fn apply_walking_step(
         // SDF 碰撞系统可以处理任意大小的移动，无需分解步骤。
         let movement = facing.value.as_vec2() * speed * delta_secs;
         transform.translation += movement.extend(0.0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::input::{Direction as InputDirection, InputCommand, InputCommandState};
+
+    #[test]
+    fn walking_step_reads_direction_from_input_command_state() {
+        let mut transform = Transform::default();
+        let facing = Facing {
+            value: crate::core::basic_components::Direction::Down,
+        };
+        let mut input_state = InputCommandState::default();
+        input_state.set_pressed_command(InputCommand::Navigate(InputDirection::Right), "Right");
+
+        let mut world = World::new();
+        let entity = world.spawn(facing).id();
+        let mut entity_mut = world.entity_mut(entity);
+        let facing_mut = entity_mut
+            .get_mut::<Facing>()
+            .expect("test entity should have Facing");
+
+        apply_walking_step(&mut transform, facing_mut, 10.0, &input_state, 0.5);
+
+        let facing = world.get::<Facing>(entity).expect("facing should remain");
+        assert_eq!(
+            facing.value,
+            crate::core::basic_components::Direction::Right
+        );
+        assert_eq!(transform.translation.x, 5.0);
+        assert_eq!(transform.translation.y, 0.0);
     }
 }

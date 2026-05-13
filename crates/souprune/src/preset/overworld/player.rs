@@ -180,17 +180,11 @@ pub fn player_state_transition_system(
         ),
         With<character::components::PlayerControlled>,
     >,
-    action_query: Query<
-        &leafwing_input_manager::action_state::ActionState<crate::core::input::Action>,
-        With<character::components::PlayerControlled>,
-    >,
-    registry: Res<crate::core::input::ActionRegistry>,
-    behavior_config: Res<crate::core::input::InputBehaviorConfig>,
+    input_state: Res<crate::core::input::InputCommandState>,
     sub_state: Res<State<crate::core::mode::SequenceSubState>>,
     player_behavior: Res<PlayerBehavior>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
 ) {
-    use crate::core::input::ActionStateExt;
     use crate::preset::overworld::character::components::*;
 
     // Check if current state allows player movement
@@ -199,32 +193,10 @@ pub fn player_state_transition_system(
         .map(|c| c.is_player_movable(sub_state.name()))
         .unwrap_or(true);
 
-    let Ok(action_state) = action_query.single() else {
-        return;
-    };
-
-    // Check walking input
+    // Check walking input from unified input command state.
+    // 从统一输入命令状态检查行走输入。
     let is_walking = if player_movable {
-        let up_pressed = behavior_config
-            .nav_up()
-            .map(|name| action_state.action_pressed(&registry, name))
-            .unwrap_or(false);
-        let down_pressed = behavior_config
-            .nav_down()
-            .map(|name| action_state.action_pressed(&registry, name))
-            .unwrap_or(false);
-        let left_pressed = behavior_config
-            .nav_left()
-            .map(|name| action_state.action_pressed(&registry, name))
-            .unwrap_or(false);
-        let right_pressed = behavior_config
-            .nav_right()
-            .map(|name| action_state.action_pressed(&registry, name))
-            .unwrap_or(false);
-
-        let has_vertical = (up_pressed && !down_pressed) || (down_pressed && !up_pressed);
-        let has_horizontal = (left_pressed && !right_pressed) || (right_pressed && !left_pressed);
-        has_vertical || has_horizontal
+        input_state.has_navigation_input()
     } else {
         false
     };
@@ -234,8 +206,7 @@ pub fn player_state_transition_system(
         player_behavior
             .run_action
             .as_ref()
-            .and_then(|name| registry.get(name))
-            .map(|action| action_state.pressed(&action))
+            .map(|name| input_state.source_action_pressed(name))
             .unwrap_or(false)
     } else {
         false

@@ -4,13 +4,12 @@
 
 use crate::core::basic_components::{Direction, Facing};
 use crate::core::collision::Rect2DCollider;
-use crate::core::input::{Action, ActionRegistry, ActionStateExt};
+use crate::core::input::{InputCommand, InputContextId, InputEnvelopeEvent};
 use crate::core::map_property_schema::{get_string_property, keys};
 use crate::preset::overworld::character::components::PlayerControlled;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 use bevy_fact_rule_event::{FactEvent, FactEventId, LayeredFactDatabase};
-use leafwing_input_manager::action_state::ActionState;
 
 use crate::core::game_action::{GameFreAsset, GameRuleRegistry};
 
@@ -373,8 +372,7 @@ pub fn interactable_detection_system(
 
 /// System to handle player interaction when confirm is pressed.
 pub fn handle_interaction_input_system(
-    registry: Res<ActionRegistry>,
-    query: Query<&ActionState<Action>, With<PlayerControlled>>,
+    mut input_events: MessageReader<InputEnvelopeEvent>,
     focused: Res<FocusedInteractable>,
     interactables: Query<&Interactable>,
     current_state: Res<State<crate::core::mode::SequenceSubState>>,
@@ -390,11 +388,11 @@ pub fn handle_interaction_input_system(
         return;
     }
 
-    let Ok(action_state) = query.single() else {
-        return;
-    };
-
-    if !action_state.action_just_pressed(&registry, "Confirm") {
+    let has_confirm = input_events.read().any(|event| {
+        matches!(event.envelope.context, InputContextId::Overworld)
+            && matches!(event.envelope.command, InputCommand::Confirm)
+    });
+    if !has_confirm {
         return;
     }
 
@@ -420,4 +418,94 @@ pub fn handle_interaction_input_system(
         interactable_id, event_id
     );
     event_writer.write(FactEvent::new(event_id));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::game_action::GameActionDef;
+    use crate::core::input::{
+        InputCommand, InputContextId, InputEnvelope, InputEnvelopeEvent, InputTarget,
+    };
+    use crate::core::mode::SequenceSubState;
+    use bevy::ecs::message::Messages;
+
+    fn app_with_interaction_input_system() -> App {
+        let mut app = App::new();
+        app.add_plugins(bevy::state::app::StatesPlugin);
+        app.add_message::<InputEnvelopeEvent>()
+            .add_message::<FactEvent>()
+            .init_state::<SequenceSubState>()
+            .init_resource::<FocusedInteractable>()
+            .add_systems(Update, handle_interaction_input_system);
+        app
+    }
+
+    fn write_confirm(app: &mut App) {
+        app.world_mut()
+            .write_message(InputEnvelopeEvent::new(InputEnvelope::new(
+                InputContextId::Overworld,
+                InputTarget::FreScope,
+                InputCommand::Confirm,
+                "Confirm",
+            )));
+    }
+
+    fn fact_event_ids(app: &App) -> Vec<String> {
+        let events = app.world().resource::<Messages<FactEvent>>();
+        let mut cursor = events.get_cursor();
+        cursor
+            .read(events)
+            .map(|event| event.id.0.clone())
+            .collect()
+    }
+
+    #[test]
+    fn confirm_envelope_triggers_focused_interactable() {
+        let mut app = app_with_interaction_input_system();
+        let entity = app.world_mut().spawn(Interactable::new("dummy")).id();
+        *app.world_mut().resource_mut::<FocusedInteractable>() = FocusedInteractable {
+            entity: Some(entity),
+            id: Some("dummy".to_string()),
+        };
+
+        write_confirm(&mut app);
+        app.update();
+
+        assert_eq!(fact_event_ids(&app), vec!["interact_dummy"]);
+    }
+
+    #[test]
+    fn confirm_envelope_without_focus_is_ignored() {
+        let mut app = app_with_interaction_input_system();
+
+        write_confirm(&mut app);
+        app.update();
+
+        assert!(fact_event_ids(&app).is_empty());
+    }
+
+    #[test]
+    fn undertale_menu_rule_uses_semantic_menu_event_to_open_backpack() {
+        let fre: GameFreAsset = ron::from_str(include_str!(
+            "../../../../../projects/undertale_preset/overworld/rules/interaction.fre.ron"
+        ))
+        .expect("undertale overworld interaction fre should parse");
+
+        let rule = fre
+            .rules
+            .iter()
+            .find(|rule| rule.id == "overworld_open_backpack")
+            .expect("interaction rules should contain Backpack open rule");
+
+        assert_eq!(rule.event.to_event_id(), "input:menu");
+        assert!(rule.actions.iter().any(|action| {
+            matches!(
+                action,
+                GameActionDef::Custom { action_type, params }
+                if action_type == "SetSubState"
+                    && params.get("state").map(String::as_str) == Some("Backpack")
+            )
+        }));
+    }
 }

@@ -18,19 +18,15 @@
 //!
 //! 包括检查玩家是否在行走或执行操作的函数。
 
-use crate::core::input::{Action, ActionRegistry, ActionStateExt, InputBehaviorConfig};
+use crate::core::input::InputCommandState;
 use crate::core::mode::SequenceSubState;
 use crate::core::state_config::LoadedStateConfig;
-use crate::preset::overworld::character::components::PlayerControlled;
 use crate::preset::overworld::player::config::PlayerBehavior;
 use bevy::prelude;
-use bevy::prelude::{Query, Res, State, With};
-use leafwing_input_manager::action_state::ActionState;
+use bevy::prelude::{Res, State};
 
 pub fn is_player_walking(
-    query: Query<&ActionState<Action>, With<PlayerControlled>>,
-    registry: Res<ActionRegistry>,
-    behavior_config: Res<InputBehaviorConfig>,
+    input_state: Res<InputCommandState>,
     sub_state: Res<State<SequenceSubState>>,
     state_config: Option<Res<LoadedStateConfig>>,
 ) -> prelude::Result<(), ()> {
@@ -45,31 +41,7 @@ pub fn is_player_walking(
         return Err(());
     }
 
-    let action_state = query.single().map_err(|_| ())?;
-
-    // Use behavior config to get action names for navigation
-    // 使用行为配置获取导航的动作名称
-    let up_pressed = behavior_config
-        .nav_up()
-        .map(|name| action_state.action_pressed(&registry, name))
-        .unwrap_or(false);
-    let down_pressed = behavior_config
-        .nav_down()
-        .map(|name| action_state.action_pressed(&registry, name))
-        .unwrap_or(false);
-    let left_pressed = behavior_config
-        .nav_left()
-        .map(|name| action_state.action_pressed(&registry, name))
-        .unwrap_or(false);
-    let right_pressed = behavior_config
-        .nav_right()
-        .map(|name| action_state.action_pressed(&registry, name))
-        .unwrap_or(false);
-
-    let has_vertical_input = (up_pressed && !down_pressed) || (down_pressed && !up_pressed);
-    let has_horizontal_input = (left_pressed && !right_pressed) || (right_pressed && !left_pressed);
-
-    if has_vertical_input || has_horizontal_input {
+    if input_state.has_navigation_input() {
         Ok(())
     } else {
         Err(())
@@ -77,8 +49,7 @@ pub fn is_player_walking(
 }
 
 pub fn is_player_running(
-    query: Query<&ActionState<Action>, With<PlayerControlled>>,
-    registry: Res<ActionRegistry>,
+    input_state: Res<InputCommandState>,
     sub_state: Res<State<SequenceSubState>>,
     player_behavior: Res<PlayerBehavior>,
     state_config: Option<Res<LoadedStateConfig>>,
@@ -98,12 +69,7 @@ pub fn is_player_running(
         return Err(());
     };
 
-    let Some(run_action) = registry.get(run_action_name) else {
-        return Err(());
-    };
-
-    let action_state = query.single().map_err(|_| ())?;
-    if action_state.pressed(&run_action) {
+    if input_state.source_action_pressed(run_action_name) {
         Ok(())
     } else {
         Err(())

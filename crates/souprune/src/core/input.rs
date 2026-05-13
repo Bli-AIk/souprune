@@ -49,6 +49,7 @@ impl Plugin for InputPlugin {
         app.init_asset::<InputConfig>()
             .register_asset_loader(RonAssetLoader::<InputConfig>::new(&["input.ron"]))
             .add_message::<InputEnvelopeEvent>()
+            .init_resource::<InputCommandState>()
             .add_plugins(touch::TouchPlugin)
             .add_systems(
                 schedule,

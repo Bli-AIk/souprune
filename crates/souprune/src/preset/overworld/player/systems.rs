@@ -19,17 +19,15 @@
 //! 根据玩家操作管理角色动画状态。
 
 use crate::core::basic_components::{Direction, Facing};
-use crate::core::input::{Action, ActionRegistry, ActionStateExt, InputBehaviorConfig};
+use crate::core::input::{Direction as InputDirection, InputCommandState};
 use crate::core::mode::SequenceSubState;
 use crate::core::state_config::LoadedStateConfig;
 use crate::preset::overworld::character::components::PlayerControlled;
 use bevy::prelude::{Query, Res, State, With};
-use leafwing_input_manager::action_state::ActionState;
 
 pub(crate) fn player_direction_control_system(
-    mut query: Query<(&mut Facing, &ActionState<Action>), With<PlayerControlled>>,
-    registry: Res<ActionRegistry>,
-    behavior_config: Res<InputBehaviorConfig>,
+    mut query: Query<&mut Facing, With<PlayerControlled>>,
+    input_state: Res<InputCommandState>,
     sub_state: Res<State<SequenceSubState>>,
     state_config: Option<Res<LoadedStateConfig>>,
 ) {
@@ -44,25 +42,11 @@ pub(crate) fn player_direction_control_system(
         return;
     }
 
-    for (mut facing, action_state) in query.iter_mut() {
-        // Use behavior config to get action names for navigation
-        // 使用行为配置获取导航的动作名称
-        let up_pressed = behavior_config
-            .nav_up()
-            .map(|name| action_state.action_pressed(&registry, name))
-            .unwrap_or(false);
-        let down_pressed = behavior_config
-            .nav_down()
-            .map(|name| action_state.action_pressed(&registry, name))
-            .unwrap_or(false);
-        let left_pressed = behavior_config
-            .nav_left()
-            .map(|name| action_state.action_pressed(&registry, name))
-            .unwrap_or(false);
-        let right_pressed = behavior_config
-            .nav_right()
-            .map(|name| action_state.action_pressed(&registry, name))
-            .unwrap_or(false);
+    for mut facing in query.iter_mut() {
+        let up_pressed = input_state.navigation_pressed(InputDirection::Up);
+        let down_pressed = input_state.navigation_pressed(InputDirection::Down);
+        let left_pressed = input_state.navigation_pressed(InputDirection::Left);
+        let right_pressed = input_state.navigation_pressed(InputDirection::Right);
 
         // Only update the facing direction when opposite inputs are not pressed simultaneously.
         //
