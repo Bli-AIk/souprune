@@ -11,6 +11,28 @@ pub(crate) struct SpriteAnimationCurrentFrame {
     pub(crate) value: usize,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn animation_entry_identity_includes_flip_flags() {
+        let clip = SpriteAnimationClip {
+            sprites: vec![Sprite::default()],
+            frame: 0,
+            looping: true,
+            clip_path: "characters/frisk/walk/side".to_string(),
+            flip_x: false,
+            flip_y: false,
+            frame_duration: 0.15,
+        };
+
+        assert!(clip.matches_entry("characters/frisk/walk/side", false, false));
+        assert!(!clip.matches_entry("characters/frisk/walk/side", true, false));
+        assert!(!clip.matches_entry("characters/frisk/walk/side", false, true));
+    }
+}
+
 #[derive(Component)]
 pub(crate) struct SpriteAnimationTimer {
     pub(crate) timer: f32,
@@ -47,6 +69,8 @@ pub(crate) struct SpriteAnimationClip {
     looping: bool,
     /// Path used as identity to detect animation switches.
     clip_path: String,
+    flip_x: bool,
+    flip_y: bool,
     pub(crate) frame_duration: f32,
 }
 
@@ -70,6 +94,8 @@ impl SpriteAnimationClip {
             frame: 0,
             looping,
             clip_path: relative_path.to_string(),
+            flip_x,
+            flip_y,
             frame_duration,
         })
     }
@@ -85,6 +111,8 @@ impl SpriteAnimationClip {
             frame: 0,
             looping: false,
             clip_path: relative_path.to_string(),
+            flip_x: false,
+            flip_y: false,
             frame_duration,
         }
     }
@@ -103,5 +131,9 @@ impl SpriteAnimationClip {
 
     pub fn clip_path(&self) -> &str {
         &self.clip_path
+    }
+
+    pub fn matches_entry(&self, relative_path: &str, flip_x: bool, flip_y: bool) -> bool {
+        self.clip_path == relative_path && self.flip_x == flip_x && self.flip_y == flip_y
     }
 }

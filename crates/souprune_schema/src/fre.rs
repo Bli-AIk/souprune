@@ -88,15 +88,6 @@ pub enum RuleActionDef {
         #[serde(default)]
         voice: Option<String>,
     },
-    UseItem {
-        index_expr: String,
-    },
-    CheckItem {
-        index_expr: String,
-    },
-    DropItem {
-        index_expr: String,
-    },
 }
 
 /// Value for SetLocalFact action.

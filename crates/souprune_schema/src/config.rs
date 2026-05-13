@@ -191,6 +191,28 @@ pub struct InputConfig {
 // State Configuration (flow.ron)
 // ============================================================================
 
+/// Screen-space fact projection owned by a state.
+///
+/// 由状态拥有的屏幕空间 fact 投影配置。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ScreenFactProjectionDef {
+    /// Fact key receiving the player screen-space X coordinate.
+    ///
+    /// 接收玩家屏幕空间 X 坐标的 fact key。
+    #[serde(default)]
+    pub player_x_fact: Option<String>,
+    /// Fact key receiving the player screen-space Y coordinate.
+    ///
+    /// 接收玩家屏幕空间 Y 坐标的 fact key。
+    #[serde(default)]
+    pub player_y_fact: Option<String>,
+    /// FRE event emitted after projection facts are refreshed.
+    ///
+    /// 投影 facts 刷新后发出的 FRE 事件。
+    #[serde(default)]
+    pub updated_event: Option<String>,
+}
+
 /// Definition of a single state's configuration.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StateDefinition {
@@ -209,6 +231,11 @@ pub struct StateDefinition {
     /// 生成此状态的 View 前要先应用的 FRE 事件。
     #[serde(default)]
     pub pre_spawn_events: Vec<String>,
+    /// Screen-space facts to synchronize while this state is active.
+    ///
+    /// 当前状态激活时需要同步的屏幕空间 facts。
+    #[serde(default)]
+    pub screen_fact_projection: Option<ScreenFactProjectionDef>,
     #[serde(default)]
     pub initial_layer: Option<String>,
     #[serde(default)]
@@ -228,6 +255,7 @@ impl Default for StateDefinition {
             camera_follow_player: true,
             view_layout: None,
             pre_spawn_events: Vec::new(),
+            screen_fact_projection: None,
             initial_layer: None,
             on_enter_sound: None,
             on_exit_sound: None,

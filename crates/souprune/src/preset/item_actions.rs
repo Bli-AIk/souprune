@@ -539,6 +539,7 @@ mod tests {
     #[test]
     fn item_dialogue_start_refreshes_default_channel_focus() {
         let mut facts = LayeredFactDatabase::new();
+        let dialogue_view = "overworld/view/dialogue.view.ron";
         facts.set_local(
             fre_facts::dialogue_channel_key(fre_facts::DIALOGUE_DEFAULT_CHANNEL, "has_focus"),
             FactValue::Bool(false),
@@ -548,7 +549,7 @@ mod tests {
             "items/monster_candy.mortar",
             "OnUse",
             &mut facts,
-            "overworld/view/dialogue.view.ron",
+            dialogue_view,
             "assets/audios/voice/voice_monster.wav",
             ItemDialogueData {
                 locale_key: "items:MONSTER_CANDY".to_string(),
@@ -563,6 +564,14 @@ mod tests {
                 fre_facts::DIALOGUE_DEFAULT_CHANNEL,
                 "has_focus"
             )),
+            Some(true)
+        );
+        assert_eq!(
+            facts.get_string(fre_facts::DIALOGUE_PENDING_VIEW),
+            Some(dialogue_view)
+        );
+        assert_eq!(
+            facts.get_bool(fre_facts::DIALOGUE_PENDING_START),
             Some(true)
         );
     }

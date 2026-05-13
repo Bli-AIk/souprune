@@ -54,7 +54,7 @@ pub(crate) fn character_animation_system(
         let entry = state_animation_entry(state_mapping, &facing.value);
         let entry_path = entry.path();
 
-        if clip.clip_path() != entry_path {
+        if !clip.matches_entry(entry_path, entry.flip_x(), entry.flip_y()) {
             let looping = entry.looping_override().unwrap_or(config.default_looping);
             let frame_duration = entry
                 .frame_duration_override()

@@ -79,6 +79,7 @@ impl Plugin for OverworldPlugin {
                 schedule,
                 screen_facts::sync_overworld_screen_facts_system
                     .after(crate::core::camera::CameraUpdateSet)
+                    .before(crate::core::view::lifecycle::StateViewTransitionSet)
                     .before(bevy_fact_rule_event::FRESystemSet::EmitEvents)
                     .in_set(OverworldUpdate),
             )

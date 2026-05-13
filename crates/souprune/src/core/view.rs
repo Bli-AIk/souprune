@@ -10,7 +10,7 @@ pub(crate) mod expr_eval;
 pub mod fact_toggle_color;
 pub mod input;
 pub mod layout;
-mod lifecycle;
+pub(crate) mod lifecycle;
 mod messages;
 mod plugin;
 mod procedural_textures;

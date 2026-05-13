@@ -24,8 +24,9 @@ use super::components::state_sprite::{
 use super::fact_toggle_color::update_fact_toggle_sdf_colors_system;
 use super::layout::ViewLayoutAsset;
 use super::lifecycle::{
-    StateTransitionTracker, UIInteractiveStateTracker, backpack_state_transition_system,
-    cleanup_view_rules_system, process_pending_view_rules_system, state_transition_sound_system,
+    StateTransitionTracker, StateViewTransitionSet, UIInteractiveStateTracker,
+    backpack_state_transition_system, cleanup_view_rules_system, process_pending_view_rules_system,
+    state_transition_sound_system,
 };
 use super::messages::{
     DespawnViewRequest, SpawnViewRequest, handle_despawn_view_request_system,
@@ -110,12 +111,14 @@ impl Plugin for CoreViewPlugin {
                     .before(ron_view::spawn_dynamic_view_system),
             )
             .add_systems(schedule, handle_despawn_view_request_system)
+            .configure_sets(schedule, StateViewTransitionSet)
             .add_systems(
                 schedule,
                 (
                     backpack_state_transition_system,
                     state_transition_sound_system,
                 )
+                    .in_set(StateViewTransitionSet)
                     .run_if(is_mode("overworld")),
             )
             .add_systems(

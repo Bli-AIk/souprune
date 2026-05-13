@@ -29,6 +29,9 @@ pub struct UIInteractiveStateTracker {
     pub current_view_path: Option<String>,
 }
 
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub(crate) struct StateViewTransitionSet;
+
 pub(crate) fn backpack_state_transition_system(
     sub_state: Res<State<SequenceSubState>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
