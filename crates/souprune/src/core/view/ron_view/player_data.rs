@@ -2,24 +2,26 @@
 //!
 //! 事实数据视图，用于从 LayeredFactDatabase 访问事实。
 //!
-//! This module provides a unified view that checks local facts first, then layered database.
+//! This module provides a unified view that checks read-only local state first, then layered database.
 //! All fact keys and default values should be defined in Mod configuration files.
 //!
-//! 本模块提供统一视图，先检查局部事实，再检查分层数据库。
+//! 本模块提供统一视图，先检查只读局部状态，再检查分层数据库。
 //! 所有事实键名和默认值应在 Mod 配置文件中定义。
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactDatabase, FactValue, LayeredFactDatabase};
+use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 use std::collections::HashMap;
 
+use crate::core::view::components::LocalState;
+
 /// Resolver function for computed data paths (e.g. "player.total_attack").
-/// Takes the fact database, optional local facts, and mortar string table.
+/// Takes the fact database, optional local state, and mortar string table.
 ///
 /// 计算数据路径的解析器函数（如 "player.total_attack"）。
 type DataPathResolverFn = Box<
     dyn Fn(
             &LayeredFactDatabase,
-            Option<&FactDatabase>,
+            Option<&LocalState>,
             &crate::extra::mortar::MortarStringTable,
         ) -> String
         + Send
@@ -27,11 +29,11 @@ type DataPathResolverFn = Box<
 >;
 
 /// Resolver function for view conditions (e.g. "player.hp.is_low").
-/// Takes the fact database and optional local facts.
+/// Takes the fact database and optional local state.
 ///
 /// 视图条件的解析器函数（如 "player.hp.is_low"）。
 type ConditionResolverFn =
-    Box<dyn Fn(&LayeredFactDatabase, Option<&FactDatabase>) -> bool + Send + Sync>;
+    Box<dyn Fn(&LayeredFactDatabase, Option<&LocalState>) -> bool + Send + Sync>;
 
 /// Registry of computed data path resolvers.
 /// Preset modules register game-specific resolvers here.
@@ -48,7 +50,7 @@ impl DataPathResolvers {
         path: impl Into<String>,
         resolver: impl Fn(
             &LayeredFactDatabase,
-            Option<&FactDatabase>,
+            Option<&LocalState>,
             &crate::extra::mortar::MortarStringTable,
         ) -> String
         + Send
@@ -62,12 +64,12 @@ impl DataPathResolvers {
         &self,
         path: &str,
         db: &LayeredFactDatabase,
-        local_facts: Option<&FactDatabase>,
+        local_state: Option<&LocalState>,
         mortar_strings: &crate::extra::mortar::MortarStringTable,
     ) -> Option<String> {
         self.resolvers
             .get(path)
-            .map(|f| f(db, local_facts, mortar_strings))
+            .map(|f| f(db, local_state, mortar_strings))
     }
 }
 
@@ -84,7 +86,7 @@ impl ConditionResolvers {
     pub fn register(
         &mut self,
         condition: impl Into<String>,
-        resolver: impl Fn(&LayeredFactDatabase, Option<&FactDatabase>) -> bool + Send + Sync + 'static,
+        resolver: impl Fn(&LayeredFactDatabase, Option<&LocalState>) -> bool + Send + Sync + 'static,
     ) {
         self.resolvers.insert(condition.into(), Box::new(resolver));
     }
@@ -93,9 +95,9 @@ impl ConditionResolvers {
         &self,
         condition: &str,
         db: &LayeredFactDatabase,
-        local_facts: Option<&FactDatabase>,
+        local_state: Option<&LocalState>,
     ) -> Option<bool> {
-        self.resolvers.get(condition).map(|f| f(db, local_facts))
+        self.resolvers.get(condition).map(|f| f(db, local_state))
     }
 }
 
@@ -105,7 +107,7 @@ impl ConditionResolvers {
 /// 表达式函数的解析器（如 "inventory_is_empty()"），用于 fasteval。
 /// 返回浮点值，用于数学表达式中。
 type ExprFunctionResolverFn =
-    Box<dyn Fn(&LayeredFactDatabase, Option<&FactDatabase>) -> f64 + Send + Sync>;
+    Box<dyn Fn(&LayeredFactDatabase, Option<&LocalState>) -> f64 + Send + Sync>;
 
 /// Registry of expression function resolvers for `visible_when` and other fasteval expressions.
 /// Maps function names (without parens) to resolvers returning f64 values.
@@ -121,7 +123,7 @@ impl ExprFunctionResolvers {
     pub fn register(
         &mut self,
         name: impl Into<String>,
-        resolver: impl Fn(&LayeredFactDatabase, Option<&FactDatabase>) -> f64 + Send + Sync + 'static,
+        resolver: impl Fn(&LayeredFactDatabase, Option<&LocalState>) -> f64 + Send + Sync + 'static,
     ) {
         self.resolvers.insert(name.into(), Box::new(resolver));
     }
@@ -131,9 +133,9 @@ impl ExprFunctionResolvers {
         &self,
         name: &str,
         db: &LayeredFactDatabase,
-        local_facts: Option<&FactDatabase>,
+        local_state: Option<&LocalState>,
     ) -> Option<f64> {
-        self.resolvers.get(name).map(|f| f(db, local_facts))
+        self.resolvers.get(name).map(|f| f(db, local_state))
     }
 
     /// Preprocess expression string: replace all `func_name()` with evaluated values.
@@ -141,13 +143,13 @@ impl ExprFunctionResolvers {
         &self,
         expr: &str,
         db: &LayeredFactDatabase,
-        local_facts: Option<&FactDatabase>,
+        local_state: Option<&LocalState>,
     ) -> String {
         let mut result = expr.to_string();
         for (name, resolver) in &self.resolvers {
             let pattern = format!("{}()", name);
             if result.contains(&pattern) {
-                let val = resolver(db, local_facts);
+                let val = resolver(db, local_state);
                 result = result.replace(&pattern, &format!("{}", val as i64));
             }
         }
@@ -155,19 +157,19 @@ impl ExprFunctionResolvers {
     }
 }
 
-/// Helper struct to read facts from LayeredFactDatabase with optional local facts.
+/// Helper struct to read facts from LayeredFactDatabase with optional local state.
 /// This provides a unified view for the expression evaluation system.
 ///
-/// 从 LayeredFactDatabase 读取事实的辅助结构体，支持可选的局部事实。
+/// 从 LayeredFactDatabase 读取事实的辅助结构体，支持可选的局部状态。
 /// 为表达式求值系统提供统一视图。
 ///
 /// ## Fact Resolution Priority
-/// 1. local_facts (View-specific facts from ViewRoot)
+/// 1. LocalState (View-specific state from ViewRoot)
 /// 2. scene facts (from LayeredFactDatabase)
 /// 3. global facts (from LayeredFactDatabase)
 ///
 /// ## 事实解析优先级
-/// 1. local_facts（来自 ViewRoot 的 View 特定事实）
+/// 1. LocalState（来自 ViewRoot 的 View 特定状态）
 /// 2. scene 事实（来自 LayeredFactDatabase）
 /// 3. global 事实（来自 LayeredFactDatabase）
 ///
@@ -184,9 +186,9 @@ impl ExprFunctionResolvers {
 /// ```
 pub struct PlayerDataView<'a> {
     db: &'a LayeredFactDatabase,
-    /// Optional local facts from ViewRoot (View-specific facts)
-    /// 来自 ViewRoot 的可选局部事实（View 特定的事实）
-    local_facts: Option<&'a FactDatabase>,
+    /// Optional read-only local state from ViewRoot.
+    /// 来自 ViewRoot 的可选只读局部状态。
+    local_state: Option<&'a LocalState>,
     data_path_resolvers: Option<&'a DataPathResolvers>,
     condition_resolvers: Option<&'a ConditionResolvers>,
     expr_function_resolvers: Option<&'a ExprFunctionResolvers>,
@@ -196,20 +198,20 @@ impl<'a> PlayerDataView<'a> {
     pub fn new(db: &'a LayeredFactDatabase) -> Self {
         Self {
             db,
-            local_facts: None,
+            local_state: None,
             data_path_resolvers: None,
             condition_resolvers: None,
             expr_function_resolvers: None,
         }
     }
 
-    /// Create a view with local facts from a ViewRoot.
+    /// Create a view with read-only local state from a ViewRoot.
     ///
-    /// 创建一个带有来自 ViewRoot 局部事实的视图。
-    pub fn with_local_facts(db: &'a LayeredFactDatabase, local_facts: &'a FactDatabase) -> Self {
+    /// 创建一个带有来自 ViewRoot 只读局部状态的视图。
+    pub fn with_local_state(db: &'a LayeredFactDatabase, local_state: &'a LocalState) -> Self {
         Self {
             db,
-            local_facts: Some(local_facts),
+            local_state: Some(local_state),
             data_path_resolvers: None,
             condition_resolvers: None,
             expr_function_resolvers: None,
@@ -250,13 +252,13 @@ impl<'a> PlayerDataView<'a> {
         mortar_strings: &crate::extra::mortar::MortarStringTable,
     ) -> Option<String> {
         self.data_path_resolvers
-            .and_then(|r| r.resolve(path, self.db, self.local_facts, mortar_strings))
+            .and_then(|r| r.resolve(path, self.db, self.local_state, mortar_strings))
     }
 
     /// Resolve a condition using registered resolvers.
     pub fn resolve_condition(&self, condition: &str) -> Option<bool> {
         self.condition_resolvers
-            .and_then(|r| r.resolve(condition, self.db, self.local_facts))
+            .and_then(|r| r.resolve(condition, self.db, self.local_state))
     }
 
     /// Preprocess expression string by replacing registered function calls.
@@ -264,7 +266,7 @@ impl<'a> PlayerDataView<'a> {
     /// 通过替换已注册的函数调用来预处理表达式字符串。
     pub fn preprocess_expr_functions(&self, expr: &str) -> String {
         if let Some(resolvers) = self.expr_function_resolvers {
-            resolvers.preprocess_expr(expr, self.db, self.local_facts)
+            resolvers.preprocess_expr(expr, self.db, self.local_state)
         } else {
             expr.to_string()
         }
@@ -277,19 +279,19 @@ impl<'a> PlayerDataView<'a> {
         self.db
     }
 
-    /// Get optional local facts reference.
+    /// Whether this view has a local state source.
     ///
-    /// 获取可选的局部事实引用。
-    pub fn local_facts(&self) -> Option<&'a FactDatabase> {
-        self.local_facts
+    /// 此视图是否带有局部状态来源。
+    pub fn has_local_state(&self) -> bool {
+        self.local_state.is_some()
     }
 
-    /// Get a fact value with priority: local_facts -> scene -> global.
+    /// Get a fact value with priority: local state -> scene -> global.
     ///
-    /// 获取事实值，优先级为：local_facts -> scene -> global。
+    /// 获取事实值，优先级为：局部状态 -> scene -> global。
     pub fn get_fact(&self, key: &str) -> Option<&FactValue> {
-        // First check local facts
-        if let Some(local) = self.local_facts
+        // First check local state
+        if let Some(local) = self.local_state
             && let Some(value) = local.get_by_str(key)
         {
             return Some(value);

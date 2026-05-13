@@ -13,10 +13,11 @@
 
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactDatabase, FactValue, LayeredFactDatabase};
+use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 
 use super::super::chapter_schema::Chapter;
 use super::super::context::{ActiveChapter, ChapterFinished};
+use crate::core::view::LocalState;
 
 /// System that handles Custom chapters by dispatching via ActionHandlerRegistry
 /// when a handler is registered, or emitting FreCustomActionEvent as fallback.
@@ -33,10 +34,10 @@ pub fn process_custom_chapter_system(
     custom_action_writer: Option<MessageWriter<crate::core::fre_bridge::FreCustomActionEvent>>,
 ) {
     let mut custom_action_writer = custom_action_writer;
-    let local_facts = view_roots
+    let local_state = view_roots
         .iter()
         .next()
-        .map(|view_root| view_root.local_state().as_facts());
+        .map(|view_root| view_root.local_state());
     for (entity, active_chapter) in query.iter() {
         if let Chapter::Custom {
             action_type,
@@ -53,7 +54,7 @@ pub fn process_custom_chapter_system(
                 .map(|(key, value)| {
                     (
                         key.clone(),
-                        resolve_custom_param_value(value, &fact_db, local_facts),
+                        resolve_custom_param_value(value, &fact_db, local_state),
                     )
                 })
                 .collect();
@@ -105,14 +106,14 @@ fn fact_value_to_custom_param(value: &FactValue) -> String {
 fn resolve_custom_param_value(
     value: &str,
     fact_db: &LayeredFactDatabase,
-    local_facts: Option<&FactDatabase>,
+    local_state: Option<&LocalState>,
 ) -> String {
     let Some(key) = value.strip_prefix('$') else {
         return value.to_string();
     };
 
-    local_facts
-        .and_then(|facts| facts.get_by_str(key))
+    local_state
+        .and_then(|state| state.get_by_str(key))
         .or_else(|| fact_db.get_by_str(key))
         .map(fact_value_to_custom_param)
         .unwrap_or_default()
@@ -167,21 +168,21 @@ pub fn process_spawn_behavior_chapter_system(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy_fact_rule_event::{FactDatabase, FactValue, LayeredFactDatabase};
+    use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 
     #[test]
-    fn custom_param_resolution_prefers_view_local_facts() {
+    fn custom_param_resolution_prefers_view_local_state() {
         let mut global_facts = LayeredFactDatabase::default();
         global_facts.set("mortar_path", FactValue::String("global.mortar".into()));
 
-        let mut local_facts = FactDatabase::new();
-        local_facts.set(
+        let mut local_state = LocalState::default();
+        local_state.set(
             "mortar_path",
             FactValue::String("battle/enemies/mad_dummy.mortar".into()),
         );
 
         assert_eq!(
-            resolve_custom_param_value("$mortar_path", &global_facts, Some(&local_facts)),
+            resolve_custom_param_value("$mortar_path", &global_facts, Some(&local_state)),
             "battle/enemies/mad_dummy.mortar"
         );
     }
@@ -189,14 +190,14 @@ mod tests {
     #[test]
     fn custom_param_resolution_reads_run_sequence_params() {
         let global_facts = LayeredFactDatabase::default();
-        let mut local_facts = FactDatabase::new();
-        local_facts.set(
+        let mut local_state = LocalState::default();
+        local_state.set(
             "_param_mortar_node",
             FactValue::String("enemy_speech_manual_intro".into()),
         );
 
         assert_eq!(
-            resolve_custom_param_value("$_param_mortar_node", &global_facts, Some(&local_facts)),
+            resolve_custom_param_value("$_param_mortar_node", &global_facts, Some(&local_state)),
             "enemy_speech_manual_intro"
         );
     }

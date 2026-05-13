@@ -96,8 +96,7 @@ fn process_event_view_actions(
                 continue;
             };
 
-            let combined =
-                CombinedFactReader::new(view_root.local_state().as_facts(), global_facts);
+            let combined = CombinedFactReader::new(view_root.local_state(), global_facts);
             if !evaluate_conditions(&rule.condition_expressions, &combined, enum_registry) {
                 log_condition_not_met(rule, &view_root);
                 continue;

@@ -60,7 +60,7 @@ fn pre_spawn_rule_conditions_match(
     enum_registry: &bevy_fact_rule_event::EnumRegistry,
     rule: &GameRule,
 ) -> bool {
-    let combined = CombinedFactReader::new(view_root.local_state().as_facts(), layered_db);
+    let combined = CombinedFactReader::new(view_root.local_state(), layered_db);
     crate::core::fre_bridge::evaluate_conditions(
         &rule.condition_expressions,
         &combined,
@@ -78,7 +78,7 @@ fn apply_pre_spawn_set_local_fact_actions(
         let GameActionDef::SetLocalFact(key, value) = action else {
             continue;
         };
-        let combined = CombinedFactReader::new(view_root.local_state().as_facts(), layered_db);
+        let combined = CombinedFactReader::new(view_root.local_state(), layered_db);
         let fact_value = crate::core::fre_bridge::evaluate_local_fact_value(
             key,
             value,

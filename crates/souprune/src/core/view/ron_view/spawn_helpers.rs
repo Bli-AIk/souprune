@@ -189,12 +189,12 @@ pub(crate) fn spawn_container_texts(
 
             let depth_value = player_data.get_fact_int("depth");
             info!(
-                "Adding VisibleWhen to text '{}': '{}' -> {} (depth={:?}, has_local_facts={})",
+                "Adding VisibleWhen to text '{}': '{}' -> {} (depth={:?}, has_local_state={})",
                 text_config.name,
                 expr,
                 is_visible,
                 depth_value,
-                player_data.local_facts().is_some()
+                player_data.has_local_state()
             );
 
             cmd.insert(VisibleWhen {

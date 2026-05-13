@@ -37,11 +37,11 @@ pub fn update_time_dependent_ui_elements(
     view_root_query: Query<&ViewRoot>,
 ) {
     for (entity, dynamic_elem, mut transform) in query.iter_mut() {
-        let local_facts = find_view_root_ancestor(entity, &parent_query, &view_root_query)
-            .map(|root| root.local_state().as_facts());
+        let local_state = find_view_root_ancestor(entity, &parent_query, &view_root_query)
+            .map(|root| root.local_state());
 
-        let player_data = if let Some(local) = local_facts {
-            PlayerDataView::with_local_facts(&layered_db, local)
+        let player_data = if let Some(local) = local_state {
+            PlayerDataView::with_local_state(&layered_db, local)
         } else {
             PlayerDataView::new(&layered_db)
         };
@@ -81,11 +81,11 @@ pub fn update_fact_dependent_ui_elements(
     }
 
     for (entity, dynamic_elem, mut transform) in query.iter_mut() {
-        let local_facts = find_view_root_ancestor(entity, &parent_query, &all_view_root_query)
-            .map(|root| root.local_state().as_facts());
+        let local_state = find_view_root_ancestor(entity, &parent_query, &all_view_root_query)
+            .map(|root| root.local_state());
 
-        let player_data = if let Some(local) = local_facts {
-            PlayerDataView::with_local_facts(&layered_db, local)
+        let player_data = if let Some(local) = local_state {
+            PlayerDataView::with_local_state(&layered_db, local)
         } else {
             PlayerDataView::new(&layered_db)
         };
@@ -251,7 +251,7 @@ pub fn update_dynamic_text_system(
         let view_root_result =
             find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
         let player_data = if let Some((_, view_root)) = view_root_result {
-            PlayerDataView::with_local_facts(&layered_db, view_root.local_state().as_facts())
+            PlayerDataView::with_local_state(&layered_db, view_root.local_state())
         } else {
             PlayerDataView::new(&layered_db)
         }
@@ -420,7 +420,7 @@ pub fn update_shader_materials_system(
             let view_root_result =
                 find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
             let player_data = if let Some((_, view_root)) = view_root_result {
-                PlayerDataView::with_local_facts(&layered_db, view_root.local_state().as_facts())
+                PlayerDataView::with_local_state(&layered_db, view_root.local_state())
             } else {
                 PlayerDataView::new(&layered_db)
             };

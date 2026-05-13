@@ -376,9 +376,10 @@ pub fn resolve_data_path(
 #[cfg(test)]
 mod tests {
     use super::resolve_text_content;
+    use crate::core::view::components::LocalState;
     use crate::core::view::ron_view::parsing::PlayerDataView;
     use crate::extra::mortar::MortarStringTable;
-    use bevy_fact_rule_event::LayeredFactDatabase;
+    use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 
     #[test]
     fn resolves_plain_escaped_newlines_into_real_newlines() {
@@ -389,5 +390,23 @@ mod tests {
         let resolved = resolve_text_content(r#"line1\nline2"#, &mortar_strings, &player_data);
 
         assert_eq!(resolved, "line1\nline2");
+    }
+
+    #[test]
+    fn resolves_view_local_state_values_in_templates() {
+        let db = LayeredFactDatabase::new();
+        let mut local = LocalState::default();
+        local.set("selection", FactValue::Int(2));
+        local.set("page", FactValue::Int(1));
+        let player_data = PlayerDataView::with_local_state(&db, &local);
+        let mortar_strings = MortarStringTable::default();
+
+        let resolved = resolve_text_content(
+            "cursor={$selection}, page={$page}",
+            &mortar_strings,
+            &player_data,
+        );
+
+        assert_eq!(resolved, "cursor=2, page=1");
     }
 }

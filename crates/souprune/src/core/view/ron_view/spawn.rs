@@ -318,13 +318,13 @@ pub fn spawn_ron_view_for_entity(
         enum_registry,
     );
 
-    // Spawn view nodes BEFORE attaching ViewRoot, using a player_data with local_facts
-    // 在附加 ViewRoot 之前生成视图节点，使用带有 local_facts 的 player_data
+    // Spawn view nodes BEFORE attaching ViewRoot, using player_data with LocalState.
+    // 在附加 ViewRoot 之前生成视图节点，使用带有 LocalState 的 player_data。
     {
-        // Create player_data with local_facts for spawning children
-        // 使用 local_facts 创建 player_data 以生成子节点
+        // Create player_data with LocalState for spawning children.
+        // 使用 LocalState 创建 player_data 以生成子节点。
         let player_data_with_locals =
-            PlayerDataView::with_local_facts(player_data.db(), view_root.local_state().as_facts());
+            PlayerDataView::with_local_state(player_data.db(), view_root.local_state());
 
         for root in &view_layout.roots {
             spawn_view_node(

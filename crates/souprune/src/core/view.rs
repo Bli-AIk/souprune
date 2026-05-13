@@ -26,7 +26,7 @@ use bevy::prelude::*;
 pub use components::box_components::ViewBox;
 pub use components::text::{ViewTextAnimationStyle, ViewTextConfig};
 pub use components::{
-    ActiveView, ElementState, ViewElementHistory, ViewRoot, find_element_by_full_name,
+    ActiveView, ElementState, LocalState, ViewElementHistory, ViewRoot, find_element_by_full_name,
     find_elements_by_tag,
 };
 pub use custom_sprite_material::PixelOutlineMaterial;

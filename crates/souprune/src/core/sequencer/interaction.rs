@@ -22,7 +22,7 @@ use bevy_fact_rule_event::{EnumRegistry, LayeredFactDatabase};
 pub struct AwaitingFactChapter {
     /// The condition expression to evaluate.
     pub condition: String,
-    /// Whether to use View's local_facts or global FactDatabase.
+    /// Whether to use View's LocalState or global FactDatabase.
     pub local: bool,
 }
 
@@ -67,10 +67,10 @@ pub fn check_await_fact_completion_system(
 ) {
     for (chapter_entity, awaiting) in awaiting_query.iter() {
         let condition_met = if awaiting.local {
-            // Use View's local_facts + global
+            // Use View's LocalState + global facts.
             if let Some(view_root) = view_root_query.iter().next() {
                 let combined = bevy_fact_rule_event::CombinedFactReader::new(
-                    view_root.local_state().as_facts(),
+                    view_root.local_state(),
                     &*global_facts,
                 );
                 evaluate_single_condition(&awaiting.condition, &combined, &enum_registry)
