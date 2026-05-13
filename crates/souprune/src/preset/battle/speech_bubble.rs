@@ -76,6 +76,78 @@ impl BattleSpeechBubbleProfile {
     }
 }
 
+/// Runtime presentation projected into the active battle View.
+///
+/// 投影到当前战斗 View 的运行时表现状态。
+#[derive(Debug, Clone)]
+struct BattleSpeechBubblePresentation {
+    visible: bool,
+    bubble_visual: String,
+    bubble_x: f64,
+    bubble_y: f64,
+    text_x: f64,
+    text_y: f64,
+    text_width: f64,
+}
+
+impl BattleSpeechBubblePresentation {
+    fn visible(profile: &BattleSpeechBubbleProfile) -> Self {
+        Self {
+            visible: true,
+            bubble_visual: profile.bubble_visual.to_string(),
+            bubble_x: profile.bubble_x,
+            bubble_y: profile.bubble_y,
+            text_x: profile.text_x,
+            text_y: profile.text_y,
+            text_width: profile.text_width,
+        }
+    }
+
+    fn hidden_from_current(view_root: &ViewRoot) -> Self {
+        Self {
+            visible: false,
+            bubble_visual: view_root
+                .local_state()
+                .get_string("enemy_speech_bubble_visual")
+                .unwrap_or("")
+                .to_string(),
+            bubble_x: view_root
+                .local_state()
+                .get_float("enemy_speech_bubble_x")
+                .unwrap_or(0.0),
+            bubble_y: view_root
+                .local_state()
+                .get_float("enemy_speech_bubble_y")
+                .unwrap_or(0.0),
+            text_x: view_root
+                .local_state()
+                .get_float("enemy_speech_text_x")
+                .unwrap_or(0.0),
+            text_y: view_root
+                .local_state()
+                .get_float("enemy_speech_text_y")
+                .unwrap_or(0.0),
+            text_width: view_root
+                .local_state()
+                .get_float("enemy_speech_text_width")
+                .unwrap_or(0.0),
+        }
+    }
+
+    fn apply_to_view(&self, view_root: &mut ViewRoot) {
+        view_root.set_local_value("enemy_speech_visible", FactValue::Bool(self.visible));
+        view_root.set_local_value(
+            "enemy_speech_bubble_visual",
+            FactValue::String(self.bubble_visual.clone()),
+        );
+        view_root.set_local_value("enemy_speech_bubble_x", FactValue::Float(self.bubble_x));
+        view_root.set_local_value("enemy_speech_bubble_y", FactValue::Float(self.bubble_y));
+        view_root.set_local_value("enemy_speech_text_x", FactValue::Float(self.text_x));
+        view_root.set_local_value("enemy_speech_text_y", FactValue::Float(self.text_y));
+        view_root.set_local_value("enemy_speech_text_width", FactValue::Float(self.text_width));
+    }
+}
+
 /// Request to start a battle enemy speech bubble.
 ///
 /// 启动战斗敌人对话气泡的请求。
@@ -191,29 +263,7 @@ fn start_battle_speech_bubble_requests(
             .map(f64::from)
             .unwrap_or(profile.typewriter_speed);
 
-        view_root
-            .local_state_mut_for_owner()
-            .set("enemy_speech_visible", FactValue::Bool(true));
-        view_root
-            .local_state_mut_for_owner()
-            .set("enemy_speech_bubble_x", FactValue::Float(profile.bubble_x));
-        view_root
-            .local_state_mut_for_owner()
-            .set("enemy_speech_bubble_y", FactValue::Float(profile.bubble_y));
-        view_root
-            .local_state_mut_for_owner()
-            .set("enemy_speech_text_x", FactValue::Float(profile.text_x));
-        view_root
-            .local_state_mut_for_owner()
-            .set("enemy_speech_text_y", FactValue::Float(profile.text_y));
-        view_root.local_state_mut_for_owner().set(
-            "enemy_speech_text_width",
-            FactValue::Float(profile.text_width),
-        );
-        view_root.local_state_mut_for_owner().set(
-            "enemy_speech_bubble_visual",
-            FactValue::String(profile.bubble_visual.to_string()),
-        );
+        BattleSpeechBubblePresentation::visible(&profile).apply_to_view(&mut view_root);
 
         facts.set(
             fre_facts::DIALOGUE_PENDING_CHANNEL,
@@ -297,9 +347,8 @@ fn update_battle_speech_bubble_runtime(
     }
 
     if let Ok(mut view_root) = view_roots.single_mut() {
-        view_root
-            .local_state_mut_for_owner()
-            .set("enemy_speech_visible", FactValue::Bool(false));
+        BattleSpeechBubblePresentation::hidden_from_current(&view_root)
+            .apply_to_view(&mut view_root);
     }
 
     if matches!(active.advance, BattleSpeechBubbleAdvance::Timed { .. }) {
@@ -318,12 +367,19 @@ mod tests {
     use super::*;
 
     fn speech_bubble(text_style: Option<&str>) -> BattleSpeechBubbleDef {
+        speech_bubble_with_advance(text_style, BattleSpeechBubbleAdvance::Manual)
+    }
+
+    fn speech_bubble_with_advance(
+        text_style: Option<&str>,
+        advance: BattleSpeechBubbleAdvance,
+    ) -> BattleSpeechBubbleDef {
         BattleSpeechBubbleDef {
             channel: BATTLE_ENEMY_SPEECH_CHANNEL.into(),
             mortar_path: "battle/enemies/mad_dummy.mortar".into(),
             mortar_node: "enemy_speech_manual_intro".into(),
             frame: BattleSpeechBubbleFrame::MadDummyWide,
-            advance: BattleSpeechBubbleAdvance::Manual,
+            advance,
             hide_on_finish: true,
             voice: None,
             typewriter_speed: None,
@@ -335,6 +391,7 @@ mod tests {
         let mut app = App::new();
         app.add_message::<BattleSpeechBubbleRequest>();
         app.init_resource::<BattleSpeechBubbleRuntime>();
+        app.init_resource::<Time>();
         app.insert_resource(LayeredFactDatabase::new());
         app.world_mut().spawn((
             ViewRoot::new("battle/view/undertale.view.ron".into()),
@@ -345,6 +402,46 @@ mod tests {
         });
         app.add_systems(Update, start_battle_speech_bubble_requests);
         app
+    }
+
+    #[test]
+    fn speech_bubble_presentation_projects_visible_profile_to_view_state() {
+        let profile = BattleSpeechBubbleProfile::mad_dummy_wide();
+        let presentation = BattleSpeechBubblePresentation::visible(&profile);
+        let mut view_root = ViewRoot::new("battle/view/undertale.view.ron".into());
+
+        presentation.apply_to_view(&mut view_root);
+
+        assert_eq!(
+            view_root.local_state().get_bool("enemy_speech_visible"),
+            Some(true)
+        );
+        assert_eq!(
+            view_root.local_state().get_float("enemy_speech_bubble_x"),
+            Some(370.0)
+        );
+        assert_eq!(
+            view_root.local_state().get_float("enemy_speech_bubble_y"),
+            Some(80.0)
+        );
+        assert_eq!(
+            view_root.local_state().get_float("enemy_speech_text_x"),
+            Some(395.0)
+        );
+        assert_eq!(
+            view_root.local_state().get_float("enemy_speech_text_y"),
+            Some(90.0)
+        );
+        assert_eq!(
+            view_root.local_state().get_float("enemy_speech_text_width"),
+            Some(190.0)
+        );
+        assert_eq!(
+            view_root
+                .local_state()
+                .get_string("enemy_speech_bubble_visual"),
+            Some("battle/speech_bubble/mad_dummy_wide.png")
+        );
     }
 
     #[test]
@@ -376,6 +473,39 @@ mod tests {
                 fre_facts::DIALOGUE_TEXT_STYLE_FIELD,
             )),
             Some("mad_dummy"),
+        );
+    }
+
+    #[test]
+    fn manual_speech_bubble_hides_after_dialogue_finishes() {
+        let mut app = app_with_speech_bubble(None);
+        app.add_message::<MortarEvent>();
+        app.add_systems(Update, update_battle_speech_bubble_runtime);
+
+        app.update();
+        {
+            let mut facts = app.world_mut().resource_mut::<LayeredFactDatabase>();
+            facts.set(
+                fre_facts::dialogue_channel_key(BATTLE_ENEMY_SPEECH_CHANNEL, "active"),
+                FactValue::Bool(false),
+            );
+            facts.set(
+                fre_facts::dialogue_channel_key(BATTLE_ENEMY_SPEECH_CHANNEL, "finished"),
+                FactValue::Bool(true),
+            );
+        }
+
+        app.update();
+
+        let mut query = app
+            .world_mut()
+            .query_filtered::<&ViewRoot, With<ActiveView>>();
+        let view_root = query
+            .single(app.world())
+            .expect("test app should have one active view");
+        assert_eq!(
+            view_root.local_state().get_bool("enemy_speech_visible"),
+            Some(false)
         );
     }
 }
