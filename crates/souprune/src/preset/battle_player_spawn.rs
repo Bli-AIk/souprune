@@ -3,13 +3,13 @@
 //!
 //! 战斗玩家生成系统 — 处理使用 `.battle_player.ron` 配置的 SetPlayer(Spawn) 章节。
 
+use crate::core::battle_box::BoundToBattleBox;
+use crate::core::battle_player::{BattleInvincibilityConfig, BattlePlayerConfig};
 use crate::core::danmaku::BulletTarget;
 use crate::core::mod_system::{BehaviorContext, BehaviorParams, BehaviorVelocity};
 use crate::core::mode::ModeScoped;
 use crate::core::sequencer::chapter_schema::{Chapter, PlayerAction};
 use crate::core::sequencer::context::*;
-use crate::preset::battle_box::BoundToBattleBox;
-use crate::preset::battle_player::{BattleInvincibilityConfig, BattlePlayerConfig};
 use bevy::prelude::*;
 
 /// Component for pending player spawn requests.

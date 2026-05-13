@@ -84,3 +84,17 @@ if [ -n "$removed_hits" ]; then
 fi
 
 echo "Core boundary OK: no new core -> app_state dependencies."
+
+preset_hits="$(
+    cd "$ROOT_DIR"
+    rg -n "crate::preset(::|\b)|super::preset(::|\b)" crates/souprune/src/core -g '*.rs' || true
+)"
+
+if [ -n "$preset_hits" ]; then
+    echo "Error: core -> preset dependencies are not allowed."
+    echo "Core is the generic framework layer; move shared code into core/ or invert the dependency."
+    echo "$preset_hits"
+    exit 1
+fi
+
+echo "Core boundary OK: no core -> preset dependencies."

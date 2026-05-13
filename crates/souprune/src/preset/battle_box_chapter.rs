@@ -5,9 +5,9 @@
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 
+use crate::core::battle_box::{MergeBattleBoxes, SplitBattleBox};
 use crate::core::sequencer::chapter_schema::Chapter;
 use crate::core::sequencer::{ActiveChapter, ChapterFinished};
-use crate::preset::battle_box::{MergeBattleBoxes, SplitBattleBox};
 
 /// System that handles SplitBattleBox / MergeBattleBoxes chapters.
 /// Sends the corresponding messages and completes immediately.

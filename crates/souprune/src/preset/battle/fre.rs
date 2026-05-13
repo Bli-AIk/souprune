@@ -12,10 +12,10 @@
 mod action_handlers;
 mod bridge;
 
+use crate::core::battle_runtime::BattleUpdate;
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::sequencer::SequenceRulesHandle;
 use crate::preset::battle::menu_state::{BattleMenuStateTracker, sync_battle_menu_state_system};
-use crate::preset::battle_runtime::BattleUpdate;
 use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;
 

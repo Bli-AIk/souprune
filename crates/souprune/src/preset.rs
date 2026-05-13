@@ -10,11 +10,8 @@
 //! their own implementations of these modules.
 
 pub mod battle;
-pub mod battle_box;
 mod battle_box_chapter;
-pub mod battle_player;
 mod battle_player_spawn;
-pub mod battle_runtime;
 mod data_paths;
 pub mod enemy;
 pub(crate) mod enemy_turn;
@@ -88,7 +85,7 @@ impl Plugin for PresetPlugin {
         app.add_systems(
             schedule,
             (
-                battle_box::apply_battle_box_tag_system,
+                crate::core::battle_box::apply_battle_box_tag_system,
                 battle_player_spawn::process_battle_player_spawn_system
                     .in_set(crate::core::sequencer::SequencerUpdate),
                 battle_player_spawn::process_player_spawn_requests

@@ -8,18 +8,26 @@ use bevy::prelude::*;
 use bevy_tween::interpolation::EaseKind;
 
 /// Marker component for a battle box boundary.
+///
+/// 战斗框边界的标记组件。
 #[derive(Component)]
 pub struct BattleBox;
 
 /// Unique identifier for a battle box.
+///
+/// 战斗框的唯一标识。
 #[derive(Component, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BattleBoxId(pub String);
 
 /// Binds a player to a specific battle box by ID.
+///
+/// 通过 ID 将玩家绑定到指定战斗框。
 #[derive(Component, Debug, Clone)]
 pub struct BoundToBattleBox(pub String);
 
 /// Runtime state of a battle box.
+///
+/// 战斗框的运行时状态。
 #[derive(Component, Debug, Clone)]
 pub struct BattleBoxState {
     pub active: bool,
@@ -36,6 +44,8 @@ impl Default for BattleBoxState {
 }
 
 /// Runtime visual style for battle box SDF rendering.
+///
+/// 战斗框 SDF 渲染使用的运行时视觉样式。
 #[derive(Component, Debug, Clone)]
 pub struct BattleBoxVisualStyle {
     pub border_width: f32,
@@ -67,6 +77,8 @@ impl BattleBoxVisualStyle {
     }
 
     /// Convert a visible gap into the inner boundary gap used by split geometry.
+    ///
+    /// 将可见间隙转换为分割几何使用的内部边界间隙。
     pub(crate) fn boundary_gap_for_visible_gap(&self, visible_gap: f32) -> f32 {
         if self.structure_file.is_some() && self.border_width > 0.0 {
             visible_gap + self.border_width * 2.0
@@ -88,6 +100,8 @@ impl Default for BattleBoxVisualStyle {
 }
 
 /// Component storing battle box dimensions for AM-animated battle boxes.
+///
+/// 存储 Alight Motion 动画战斗框尺寸的组件。
 #[derive(Component, Debug, Clone)]
 pub struct AlightMotionBattleBoxBounds {
     pub width: f32,
@@ -99,6 +113,8 @@ pub struct AlightMotionBattleBoxBounds {
 pub use crate::core::sequencer::chapter_schema::{GapPolicy, SplitAxis};
 
 /// Event to trigger a battle box split.
+///
+/// 触发战斗框分割的事件。
 #[derive(Message)]
 pub struct SplitBattleBox {
     pub source_box: String,
@@ -112,6 +128,8 @@ pub struct SplitBattleBox {
 }
 
 /// Event to trigger merging two battle boxes back into one.
+///
+/// 触发两个战斗框合并为一个战斗框的事件。
 #[derive(Message)]
 pub struct MergeBattleBoxes {
     pub source_boxes: (String, String),
@@ -123,6 +141,8 @@ pub struct MergeBattleBoxes {
 
 /// System that detects newly spawned ViewBox entities with a "BattleBox" tag
 /// and adds game-specific battle box components.
+///
+/// 检测带有 "BattleBox" 标签的新 ViewBox 实体，并添加战斗框运行时组件。
 pub(crate) fn apply_battle_box_tag_system(
     mut commands: Commands,
     query: Query<

@@ -9,13 +9,13 @@ use souprune_schema::battle::{
     BattleSpeechBubbleAdvance, BattleSpeechBubbleDef, BattleSpeechBubbleFrame,
 };
 
+use crate::core::battle_runtime::BattleUpdate;
 use crate::core::danmaku::{DanmakuTimelineCueEvent, TimelineCueDef};
 use crate::core::dialogue::{DialogueChannel, DialogueControllerEntity};
 use crate::core::fre_facts;
 use crate::core::sequencer::chapter_schema::Chapter;
 use crate::core::sequencer::context::{ActiveChapter, ChapterFinished};
 use crate::core::view::{ActiveView, ViewRoot};
-use crate::preset::battle_runtime::BattleUpdate;
 
 /// Default dialogue channel for battle enemy speech.
 ///

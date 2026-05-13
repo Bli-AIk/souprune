@@ -34,6 +34,8 @@ impl Default for BattleInvincibilityConfig {
 }
 
 /// Runtime Bevy asset wrapper for `.battle_player.ron`.
+///
+/// `.battle_player.ron` 的运行时 Bevy 资源包装类型。
 #[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct BattlePlayerConfig(pub SchemaBattlePlayerConfig);
