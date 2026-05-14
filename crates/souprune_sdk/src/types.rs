@@ -155,6 +155,43 @@ pub enum InputResult {
     PassThrough(Vec<InputEffect>),
 }
 
+/// Opaque handle for a host-owned collision region.
+///
+/// 宿主拥有的碰撞区域的不透明句柄。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RegionHandle(pub u64);
+
+/// Opaque handle for a host-owned movement constraint.
+///
+/// 宿主拥有的移动约束的不透明句柄。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ConstraintHandle(pub u64);
+
+/// Collider shape used by host-side movement constraints.
+///
+/// 宿主侧移动约束使用的碰撞体形状。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ColliderShape {
+    Circle { radius: f32 },
+    Rectangle { half_size: Vec2 },
+}
+
+impl ColliderShape {
+    #[doc(hidden)]
+    pub fn to_wit(self) -> crate::souprune::plugin::host_api::ColliderShape {
+        use crate::souprune::plugin::host_api::{
+            ColliderShape as WitColliderShape, Vec2 as WitVec2,
+        };
+        match self {
+            Self::Circle { radius } => WitColliderShape::Circle(radius),
+            Self::Rectangle { half_size } => WitColliderShape::Rectangle(WitVec2 {
+                x: half_size.x,
+                y: half_size.y,
+            }),
+        }
+    }
+}
+
 /// Bullet context for danmaku callbacks.
 #[derive(Debug, Clone)]
 pub struct BulletContext {

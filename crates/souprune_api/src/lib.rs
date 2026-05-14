@@ -78,6 +78,27 @@ impl Vec2 {
     }
 }
 
+/// Opaque handle for a host-owned collision region.
+///
+/// 宿主拥有的碰撞区域的不透明句柄。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RegionHandle(pub u64);
+
+/// Opaque handle for a host-owned movement constraint.
+///
+/// 宿主拥有的移动约束的不透明句柄。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ConstraintHandle(pub u64);
+
+/// Collider shape used by host-side movement constraints.
+///
+/// 宿主侧移动约束使用的碰撞体形状。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ColliderShape {
+    Circle { radius: f32 },
+    Rectangle { half_size: Vec2 },
+}
+
 /// Named property for danmaku behaviors, mirrors the WIT `prop` record.
 ///
 /// 弹幕行为的命名属性，对应 WIT 中的 `prop` 记录。

@@ -11,7 +11,7 @@ use bevy::prelude::*;
 use bevy_fact_rule_event::FactValue;
 use souprune_api::Action;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use wasmtime::component::{Component, HasSelf, Linker, ResourceTable};
 use wasmtime::{Engine, Store};
@@ -24,8 +24,14 @@ wasmtime::component::bindgen!({
 });
 
 use self::souprune::plugin::host_api::{
-    Action as WitAction, FactValue as WitFact, Vec2 as WitVec2,
+    Action as WitAction, ColliderShape as WitColliderShape, FactValue as WitFact, Vec2 as WitVec2,
 };
+use super::collision::{
+    CollisionBoundary, CollisionRegion, CollisionRegionStore, ConstraintHandle, PhysicsCollider,
+    RegionHandle,
+};
+
+type SharedCollisionRegionStore = Arc<Mutex<CollisionRegionStore>>;
 
 /// Per-call context: set by the host before invoking a mod callback.
 #[derive(Default)]
@@ -66,6 +72,28 @@ pub struct HostState {
     pub wasi: wasmtime_wasi::WasiCtx,
     pub table: ResourceTable,
     pub call_ctx: CallContext,
+    collision_regions: SharedCollisionRegionStore,
+}
+
+impl HostState {
+    fn new_for_mod(collision_regions: SharedCollisionRegionStore) -> Self {
+        Self {
+            wasi: WasiCtxBuilder::new().build(),
+            table: ResourceTable::new(),
+            call_ctx: CallContext::default(),
+            collision_regions,
+        }
+    }
+
+    fn collision_region_store(&self) -> Option<std::sync::MutexGuard<'_, CollisionRegionStore>> {
+        match self.collision_regions.lock() {
+            Ok(store) => Some(store),
+            Err(err) => {
+                error!("Collision region store lock is poisoned: {err}");
+                None
+            }
+        }
+    }
 }
 
 impl wasmtime_wasi::WasiView for HostState {
@@ -98,6 +126,60 @@ impl self::souprune::plugin::host_api::Host for HostState {
 
     fn set_velocity(&mut self, velocity: WitVec2) {
         self.call_ctx.velocity = Vec2::new(velocity.x, velocity.y);
+    }
+
+    fn create_collision_region(&mut self, center: WitVec2, half_size: WitVec2) -> u64 {
+        let center = Vec2::new(center.x, center.y);
+        let half_size = Vec2::new(half_size.x, half_size.y);
+        if !is_valid_positive_vec2(half_size) || !center.is_finite() {
+            warn!(
+                "Ignoring invalid collision region center={:?} half_size={:?}",
+                center, half_size
+            );
+            return 0;
+        }
+
+        let Some(mut collision_regions) = self.collision_region_store() else {
+            return 0;
+        };
+        collision_regions
+            .create_region(CollisionRegion::new(CollisionBoundary {
+                center,
+                half_size,
+            }))
+            .raw()
+    }
+
+    fn remove_collision_region(&mut self, region: u64) {
+        if let Some(mut collision_regions) = self.collision_region_store() {
+            collision_regions.remove_region(RegionHandle::from_raw(region));
+        }
+    }
+
+    fn create_movement_constraint(
+        &mut self,
+        region: u64,
+        collider: WitColliderShape,
+    ) -> Option<u64> {
+        let collider = wit_to_physics_collider(collider)?;
+        self.collision_region_store()?
+            .create_movement_constraint(RegionHandle::from_raw(region), collider)
+            .map(ConstraintHandle::raw)
+    }
+
+    fn remove_movement_constraint(&mut self, constraint: u64) {
+        if let Some(mut collision_regions) = self.collision_region_store() {
+            collision_regions.remove_movement_constraint(ConstraintHandle::from_raw(constraint));
+        }
+    }
+
+    fn constrain_movement(&mut self, constraint: u64, position: WitVec2) -> Option<WitVec2> {
+        self.collision_region_store()?
+            .constrain_movement(
+                ConstraintHandle::from_raw(constraint),
+                Vec2::new(position.x, position.y),
+            )
+            .map(|pos| WitVec2 { x: pos.x, y: pos.y })
     }
 
     fn get_entity_position(&mut self) -> WitVec2 {
@@ -178,6 +260,23 @@ fn action_to_index(action: WitAction) -> usize {
     }
 }
 
+fn wit_to_physics_collider(collider: WitColliderShape) -> Option<PhysicsCollider> {
+    match collider {
+        WitColliderShape::Circle(radius) if radius.is_finite() && radius > 0.0 => {
+            Some(PhysicsCollider::Circle { radius })
+        }
+        WitColliderShape::Rectangle(half_size) => {
+            let half_size = Vec2::new(half_size.x, half_size.y);
+            is_valid_positive_vec2(half_size).then_some(PhysicsCollider::Box { half_size })
+        }
+        _ => None,
+    }
+}
+
+fn is_valid_positive_vec2(value: Vec2) -> bool {
+    value.is_finite() && value.x > 0.0 && value.y > 0.0
+}
+
 /// Convert FRE `FactValue` to the WIT-generated `FactValue` variant.
 fn fre_to_wit_fact(v: &FactValue) -> WitFact {
     match v {
@@ -237,6 +336,7 @@ pub struct LoadedMod {
 pub struct WasmRuntime {
     engine: Engine,
     linker: Linker<HostState>,
+    collision_regions: SharedCollisionRegionStore,
 }
 
 impl WasmRuntime {
@@ -249,7 +349,11 @@ impl WasmRuntime {
         wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
         SoupruneMod::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
 
-        Ok(Self { engine, linker })
+        Ok(Self {
+            engine,
+            linker,
+            collision_regions: Arc::new(Mutex::new(CollisionRegionStore::default())),
+        })
     }
 
     /// Load a WASM component from a file path.
@@ -261,14 +365,9 @@ impl WasmRuntime {
             .to_string();
         let component = Component::from_file(&self.engine, path)?;
 
-        let wasi = WasiCtxBuilder::new().build();
         let mut store = Store::new(
             &self.engine,
-            HostState {
-                wasi,
-                table: ResourceTable::new(),
-                call_ctx: CallContext::default(),
-            },
+            HostState::new_for_mod(Arc::clone(&self.collision_regions)),
         );
 
         let bindings = SoupruneMod::instantiate(&mut store, &component, &self.linker)?;
@@ -320,5 +419,32 @@ impl WasmRuntime {
             .souprune_plugin_rule_provider()
             .call_list_rules(&mut loaded.store)?;
         Ok(rules)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use self::souprune::plugin::host_api::Host;
+    use super::*;
+    use std::sync::Mutex;
+
+    #[test]
+    fn host_states_share_collision_region_registry() {
+        let shared = Arc::new(Mutex::new(CollisionRegionStore::default()));
+        let mut first = HostState::new_for_mod(Arc::clone(&shared));
+        let mut second = HostState::new_for_mod(Arc::clone(&shared));
+
+        let region =
+            first.create_collision_region(WitVec2 { x: 0.0, y: 0.0 }, WitVec2 { x: 20.0, y: 20.0 });
+        let constraint = second
+            .create_movement_constraint(region, WitColliderShape::Circle(5.0))
+            .unwrap();
+
+        let constrained = second
+            .constrain_movement(constraint, WitVec2 { x: 30.0, y: 0.0 })
+            .unwrap();
+
+        assert_eq!(constrained.x, 15.0);
+        assert_eq!(constrained.y, 0.0);
     }
 }

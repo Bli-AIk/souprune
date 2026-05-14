@@ -4,6 +4,7 @@
 //! 一个独立的测试宿主应用程序，模拟游戏框架。
 //! 使用 Wasmtime 加载和运行 WASM 模组组件。
 
+use std::collections::HashMap;
 use wasmtime::component::{Component, HasSelf, Linker, ResourceTable};
 use wasmtime::{Engine, Store};
 use wasmtime_wasi::WasiCtxBuilder;
@@ -16,6 +17,123 @@ wasmtime::component::bindgen!({
 struct MockHostState {
     wasi: wasmtime_wasi::WasiCtx,
     table: ResourceTable,
+    collision: MockCollisionState,
+}
+
+#[derive(Default)]
+struct MockCollisionState {
+    next_region: u64,
+    next_constraint: u64,
+    regions: HashMap<u64, MockRegion>,
+    constraints: HashMap<u64, MockConstraint>,
+}
+
+#[derive(Clone, Copy)]
+struct MockRegion {
+    center: souprune::plugin::host_api::Vec2,
+    half_size: souprune::plugin::host_api::Vec2,
+}
+
+#[derive(Clone, Copy)]
+struct MockConstraint {
+    region: u64,
+    collider: souprune::plugin::host_api::ColliderShape,
+}
+
+impl MockCollisionState {
+    fn create_region(
+        &mut self,
+        center: souprune::plugin::host_api::Vec2,
+        half_size: souprune::plugin::host_api::Vec2,
+    ) -> u64 {
+        if !is_valid_positive_vec2(half_size) {
+            return 0;
+        }
+
+        self.next_region = self.next_region.saturating_add(1).max(1);
+        let handle = self.next_region;
+        self.regions
+            .insert(handle, MockRegion { center, half_size });
+        handle
+    }
+
+    fn remove_region(&mut self, handle: u64) {
+        self.regions.remove(&handle);
+        self.constraints
+            .retain(|_, constraint| constraint.region != handle);
+    }
+
+    fn create_constraint(
+        &mut self,
+        region: u64,
+        collider: souprune::plugin::host_api::ColliderShape,
+    ) -> Option<u64> {
+        if !self.regions.contains_key(&region) || !is_valid_collider(collider) {
+            return None;
+        }
+
+        self.next_constraint = self.next_constraint.saturating_add(1).max(1);
+        let handle = self.next_constraint;
+        self.constraints
+            .insert(handle, MockConstraint { region, collider });
+        Some(handle)
+    }
+
+    fn remove_constraint(&mut self, handle: u64) {
+        self.constraints.remove(&handle);
+    }
+
+    fn constrain_movement(
+        &self,
+        handle: u64,
+        position: souprune::plugin::host_api::Vec2,
+    ) -> Option<souprune::plugin::host_api::Vec2> {
+        let constraint = self.constraints.get(&handle)?;
+        let region = self.regions.get(&constraint.region)?;
+        Some(constrain_position(*region, constraint.collider, position))
+    }
+}
+
+fn constrain_position(
+    region: MockRegion,
+    collider: souprune::plugin::host_api::ColliderShape,
+    position: souprune::plugin::host_api::Vec2,
+) -> souprune::plugin::host_api::Vec2 {
+    let inset = match collider {
+        souprune::plugin::host_api::ColliderShape::Circle(radius) => {
+            souprune::plugin::host_api::Vec2 {
+                x: radius,
+                y: radius,
+            }
+        }
+        souprune::plugin::host_api::ColliderShape::Rectangle(half_size) => half_size,
+    };
+
+    souprune::plugin::host_api::Vec2 {
+        x: position.x.clamp(
+            region.center.x - region.half_size.x + inset.x,
+            region.center.x + region.half_size.x - inset.x,
+        ),
+        y: position.y.clamp(
+            region.center.y - region.half_size.y + inset.y,
+            region.center.y + region.half_size.y - inset.y,
+        ),
+    }
+}
+
+fn is_valid_positive_vec2(value: souprune::plugin::host_api::Vec2) -> bool {
+    value.x.is_finite() && value.y.is_finite() && value.x > 0.0 && value.y > 0.0
+}
+
+fn is_valid_collider(collider: souprune::plugin::host_api::ColliderShape) -> bool {
+    match collider {
+        souprune::plugin::host_api::ColliderShape::Circle(radius) => {
+            radius.is_finite() && radius > 0.0
+        }
+        souprune::plugin::host_api::ColliderShape::Rectangle(half_size) => {
+            is_valid_positive_vec2(half_size)
+        }
+    }
 }
 
 impl wasmtime_wasi::WasiView for MockHostState {
@@ -43,6 +161,46 @@ impl souprune::plugin::host_api::Host for MockHostState {
 
     fn set_velocity(&mut self, velocity: souprune::plugin::host_api::Vec2) {
         println!("[HOST] Set velocity: ({}, {})", velocity.x, velocity.y);
+    }
+
+    fn create_collision_region(
+        &mut self,
+        center: souprune::plugin::host_api::Vec2,
+        half_size: souprune::plugin::host_api::Vec2,
+    ) -> u64 {
+        let handle = self.collision.create_region(center, half_size);
+        println!("[HOST] create_collision_region -> {}", handle);
+        handle
+    }
+
+    fn remove_collision_region(&mut self, region: u64) {
+        println!("[HOST] remove_collision_region: {}", region);
+        self.collision.remove_region(region);
+    }
+
+    fn create_movement_constraint(
+        &mut self,
+        region: u64,
+        collider: souprune::plugin::host_api::ColliderShape,
+    ) -> Option<u64> {
+        let handle = self.collision.create_constraint(region, collider);
+        println!("[HOST] create_movement_constraint -> {:?}", handle);
+        handle
+    }
+
+    fn remove_movement_constraint(&mut self, constraint: u64) {
+        println!("[HOST] remove_movement_constraint: {}", constraint);
+        self.collision.remove_constraint(constraint);
+    }
+
+    fn constrain_movement(
+        &mut self,
+        constraint: u64,
+        position: souprune::plugin::host_api::Vec2,
+    ) -> Option<souprune::plugin::host_api::Vec2> {
+        let constrained = self.collision.constrain_movement(constraint, position);
+        println!("[HOST] constrain_movement -> {:?}", constrained);
+        constrained
     }
 
     fn get_entity_position(&mut self) -> souprune::plugin::host_api::Vec2 {
@@ -138,6 +296,7 @@ fn main() -> anyhow::Result<()> {
         MockHostState {
             wasi,
             table: ResourceTable::new(),
+            collision: MockCollisionState::default(),
         },
     );
 

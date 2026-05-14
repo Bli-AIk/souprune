@@ -15,11 +15,13 @@
 pub(crate) mod components;
 pub mod events;
 pub mod primitives;
+pub mod region;
 pub mod systems;
 
 pub use components::*;
 pub use events::{CollisionEventBuffer, CollisionType};
 pub use primitives::*;
+pub use region::{CollisionRegion, CollisionRegionStore, ConstraintHandle, RegionHandle};
 pub use systems::{SdfCollisionConfig, collect_nearby_colliders, resolve_sdf_collision};
 
 use bevy::app::*;
