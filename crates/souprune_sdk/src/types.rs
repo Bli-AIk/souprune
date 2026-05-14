@@ -167,6 +167,24 @@ pub struct RegionHandle(pub u64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ConstraintHandle(pub u64);
 
+/// Opaque handle for a host-owned entity primitive.
+///
+/// 宿主拥有的实体 primitive 的不透明句柄。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EntityHandle(pub u64);
+
+/// Opaque handle for a host-owned ViewBox primitive.
+///
+/// 宿主拥有的 ViewBox primitive 的不透明句柄。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ViewBoxHandle(pub u64);
+
+impl From<ViewBoxHandle> for EntityHandle {
+    fn from(handle: ViewBoxHandle) -> Self {
+        Self(handle.0)
+    }
+}
+
 /// Collider shape used by host-side movement constraints.
 ///
 /// 宿主侧移动约束使用的碰撞体形状。

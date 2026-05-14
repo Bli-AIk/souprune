@@ -18,6 +18,7 @@ struct MockHostState {
     wasi: wasmtime_wasi::WasiCtx,
     table: ResourceTable,
     collision: MockCollisionState,
+    view_entities: MockViewEntityState,
 }
 
 #[derive(Default)]
@@ -38,6 +39,20 @@ struct MockRegion {
 struct MockConstraint {
     region: u64,
     collider: souprune::plugin::host_api::ColliderShape,
+}
+
+#[derive(Default)]
+struct MockViewEntityState {
+    next_entity: u64,
+    view_boxes: HashMap<u64, MockViewBox>,
+}
+
+#[derive(Clone, Copy)]
+struct MockViewBox {
+    center: souprune::plugin::host_api::Vec2,
+    size: souprune::plugin::host_api::Vec2,
+    border_width: f32,
+    visible: bool,
 }
 
 impl MockCollisionState {
@@ -61,6 +76,22 @@ impl MockCollisionState {
         self.regions.remove(&handle);
         self.constraints
             .retain(|_, constraint| constraint.region != handle);
+    }
+
+    fn set_region_bounds(
+        &mut self,
+        handle: u64,
+        center: souprune::plugin::host_api::Vec2,
+        half_size: souprune::plugin::host_api::Vec2,
+    ) {
+        if let Some(region) = self.regions.get_mut(&handle)
+            && center.x.is_finite()
+            && center.y.is_finite()
+            && is_valid_positive_vec2(half_size)
+        {
+            region.center = center;
+            region.half_size = half_size;
+        }
     }
 
     fn create_constraint(
@@ -91,6 +122,67 @@ impl MockCollisionState {
         let constraint = self.constraints.get(&handle)?;
         let region = self.regions.get(&constraint.region)?;
         Some(constrain_position(*region, constraint.collider, position))
+    }
+}
+
+impl MockViewEntityState {
+    fn spawn_view_box(
+        &mut self,
+        center: souprune::plugin::host_api::Vec2,
+        size: souprune::plugin::host_api::Vec2,
+        border_width: f32,
+    ) -> u64 {
+        if !center.x.is_finite()
+            || !center.y.is_finite()
+            || !is_valid_positive_vec2(size)
+            || !border_width.is_finite()
+            || border_width < 0.0
+        {
+            return 0;
+        }
+
+        self.next_entity = self.next_entity.saturating_add(1).max(1);
+        let handle = self.next_entity;
+        self.view_boxes.insert(
+            handle,
+            MockViewBox {
+                center,
+                size,
+                border_width,
+                visible: true,
+            },
+        );
+        handle
+    }
+
+    fn set_view_box_bounds(
+        &mut self,
+        handle: u64,
+        center: souprune::plugin::host_api::Vec2,
+        size: souprune::plugin::host_api::Vec2,
+    ) {
+        if !center.x.is_finite() || !center.y.is_finite() || !is_valid_positive_vec2(size) {
+            return;
+        }
+
+        if let Some(view_box) = self.view_boxes.get_mut(&handle) {
+            view_box.center = center;
+            view_box.size = size;
+        }
+    }
+
+    fn set_view_box_visible(&mut self, handle: u64, visible: bool) {
+        if let Some(view_box) = self.view_boxes.get_mut(&handle) {
+            view_box.visible = visible;
+        }
+    }
+
+    fn remove_entity(&mut self, handle: u64) {
+        self.view_boxes.remove(&handle);
+    }
+
+    fn view_box(&self, handle: u64) -> Option<MockViewBox> {
+        self.view_boxes.get(&handle).copied()
     }
 }
 
@@ -178,6 +270,19 @@ impl souprune::plugin::host_api::Host for MockHostState {
         self.collision.remove_region(region);
     }
 
+    fn set_collision_region_bounds(
+        &mut self,
+        region: u64,
+        center: souprune::plugin::host_api::Vec2,
+        half_size: souprune::plugin::host_api::Vec2,
+    ) {
+        println!(
+            "[HOST] set_collision_region_bounds: {} center=({}, {}) half_size=({}, {})",
+            region, center.x, center.y, half_size.x, half_size.y
+        );
+        self.collision.set_region_bounds(region, center, half_size);
+    }
+
     fn create_movement_constraint(
         &mut self,
         region: u64,
@@ -201,6 +306,112 @@ impl souprune::plugin::host_api::Host for MockHostState {
         let constrained = self.collision.constrain_movement(constraint, position);
         println!("[HOST] constrain_movement -> {:?}", constrained);
         constrained
+    }
+
+    fn spawn_view_box(
+        &mut self,
+        center: souprune::plugin::host_api::Vec2,
+        size: souprune::plugin::host_api::Vec2,
+        border_width: f32,
+    ) -> u64 {
+        let handle = self
+            .view_entities
+            .spawn_view_box(center, size, border_width);
+        if let Some(view_box) = self.view_entities.view_box(handle) {
+            println!(
+                "[HOST] spawn_view_box -> {} center=({}, {}) size=({}, {}) border={} visible={}",
+                handle,
+                view_box.center.x,
+                view_box.center.y,
+                view_box.size.x,
+                view_box.size.y,
+                view_box.border_width,
+                view_box.visible
+            );
+        } else {
+            println!("[HOST] spawn_view_box -> 0");
+        }
+        handle
+    }
+
+    fn set_view_box_bounds(
+        &mut self,
+        handle: u64,
+        center: souprune::plugin::host_api::Vec2,
+        size: souprune::plugin::host_api::Vec2,
+    ) {
+        self.view_entities.set_view_box_bounds(handle, center, size);
+        if let Some(view_box) = self.view_entities.view_box(handle) {
+            println!(
+                "[HOST] set_view_box_bounds: {} center=({}, {}) size=({}, {}) border={} visible={}",
+                handle,
+                view_box.center.x,
+                view_box.center.y,
+                view_box.size.x,
+                view_box.size.y,
+                view_box.border_width,
+                view_box.visible
+            );
+        } else {
+            println!(
+                "[HOST] set_view_box_bounds ignored unknown handle={}",
+                handle
+            );
+        }
+    }
+
+    fn tween_view_box_bounds(
+        &mut self,
+        handle: u64,
+        center: souprune::plugin::host_api::Vec2,
+        size: souprune::plugin::host_api::Vec2,
+        duration_secs: f32,
+    ) {
+        self.view_entities.set_view_box_bounds(handle, center, size);
+        if let Some(view_box) = self.view_entities.view_box(handle) {
+            println!(
+                "[HOST] tween_view_box_bounds: {} center=({}, {}) size=({}, {}) border={} visible={} duration={}",
+                handle,
+                view_box.center.x,
+                view_box.center.y,
+                view_box.size.x,
+                view_box.size.y,
+                view_box.border_width,
+                view_box.visible,
+                duration_secs
+            );
+        } else {
+            println!(
+                "[HOST] tween_view_box_bounds ignored unknown handle={}",
+                handle
+            );
+        }
+    }
+
+    fn set_view_box_visible(&mut self, handle: u64, visible: bool) {
+        self.view_entities.set_view_box_visible(handle, visible);
+        if let Some(view_box) = self.view_entities.view_box(handle) {
+            println!(
+                "[HOST] set_view_box_visible: {} center=({}, {}) size=({}, {}) border={} visible={}",
+                handle,
+                view_box.center.x,
+                view_box.center.y,
+                view_box.size.x,
+                view_box.size.y,
+                view_box.border_width,
+                view_box.visible
+            );
+        } else {
+            println!(
+                "[HOST] set_view_box_visible ignored unknown handle={}",
+                handle
+            );
+        }
+    }
+
+    fn remove_entity(&mut self, handle: u64) {
+        println!("[HOST] remove_entity: {}", handle);
+        self.view_entities.remove_entity(handle);
     }
 
     fn get_entity_position(&mut self) -> souprune::plugin::host_api::Vec2 {
@@ -297,6 +508,7 @@ fn main() -> anyhow::Result<()> {
             wasi,
             table: ResourceTable::new(),
             collision: MockCollisionState::default(),
+            view_entities: MockViewEntityState::default(),
         },
     );
 

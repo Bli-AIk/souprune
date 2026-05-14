@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::custom_actions::{apply_pending_side_effects, build_fact_snapshot};
+use super::host_entities::PendingHostEntityEffects;
 use super::{BehaviorRegistry, LoadedMods, wasm_runtime};
 use crate::core::input::{
     Direction, InputCommand, InputContextId, InputEnvelope, InputEnvelopeEvent, InputTarget,
@@ -76,7 +77,11 @@ pub(super) fn init_behaviors_system(
     query: Query<(Entity, &BehaviorParams), Added<BehaviorParams>>,
     behavior_registry: Res<BehaviorRegistry>,
     mut loaded_mods: NonSendMut<LoadedMods>,
-    fact_db: Res<LayeredFactDatabase>,
+    mut fact_db: ResMut<LayeredFactDatabase>,
+    mut fact_writer: MessageWriter<FactEvent>,
+    mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
+    mut host_entity_effects: ResMut<PendingHostEntityEffects>,
+    frame_count: Res<bevy::diagnostic::FrameCount>,
 ) {
     if query.is_empty() {
         return;
@@ -104,10 +109,10 @@ pub(super) fn init_behaviors_system(
                 {
                     let ctx = loaded.store.data_mut();
                     ctx.call_ctx.fact_snapshot = Arc::clone(&fact_snapshot);
-                    ctx.call_ctx.pending_fact_mutations.clear();
-                    ctx.call_ctx.pending_events.clear();
+                    ctx.call_ctx.clear_pending_side_effects();
                 }
 
+                let mod_name = loaded.name.clone();
                 if let Err(e) = behavior_iface
                     .behavior_instance()
                     .call_on_enter(&mut loaded.store, handle)
@@ -115,6 +120,19 @@ pub(super) fn init_behaviors_system(
                     error!(
                         "Behavior on_enter failed for {}: {:?}",
                         params.behavior_id, e
+                    );
+                }
+
+                let pending = loaded.store.data_mut().call_ctx.take_pending_side_effects();
+                if !pending.is_empty() {
+                    apply_pending_side_effects(
+                        pending,
+                        &mut fact_db,
+                        &mut fact_writer,
+                        &mut fact_history,
+                        &mut host_entity_effects,
+                        frame_count.0 as u64,
+                        &format!("behavior-enter:{mod_name}"),
                     );
                 }
 
@@ -147,6 +165,7 @@ pub(super) fn dispatch_behavior_input_system(
     mut fact_db: ResMut<LayeredFactDatabase>,
     mut fact_writer: MessageWriter<FactEvent>,
     mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
+    mut host_entity_effects: ResMut<PendingHostEntityEffects>,
     frame_count: Res<bevy::diagnostic::FrameCount>,
     mut wasm_tracer: ResMut<crate::core::trace::WasmCallTracer>,
 ) {
@@ -174,8 +193,7 @@ pub(super) fn dispatch_behavior_input_system(
                 ctx.call_ctx.velocity = velocity.map_or(Vec2::ZERO, |v| v.0);
                 ctx.call_ctx.entity_position = transform.translation.truncate();
                 ctx.call_ctx.fact_snapshot = Arc::clone(&fact_snapshot);
-                ctx.call_ctx.pending_fact_mutations.clear();
-                ctx.call_ctx.pending_events.clear();
+                ctx.call_ctx.clear_pending_side_effects();
             }
 
             let behavior_iface = loaded.bindings.souprune_plugin_behavior();
@@ -200,17 +218,14 @@ pub(super) fn dispatch_behavior_input_system(
             }
 
             let mod_name = loaded.name.clone();
-            let mutations =
-                std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_fact_mutations);
-            let pending_events =
-                std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_events);
-            if !mutations.is_empty() || !pending_events.is_empty() {
+            let pending = loaded.store.data_mut().call_ctx.take_pending_side_effects();
+            if !pending.is_empty() {
                 apply_pending_side_effects(
-                    mutations,
-                    pending_events,
+                    pending,
                     &mut fact_db,
                     &mut fact_writer,
                     &mut fact_history,
+                    &mut host_entity_effects,
                     frame_count.0 as u64,
                     &format!("behavior-input:{mod_name}"),
                 );
@@ -283,6 +298,7 @@ pub(super) fn update_behaviors_system(
     mut fact_db: ResMut<LayeredFactDatabase>,
     mut fact_writer: MessageWriter<FactEvent>,
     mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
+    mut host_entity_effects: ResMut<PendingHostEntityEffects>,
     frame_count: Res<bevy::diagnostic::FrameCount>,
     mut cached_snapshot: Local<Arc<HashMap<String, FactValue>>>,
 ) {
@@ -330,8 +346,7 @@ pub(super) fn update_behaviors_system(
             ctx.call_ctx.entity_position = transform.translation.truncate();
             ctx.call_ctx.delta_time = dt;
             ctx.call_ctx.fact_snapshot = Arc::clone(&cached_snapshot);
-            ctx.call_ctx.pending_fact_mutations.clear();
-            ctx.call_ctx.pending_events.clear();
+            ctx.call_ctx.clear_pending_side_effects();
         }
 
         let behavior_iface = loaded.bindings.souprune_plugin_behavior();
@@ -353,16 +368,14 @@ pub(super) fn update_behaviors_system(
 
         let mod_name = loaded.name.clone();
 
-        let mutations =
-            std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_fact_mutations);
-        let events = std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_events);
-        if !mutations.is_empty() || !events.is_empty() {
+        let pending = loaded.store.data_mut().call_ctx.take_pending_side_effects();
+        if !pending.is_empty() {
             apply_pending_side_effects(
-                mutations,
-                events,
+                pending,
                 &mut fact_db,
                 &mut fact_writer,
                 &mut fact_history,
+                &mut host_entity_effects,
                 frame_count.0 as u64,
                 &format!("behavior:{mod_name}"),
             );

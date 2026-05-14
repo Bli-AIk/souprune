@@ -7,7 +7,7 @@
 //! 无需接触原始 WIT 类型。
 
 use crate::souprune::plugin::host_api;
-use crate::{Action, ColliderShape, ConstraintHandle, RegionHandle};
+use crate::{Action, ColliderShape, ConstraintHandle, EntityHandle, RegionHandle, ViewBoxHandle};
 
 /// Typed fact value mirroring the WIT `fact-value` variant.
 /// Mod code uses this instead of raw strings.
@@ -87,6 +87,13 @@ impl Context {
     /// 访问宿主侧碰撞区域与移动约束 primitive。
     pub fn collision(&self) -> CollisionHelper {
         CollisionHelper
+    }
+
+    /// Access host-side ViewBox and entity primitives.
+    ///
+    /// 访问宿主侧 ViewBox 与实体 primitive。
+    pub fn view(&self) -> ViewPrimitiveHelper {
+        ViewPrimitiveHelper
     }
 
     /// Get the current entity's world position.
@@ -315,6 +322,23 @@ impl CollisionHelper {
         host_api::remove_collision_region(handle.0);
     }
 
+    /// Update a host-owned collision region.
+    ///
+    /// 更新宿主拥有的碰撞区域。
+    pub fn set_region_bounds(&self, handle: RegionHandle, center: Vec2, half_size: Vec2) {
+        host_api::set_collision_region_bounds(
+            handle.0,
+            host_api::Vec2 {
+                x: center.x,
+                y: center.y,
+            },
+            host_api::Vec2 {
+                x: half_size.x,
+                y: half_size.y,
+            },
+        );
+    }
+
     /// Create a host-owned movement constraint for a region and collider.
     ///
     /// 为区域和碰撞体创建宿主拥有的移动约束。
@@ -345,6 +369,86 @@ impl CollisionHelper {
             },
         )
         .map(|pos| Vec2::new(pos.x, pos.y))
+    }
+}
+
+/// View primitive helper (zero-sized, stateless).
+///
+/// View primitive 辅助对象（零大小、无状态）。
+pub struct ViewPrimitiveHelper;
+
+impl ViewPrimitiveHelper {
+    /// Spawn a host-owned ViewBox primitive.
+    ///
+    /// 生成宿主拥有的 ViewBox primitive。
+    pub fn spawn_box(&self, center: Vec2, size: Vec2, border_width: f32) -> Option<ViewBoxHandle> {
+        let raw = host_api::spawn_view_box(
+            host_api::Vec2 {
+                x: center.x,
+                y: center.y,
+            },
+            host_api::Vec2 {
+                x: size.x,
+                y: size.y,
+            },
+            border_width,
+        );
+        (raw != 0).then_some(ViewBoxHandle(raw))
+    }
+
+    /// Update a host-owned ViewBox primitive's center and size.
+    ///
+    /// 更新宿主拥有的 ViewBox primitive 的中心点和尺寸。
+    pub fn set_box_bounds(&self, handle: ViewBoxHandle, center: Vec2, size: Vec2) {
+        host_api::set_view_box_bounds(
+            handle.0,
+            host_api::Vec2 {
+                x: center.x,
+                y: center.y,
+            },
+            host_api::Vec2 {
+                x: size.x,
+                y: size.y,
+            },
+        );
+    }
+
+    /// Tween a host-owned ViewBox primitive's center and size on the host.
+    ///
+    /// 在宿主侧对 ViewBox primitive 的中心点和尺寸执行 tween。
+    pub fn tween_box_bounds(
+        &self,
+        handle: ViewBoxHandle,
+        center: Vec2,
+        size: Vec2,
+        duration_secs: f32,
+    ) {
+        host_api::tween_view_box_bounds(
+            handle.0,
+            host_api::Vec2 {
+                x: center.x,
+                y: center.y,
+            },
+            host_api::Vec2 {
+                x: size.x,
+                y: size.y,
+            },
+            duration_secs,
+        );
+    }
+
+    /// Update a host-owned ViewBox primitive's visibility.
+    ///
+    /// 更新宿主拥有的 ViewBox primitive 的可见性。
+    pub fn set_box_visible(&self, handle: ViewBoxHandle, visible: bool) {
+        host_api::set_view_box_visible(handle.0, visible);
+    }
+
+    /// Remove a host-owned entity primitive.
+    ///
+    /// 移除宿主拥有的实体 primitive。
+    pub fn remove_entity(&self, handle: EntityHandle) {
+        host_api::remove_entity(handle.0);
     }
 }
 

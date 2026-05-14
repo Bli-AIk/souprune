@@ -24,7 +24,7 @@ mod log_chapter;
 mod performance;
 mod player;
 mod run_sequence;
-mod tween;
+pub(crate) mod tween;
 pub mod view_action;
 mod view_element;
 
