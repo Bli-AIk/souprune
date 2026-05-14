@@ -35,6 +35,7 @@ pub(crate) struct CollisionPlugin;
 
 impl Plugin for CollisionPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<CollisionEventBuffer>();
+        app.init_resource::<CollisionEventBuffer>()
+            .init_resource::<CollisionRegionStore>();
     }
 }

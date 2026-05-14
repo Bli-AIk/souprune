@@ -2,6 +2,7 @@
 //!
 //! 被 sequencer、view 和 battle 系统共同使用的战斗框基础类型。
 
+use crate::core::collision::ConstraintHandle;
 use crate::core::view::components::ViewBox;
 use bevy::ecs::message::Message;
 use bevy::prelude::*;
@@ -23,7 +24,43 @@ pub struct BattleBoxId(pub String);
 ///
 /// 通过 ID 将玩家绑定到指定战斗框。
 #[derive(Component, Debug, Clone)]
-pub struct BoundToBattleBox(pub String);
+pub struct BoundToBattleBox {
+    /// Current battle-box id selected by gameplay semantics.
+    ///
+    /// 当前玩法语义选择的战斗框 ID。
+    pub box_id: String,
+    /// Host-owned movement constraint handle for this binding.
+    ///
+    /// 此绑定对应的宿主移动约束句柄。
+    pub constraint: Option<ConstraintHandle>,
+}
+
+impl BoundToBattleBox {
+    /// Create a binding to a battle box id.
+    ///
+    /// 创建指向某个战斗框 ID 的绑定。
+    pub fn new(box_id: impl Into<String>) -> Self {
+        Self {
+            box_id: box_id.into(),
+            constraint: None,
+        }
+    }
+
+    /// Change the selected battle-box id and return the invalidated constraint.
+    ///
+    /// 修改选中的战斗框 ID，并返回失效的旧约束。
+    pub fn replace_box_id(&mut self, box_id: impl Into<String>) -> Option<ConstraintHandle> {
+        self.box_id = box_id.into();
+        self.constraint
+    }
+
+    /// Clear the current host-owned movement constraint.
+    ///
+    /// 清除当前宿主拥有的移动约束。
+    pub fn clear_constraint(&mut self) -> Option<ConstraintHandle> {
+        self.constraint.take()
+    }
+}
 
 /// Runtime state of a battle box.
 ///

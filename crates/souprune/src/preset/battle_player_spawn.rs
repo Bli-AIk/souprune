@@ -99,7 +99,7 @@ pub fn process_player_spawn_requests(
                 },
                 BehaviorVelocity::default(),
                 BulletTarget::new(),
-                BoundToBattleBox(default_box),
+                BoundToBattleBox::new(default_box),
                 ModeScoped("battle".to_string()),
                 Name::new("BattlePlayer"),
             ));

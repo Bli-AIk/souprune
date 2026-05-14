@@ -11,7 +11,10 @@ use crate::core::battle_box::{
     BoundToBattleBox, GapPolicy, MergeBattleBoxes, SplitAxis, SplitBattleBox,
 };
 use crate::core::battle_runtime::{BattleMovementSet, BattleUpdate};
-use crate::core::collision::{CollisionBoundary, PhysicsCollider};
+use crate::core::collision::{
+    CollisionBoundary, CollisionRegion, CollisionRegionStore, ConstraintHandle, PhysicsCollider,
+    RegionHandle,
+};
 use crate::core::mod_system::BehaviorParams;
 use crate::core::view::components::ViewBox;
 use crate::core::view::sdf_view_shape::spawn_view_box_sdf_children;
@@ -22,6 +25,8 @@ use bevy_tween::interpolation::EaseKind;
 
 mod animation;
 mod geometry;
+#[cfg(test)]
+mod primitive_integration_tests;
 
 use self::animation::{
     animate_battle_box_merge_system, animate_battle_box_split_system, finalize_merged_battle_box,
@@ -61,6 +66,24 @@ type AmBattleBoxReadQuery<'w, 's> = Query<
     (With<BattleBox>, Without<ViewBox>, Without<PhysicsCollider>),
 >;
 
+type BattleBoxRegionQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        Option<&'static RegionHandle>,
+        &'static GlobalTransform,
+        Option<&'static ViewBox>,
+        Option<&'static AlightMotionBattleBoxBounds>,
+        &'static BattleBoxId,
+        &'static BattleBoxState,
+    ),
+    (With<BattleBox>, Without<PhysicsCollider>),
+>;
+
+type RetiredBattleBoxRegionQuery<'w, 's> =
+    Query<'w, 's, (Entity, &'static RegionHandle), Without<BattleBox>>;
+
 /// Plugin for battle collision systems
 ///
 /// Battle 碰撞系统插件
@@ -78,6 +101,8 @@ impl Plugin for BattleCollisionPlugin {
                     handle_merge_battle_boxes_system,
                     animate_battle_box_split_system,
                     animate_battle_box_merge_system,
+                    cleanup_retired_battle_box_regions_system,
+                    sync_battle_box_regions_system,
                     constrain_player_to_battle_box_system,
                 )
                     .chain()
@@ -228,59 +253,134 @@ struct MergeAnimationPlan {
 
 // ─── Systems ────────────────────────────────────────────────────────
 
+/// Remove host-owned regions from entities that are no longer battle boxes.
+///
+/// 从不再是战斗框的实体上移除宿主拥有的区域。
+pub(crate) fn cleanup_retired_battle_box_regions_system(
+    mut commands: Commands,
+    mut regions: ResMut<CollisionRegionStore>,
+    retired_boxes: RetiredBattleBoxRegionQuery,
+) {
+    for (entity, handle) in retired_boxes.iter() {
+        regions.remove_region(*handle);
+        commands.entity(entity).remove::<RegionHandle>();
+    }
+}
+
+/// Synchronize battle box ECS geometry into host-owned collision regions.
+///
+/// 将战斗框 ECS 几何同步进宿主拥有的碰撞区域。
+pub(crate) fn sync_battle_box_regions_system(
+    mut commands: Commands,
+    mut regions: ResMut<CollisionRegionStore>,
+    boxes: BattleBoxRegionQuery,
+) {
+    for (entity, handle, transform, view_box, am_bounds, _id, state) in boxes.iter() {
+        let Some(boundary) = resolve_boundary(transform, view_box, am_bounds, state) else {
+            if let Some(handle) = handle {
+                regions.remove_region(*handle);
+                commands.entity(entity).remove::<RegionHandle>();
+            }
+            continue;
+        };
+
+        if let Some(handle) = handle {
+            regions.update_region(*handle, CollisionRegion::new(boundary));
+        } else {
+            let handle = regions.create_region(CollisionRegion::new(boundary));
+            commands.entity(entity).insert(handle);
+        }
+    }
+}
+
+fn live_box_regions(
+    boxes: &BattleBoxRegionQuery,
+) -> Vec<(String, CollisionBoundary, RegionHandle)> {
+    boxes
+        .iter()
+        .filter_map(|(_, handle, transform, view_box, am_bounds, id, state)| {
+            let handle = handle.copied()?;
+            let boundary = resolve_boundary(transform, view_box, am_bounds, state)?;
+            Some((id.0.clone(), boundary, handle))
+        })
+        .collect()
+}
+
 /// System to constrain player position within their bound battle box.
 ///
 /// 限制玩家位置在其绑定的战斗框边界内。
 pub(crate) fn constrain_player_to_battle_box_system(
+    mut commands: Commands,
     mut player_query: Query<
-        (&mut Transform, &PhysicsCollider, &mut BoundToBattleBox),
+        (
+            Entity,
+            &mut Transform,
+            &PhysicsCollider,
+            &mut BoundToBattleBox,
+        ),
         (With<BehaviorParams>, Without<ViewBox>),
     >,
-    ui_boxes: Query<
-        (&GlobalTransform, &ViewBox, &BattleBoxId, &BattleBoxState),
-        (With<BattleBox>, Without<PhysicsCollider>),
-    >,
-    am_boxes: Query<
-        (
-            &GlobalTransform,
-            &AlightMotionBattleBoxBounds,
-            &BattleBoxId,
-            &BattleBoxState,
-        ),
-        (With<BattleBox>, Without<ViewBox>, Without<PhysicsCollider>),
-    >,
+    mut regions: ResMut<CollisionRegionStore>,
+    boxes: BattleBoxRegionQuery,
 ) {
-    let mut live_boxes: Vec<(String, CollisionBoundary)> = Vec::new();
-    for (tf, vb, id, state) in ui_boxes.iter() {
-        if let Some(boundary) = resolve_boundary(tf, Some(vb), None, state) {
-            live_boxes.push((id.0.clone(), boundary));
-        }
-    }
-    for (tf, am, id, state) in am_boxes.iter() {
-        if let Some(boundary) = resolve_boundary(tf, None, Some(am), state) {
-            live_boxes.push((id.0.clone(), boundary));
-        }
-    }
+    let live_regions = live_box_regions(&boxes);
+    let live_boxes = live_regions
+        .iter()
+        .map(|(id, boundary, _)| (id.clone(), boundary.clone()))
+        .collect::<Vec<_>>();
 
-    for (mut player_tf, collider, mut bound) in player_query.iter_mut() {
+    for (entity, mut player_tf, collider, mut bound) in player_query.iter_mut() {
         let current_pos = player_tf.translation.truncate();
         let Some(selected_index) =
-            choose_box_index_for_player(Some(&bound.0), current_pos, collider, &live_boxes)
+            choose_box_index_for_player(Some(&bound.box_id), current_pos, collider, &live_boxes)
         else {
+            if let Some(handle) = bound.clear_constraint() {
+                regions.remove_movement_constraint(handle);
+                commands.entity(entity).remove::<ConstraintHandle>();
+            }
             continue;
         };
-        let (selected_id, boundary) = &live_boxes[selected_index];
-        if bound.0 != *selected_id {
+        let (selected_id, _, region_handle) = &live_regions[selected_index];
+        if bound.box_id != *selected_id {
             debug!(
                 "Rebinding moving player from battle box '{}' to '{}'",
-                bound.0, selected_id
+                bound.box_id, selected_id
             );
-            bound.0 = selected_id.clone();
+            if bound.replace_box_id(selected_id.clone()).is_some()
+                && let Some(handle) = bound.clear_constraint()
+            {
+                regions.remove_movement_constraint(handle);
+                commands.entity(entity).remove::<ConstraintHandle>();
+            }
         }
 
-        let constrained = boundary.constrain_with_collider(current_pos, collider);
-        player_tf.translation.x = constrained.x;
-        player_tf.translation.y = constrained.y;
+        let constraint = match bound.constraint.and_then(|handle| {
+            regions
+                .movement_constraint(handle)
+                .is_some_and(|constraint| constraint.region == *region_handle)
+                .then_some(handle)
+        }) {
+            Some(handle) => handle,
+            None => {
+                if let Some(handle) = bound.clear_constraint() {
+                    regions.remove_movement_constraint(handle);
+                    commands.entity(entity).remove::<ConstraintHandle>();
+                }
+                let Some(handle) =
+                    regions.create_movement_constraint(*region_handle, collider.clone())
+                else {
+                    continue;
+                };
+                bound.constraint = Some(handle);
+                handle
+            }
+        };
+        commands.entity(entity).insert(constraint);
+
+        if let Some(constrained) = regions.constrain_movement(constraint, current_pos) {
+            player_tf.translation.x = constrained.x;
+            player_tf.translation.y = constrained.y;
+        }
     }
 }
 
@@ -418,9 +518,11 @@ fn handle_split_battle_box_system(
 
         // Rebind players that were bound to the source box
         for (player_tf, collider, mut bound) in player_query.iter_mut() {
-            if bound.0 == ev.source_box {
+            if bound.box_id == ev.source_box {
                 let pos = player_tf.translation.truncate();
-                bound.0 = select_box_id_for_player(pos, collider, &box_a, &box_b, id_a, id_b);
+                let _ = bound.replace_box_id(select_box_id_for_player(
+                    pos, collider, &box_a, &box_b, id_a, id_b,
+                ));
             }
         }
 

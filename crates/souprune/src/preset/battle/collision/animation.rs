@@ -52,8 +52,8 @@ pub(super) fn finalize_merged_battle_box(
         visual_style,
     );
     for mut bound in player_query.iter_mut() {
-        if bound.0 == source_boxes.0 || bound.0 == source_boxes.1 {
-            bound.0 = result_box.to_string();
+        if bound.box_id == source_boxes.0 || bound.box_id == source_boxes.1 {
+            let _ = bound.replace_box_id(result_box);
         }
     }
 }
@@ -274,8 +274,8 @@ pub(super) fn animate_battle_box_merge_system(
         );
 
         for mut bound in player_query.iter_mut() {
-            if bound.0 == anim.source_boxes.0 || bound.0 == anim.source_boxes.1 {
-                bound.0 = anim.result_box.clone();
+            if bound.box_id == anim.source_boxes.0 || bound.box_id == anim.source_boxes.1 {
+                let _ = bound.replace_box_id(anim.result_box.clone());
             }
         }
 

@@ -11,7 +11,7 @@ use std::collections::HashMap;
 /// Opaque handle for a host-owned collision region.
 ///
 /// 宿主拥有的碰撞区域的不透明句柄。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RegionHandle(u64);
 
 impl RegionHandle {
@@ -33,7 +33,7 @@ impl RegionHandle {
 /// Opaque handle for a host-owned movement constraint.
 ///
 /// 宿主拥有的移动约束的不透明句柄。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ConstraintHandle(u64);
 
 impl ConstraintHandle {
@@ -134,6 +134,15 @@ impl CollisionRegionStore {
     /// 按句柄获取区域。
     pub fn region(&self, handle: RegionHandle) -> Option<&CollisionRegion> {
         self.regions.get(&handle)
+    }
+
+    /// Replace an existing region boundary. Missing handles are ignored.
+    ///
+    /// 替换已有区域边界。缺失句柄会被忽略。
+    pub fn update_region(&mut self, handle: RegionHandle, region: CollisionRegion) {
+        if let Some(stored) = self.regions.get_mut(&handle) {
+            *stored = region;
+        }
     }
 
     /// Constrain a position using a host-owned movement constraint.
@@ -282,6 +291,33 @@ mod tests {
             .unwrap();
 
         assert_eq!(constrained, Vec2::new(15.0, 0.0));
+    }
+
+    #[test]
+    fn update_region_keeps_handle_and_updates_existing_constraints() {
+        let mut store = CollisionRegionStore::default();
+        let region = store.create_region(CollisionRegion::new(CollisionBoundary {
+            center: Vec2::ZERO,
+            half_size: Vec2::new(20.0, 20.0),
+        }));
+        let constraint = store
+            .create_movement_constraint(region, PhysicsCollider::Circle { radius: 5.0 })
+            .unwrap();
+
+        store.update_region(
+            region,
+            CollisionRegion::new(CollisionBoundary {
+                center: Vec2::new(10.0, 0.0),
+                half_size: Vec2::new(40.0, 20.0),
+            }),
+        );
+
+        let constrained = store
+            .constrain_movement(constraint, Vec2::new(100.0, 0.0))
+            .unwrap();
+
+        assert_eq!(store.region(region).unwrap().boundary.center.x, 10.0);
+        assert_eq!(constrained, Vec2::new(45.0, 0.0));
     }
 
     #[test]
