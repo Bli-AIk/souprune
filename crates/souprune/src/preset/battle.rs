@@ -28,9 +28,10 @@ pub mod collision;
 pub mod danmaku;
 pub mod fre;
 pub mod menu_state;
+pub(crate) mod player_config;
+pub(crate) mod runtime_box;
 pub mod speech_bubble;
 
-use crate::core::battle_player::BattlePlayerConfig;
 use crate::core::battle_runtime::{
     BattleCamera, BattleInputManager, BattleMovementSet, BattleUpdate,
 };
@@ -42,6 +43,7 @@ use crate::preset::battle::alight_motion_integration::AlightMotionBattlePlugin;
 use crate::preset::battle::collision::BattleCollisionPlugin;
 use crate::preset::battle::danmaku::DanmakuPlugin;
 use crate::preset::battle::fre::BattleFREPlugin;
+use crate::preset::battle::player_config::BattlePlayerConfig;
 use bevy::app::{App, Plugin};
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
