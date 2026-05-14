@@ -29,6 +29,16 @@ interface host-api {
         y: f32,
     }
 
+    /// Opaque handle for a host-owned entity primitive.
+    ///
+    /// 宿主拥有的实体 primitive 的不透明句柄。
+    type entity-handle = u64;
+
+    /// Opaque handle for a host-owned ViewBox primitive.
+    ///
+    /// 宿主拥有的 ViewBox primitive 的不透明句柄。
+    type view-box-handle = u64;
+
     /// Collider shape used by host-side movement constraints.
     ///
     /// 宿主侧移动约束使用的碰撞体形状。
@@ -73,6 +83,11 @@ interface host-api {
     /// 按句柄移除宿主拥有的碰撞区域。
     remove-collision-region: func(region: u64);
 
+    /// Update a host-owned collision region from center and half-size.
+    ///
+    /// 通过中心点和半尺寸更新宿主拥有的碰撞区域。
+    set-collision-region-bounds: func(region: u64, center: vec2, half-size: vec2);
+
     /// Create a host-owned movement constraint for a region and collider.
     ///
     /// 为区域和碰撞体创建宿主拥有的移动约束。
@@ -87,6 +102,31 @@ interface host-api {
     ///
     /// 通过宿主拥有的移动约束限制目标位置。
     constrain-movement: func(constraint: u64, position: vec2) -> option<vec2>;
+
+    /// Spawn a host-owned visible ViewBox primitive.
+    ///
+    /// 生成一个由宿主拥有的可见 ViewBox primitive。
+    spawn-view-box: func(center: vec2, size: vec2, border-width: f32) -> view-box-handle;
+
+    /// Update a host-owned ViewBox primitive's center and size.
+    ///
+    /// 更新宿主拥有的 ViewBox primitive 的中心点和尺寸。
+    set-view-box-bounds: func(handle: view-box-handle, center: vec2, size: vec2);
+
+    /// Tween a host-owned ViewBox primitive's center and size on the host.
+    ///
+    /// 在宿主侧对 ViewBox primitive 的中心点和尺寸执行 tween。
+    tween-view-box-bounds: func(handle: view-box-handle, center: vec2, size: vec2, duration-secs: f32);
+
+    /// Update a host-owned ViewBox primitive's visibility.
+    ///
+    /// 更新宿主拥有的 ViewBox primitive 的可见性。
+    set-view-box-visible: func(handle: view-box-handle, visible: bool);
+
+    /// Remove a host-owned entity primitive by handle.
+    ///
+    /// 按句柄移除宿主拥有的实体 primitive。
+    remove-entity: func(handle: entity-handle);
 
     /// Get the current entity's world position.
     get-entity-position: func() -> vec2;

@@ -33,6 +33,66 @@ use super::collision::{
 
 type SharedCollisionRegionStore = Arc<Mutex<CollisionRegionStore>>;
 
+/// Host-owned side effects requested by a WASM callback.
+///
+/// WASM 回调请求的宿主侧副作用。
+#[derive(Debug, Clone, PartialEq)]
+pub enum PendingHostEffect {
+    /// Spawn a visible ViewBox primitive and bind it to the opaque handle.
+    ///
+    /// 生成可见 ViewBox primitive，并绑定到不透明句柄。
+    SpawnViewBox {
+        handle: u64,
+        center: Vec2,
+        size: Vec2,
+        border_width: f32,
+    },
+    /// Update a ViewBox primitive's center and size.
+    ///
+    /// 更新 ViewBox primitive 的中心点和尺寸。
+    SetViewBoxBounds {
+        handle: u64,
+        center: Vec2,
+        size: Vec2,
+    },
+    /// Tween a ViewBox primitive's center and size on the host.
+    ///
+    /// 在宿主侧对 ViewBox primitive 的中心点和尺寸执行 tween。
+    TweenViewBoxBounds {
+        handle: u64,
+        center: Vec2,
+        size: Vec2,
+        duration_secs: f32,
+    },
+    /// Update a ViewBox primitive's visibility.
+    ///
+    /// 更新 ViewBox primitive 的可见性。
+    SetViewBoxVisible { handle: u64, visible: bool },
+    /// Remove a host-owned entity primitive.
+    ///
+    /// 移除宿主拥有的实体 primitive。
+    RemoveEntity { handle: u64 },
+}
+
+/// Pending side effects collected after a WASM callback returns.
+///
+/// WASM 回调返回后收集的待提交副作用。
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct PendingSideEffects {
+    pub fact_mutations: Vec<(String, FactValue)>,
+    pub events: Vec<String>,
+    pub host_effects: Vec<PendingHostEffect>,
+}
+
+impl PendingSideEffects {
+    /// Return whether this bundle has no queued side effects.
+    ///
+    /// 返回此副作用集合是否为空。
+    pub fn is_empty(&self) -> bool {
+        self.fact_mutations.is_empty() && self.events.is_empty() && self.host_effects.is_empty()
+    }
+}
+
 /// Per-call context: set by the host before invoking a mod callback.
 #[derive(Default)]
 pub struct CallContext {
@@ -63,8 +123,39 @@ pub struct CallContext {
     pub pending_emitter_spawns: Vec<(String, Vec2)>,
     /// Pending emitter despawn requests (handles).
     pub pending_emitter_despawns: Vec<u64>,
+    /// Host-owned entity primitive effects queued by the mod during a callback.
+    pub pending_host_effects: Vec<PendingHostEffect>,
     /// Counter for assigning emitter handles within a single callback invocation.
     pub emitter_handle_counter: u64,
+    /// Counter for assigning host-owned entity primitive handles.
+    pub host_entity_handle_counter: u64,
+}
+
+impl CallContext {
+    /// Clear callback-scoped pending side effects before entering WASM.
+    ///
+    /// 进入 WASM 前清空回调范围内的待提交副作用。
+    pub fn clear_pending_side_effects(&mut self) {
+        self.pending_fact_mutations.clear();
+        self.pending_events.clear();
+        self.pending_host_effects.clear();
+    }
+
+    /// Take all pending side effects after a WASM callback returns.
+    ///
+    /// WASM 回调返回后取出所有待提交副作用。
+    pub fn take_pending_side_effects(&mut self) -> PendingSideEffects {
+        PendingSideEffects {
+            fact_mutations: std::mem::take(&mut self.pending_fact_mutations),
+            events: std::mem::take(&mut self.pending_events),
+            host_effects: std::mem::take(&mut self.pending_host_effects),
+        }
+    }
+
+    fn next_host_entity_handle(&mut self) -> u64 {
+        self.host_entity_handle_counter = self.host_entity_handle_counter.saturating_add(1).max(1);
+        self.host_entity_handle_counter
+    }
 }
 
 /// Host state stored inside the Wasmtime `Store`.
@@ -156,6 +247,25 @@ impl self::souprune::plugin::host_api::Host for HostState {
         }
     }
 
+    fn set_collision_region_bounds(&mut self, region: u64, center: WitVec2, half_size: WitVec2) {
+        let center = Vec2::new(center.x, center.y);
+        let half_size = Vec2::new(half_size.x, half_size.y);
+        if region == 0 || !center.is_finite() || !is_valid_positive_vec2(half_size) {
+            warn!(
+                "Ignoring invalid collision region update handle={} center={:?} half_size={:?}",
+                region, center, half_size
+            );
+            return;
+        }
+
+        if let Some(mut collision_regions) = self.collision_region_store() {
+            collision_regions.update_region(
+                RegionHandle::from_raw(region),
+                CollisionRegion::new(CollisionBoundary { center, half_size }),
+            );
+        }
+    }
+
     fn create_movement_constraint(
         &mut self,
         region: u64,
@@ -180,6 +290,107 @@ impl self::souprune::plugin::host_api::Host for HostState {
                 Vec2::new(position.x, position.y),
             )
             .map(|pos| WitVec2 { x: pos.x, y: pos.y })
+    }
+
+    fn spawn_view_box(&mut self, center: WitVec2, size: WitVec2, border_width: f32) -> u64 {
+        let center = Vec2::new(center.x, center.y);
+        let size = Vec2::new(size.x, size.y);
+        if !center.is_finite()
+            || !is_valid_positive_vec2(size)
+            || !border_width.is_finite()
+            || border_width < 0.0
+        {
+            warn!(
+                "Ignoring invalid ViewBox primitive center={:?} size={:?} border_width={}",
+                center, size, border_width
+            );
+            return 0;
+        }
+
+        let handle = self.call_ctx.next_host_entity_handle();
+        self.call_ctx
+            .pending_host_effects
+            .push(PendingHostEffect::SpawnViewBox {
+                handle,
+                center,
+                size,
+                border_width,
+            });
+        handle
+    }
+
+    fn set_view_box_bounds(&mut self, handle: u64, center: WitVec2, size: WitVec2) {
+        let center = Vec2::new(center.x, center.y);
+        let size = Vec2::new(size.x, size.y);
+        if handle == 0 || !center.is_finite() || !is_valid_positive_vec2(size) {
+            warn!(
+                "Ignoring invalid ViewBox bounds handle={} center={:?} size={:?}",
+                handle, center, size
+            );
+            return;
+        }
+
+        self.call_ctx
+            .pending_host_effects
+            .push(PendingHostEffect::SetViewBoxBounds {
+                handle,
+                center,
+                size,
+            });
+    }
+
+    fn tween_view_box_bounds(
+        &mut self,
+        handle: u64,
+        center: WitVec2,
+        size: WitVec2,
+        duration_secs: f32,
+    ) {
+        let center = Vec2::new(center.x, center.y);
+        let size = Vec2::new(size.x, size.y);
+        if handle == 0
+            || !center.is_finite()
+            || !is_valid_positive_vec2(size)
+            || !duration_secs.is_finite()
+            || duration_secs <= 0.0
+        {
+            warn!(
+                "Ignoring invalid ViewBox tween handle={} center={:?} size={:?} duration={}",
+                handle, center, size, duration_secs
+            );
+            return;
+        }
+
+        self.call_ctx
+            .pending_host_effects
+            .push(PendingHostEffect::TweenViewBoxBounds {
+                handle,
+                center,
+                size,
+                duration_secs,
+            });
+    }
+
+    fn set_view_box_visible(&mut self, handle: u64, visible: bool) {
+        if handle == 0 {
+            warn!("Ignoring invalid ViewBox visibility handle=0");
+            return;
+        }
+
+        self.call_ctx
+            .pending_host_effects
+            .push(PendingHostEffect::SetViewBoxVisible { handle, visible });
+    }
+
+    fn remove_entity(&mut self, handle: u64) {
+        if handle == 0 {
+            warn!("Ignoring invalid host entity handle=0");
+            return;
+        }
+
+        self.call_ctx
+            .pending_host_effects
+            .push(PendingHostEffect::RemoveEntity { handle });
     }
 
     fn get_entity_position(&mut self) -> WitVec2 {
@@ -446,5 +657,101 @@ mod tests {
 
         assert_eq!(constrained.x, 15.0);
         assert_eq!(constrained.y, 0.0);
+
+        first.set_collision_region_bounds(
+            region,
+            WitVec2 { x: 0.0, y: 0.0 },
+            WitVec2 { x: 10.0, y: 10.0 },
+        );
+        let constrained_after_update = second
+            .constrain_movement(constraint, WitVec2 { x: 30.0, y: 0.0 })
+            .unwrap();
+
+        assert_eq!(constrained_after_update.x, 5.0);
+        assert_eq!(constrained_after_update.y, 0.0);
+    }
+
+    #[test]
+    fn call_context_takes_fact_event_and_host_entity_effects_together() {
+        let mut ctx = CallContext::default();
+        ctx.pending_fact_mutations
+            .push(("cursor:index".to_string(), FactValue::Int(1)));
+        ctx.pending_events.push("view.cursor.moved".to_string());
+        ctx.pending_host_effects
+            .push(PendingHostEffect::SpawnViewBox {
+                handle: 1,
+                center: Vec2::new(10.0, 20.0),
+                size: Vec2::new(120.0, 48.0),
+                border_width: 4.0,
+            });
+
+        let pending = ctx.take_pending_side_effects();
+
+        assert_eq!(pending.fact_mutations.len(), 1);
+        assert_eq!(pending.events, vec!["view.cursor.moved".to_string()]);
+        assert_eq!(pending.host_effects.len(), 1);
+        assert!(ctx.pending_fact_mutations.is_empty());
+        assert!(ctx.pending_events.is_empty());
+        assert!(ctx.pending_host_effects.is_empty());
+    }
+
+    #[test]
+    fn view_box_host_api_queues_primitives_with_opaque_handles() {
+        let shared = Arc::new(Mutex::new(CollisionRegionStore::default()));
+        let mut host = HostState::new_for_mod(shared);
+
+        let handle = host.spawn_view_box(
+            WitVec2 { x: 10.0, y: 20.0 },
+            WitVec2 { x: 120.0, y: 48.0 },
+            4.0,
+        );
+        host.set_view_box_bounds(
+            handle,
+            WitVec2 { x: 16.0, y: 24.0 },
+            WitVec2 { x: 144.0, y: 60.0 },
+        );
+        host.set_view_box_visible(handle, false);
+        host.tween_view_box_bounds(
+            handle,
+            WitVec2 { x: 32.0, y: 40.0 },
+            WitVec2 { x: 180.0, y: 72.0 },
+            0.25,
+        );
+        host.remove_entity(handle);
+        let invalid = host.spawn_view_box(
+            WitVec2 { x: 0.0, y: 0.0 },
+            WitVec2 { x: -1.0, y: 48.0 },
+            4.0,
+        );
+
+        assert_eq!(handle, 1);
+        assert_eq!(invalid, 0);
+        assert_eq!(
+            host.call_ctx.pending_host_effects,
+            vec![
+                PendingHostEffect::SpawnViewBox {
+                    handle,
+                    center: Vec2::new(10.0, 20.0),
+                    size: Vec2::new(120.0, 48.0),
+                    border_width: 4.0,
+                },
+                PendingHostEffect::SetViewBoxBounds {
+                    handle,
+                    center: Vec2::new(16.0, 24.0),
+                    size: Vec2::new(144.0, 60.0),
+                },
+                PendingHostEffect::SetViewBoxVisible {
+                    handle,
+                    visible: false,
+                },
+                PendingHostEffect::TweenViewBoxBounds {
+                    handle,
+                    center: Vec2::new(32.0, 40.0),
+                    size: Vec2::new(180.0, 72.0),
+                    duration_secs: 0.25,
+                },
+                PendingHostEffect::RemoveEntity { handle },
+            ]
+        );
     }
 }

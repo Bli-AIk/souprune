@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::LoadedMods;
+use super::host_entities::PendingHostEntityEffects;
 use crate::core::fre_bridge::FreCustomActionEvent;
 use crate::core::wasm_runtime;
 
@@ -19,6 +20,7 @@ pub fn dispatch_wasm_custom_actions_system(
     mut fact_writer: MessageWriter<FactEvent>,
     mut wasm_tracer: ResMut<crate::core::trace::WasmCallTracer>,
     mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
+    mut host_entity_effects: ResMut<PendingHostEntityEffects>,
     frame_count: Res<bevy::diagnostic::FrameCount>,
 ) {
     let events: Vec<FreCustomActionEvent> = events.read().cloned().collect();
@@ -50,8 +52,7 @@ pub fn dispatch_wasm_custom_actions_system(
             {
                 let ctx = loaded.store.data_mut();
                 ctx.call_ctx.fact_snapshot = Arc::clone(&fact_snapshot);
-                ctx.call_ctx.pending_fact_mutations.clear();
-                ctx.call_ctx.pending_events.clear();
+                ctx.call_ctx.clear_pending_side_effects();
             }
 
             let iface = loaded.bindings.souprune_plugin_custom_action_handler();
@@ -70,16 +71,13 @@ pub fn dispatch_wasm_custom_actions_system(
                 }
             }
 
-            let mutations =
-                std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_fact_mutations);
-            let pending_events =
-                std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_events);
+            let pending = loaded.store.data_mut().call_ctx.take_pending_side_effects();
             apply_pending_side_effects(
-                mutations,
-                pending_events,
+                pending,
                 &mut fact_db,
                 &mut fact_writer,
                 &mut fact_history,
+                &mut host_entity_effects,
                 frame_count.0 as u64,
                 &format!("wasm:{}", loaded.name),
             );
@@ -100,20 +98,21 @@ pub(super) fn build_fact_snapshot(
 }
 
 pub(super) fn apply_pending_side_effects(
-    mutations: Vec<(String, FactValue)>,
-    events: Vec<String>,
+    pending: wasm_runtime::PendingSideEffects,
     fact_db: &mut LayeredFactDatabase,
     fact_writer: &mut MessageWriter<FactEvent>,
     fact_history: &mut crate::core::trace::FactChangeHistory,
+    host_entity_effects: &mut PendingHostEntityEffects,
     frame_number: u64,
     caused_by: &str,
 ) {
-    for (key, value) in mutations {
+    for (key, value) in pending.fact_mutations {
         let old = fact_db.get_by_str(&key).cloned();
         fact_history.record(&key, old, value.clone(), caused_by, frame_number);
         fact_db.set(key, value);
     }
-    for event_name in events {
+    for event_name in pending.events {
         fact_writer.write(FactEvent::new(event_name));
     }
+    host_entity_effects.extend(pending.host_effects);
 }
