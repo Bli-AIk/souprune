@@ -1,12 +1,13 @@
-//! Shared battle box runtime types.
+//! Shared battle runtime types.
 //!
 //! 被 sequencer、view 和 battle 系统共同使用的战斗框基础类型。
 
-use crate::core::collision::ConstraintHandle;
-use crate::core::view::components::ViewBox;
 use bevy::ecs::message::Message;
 use bevy::prelude::*;
 use bevy_tween::interpolation::EaseKind;
+
+use crate::core::collision::ConstraintHandle;
+use crate::core::view::components::ViewBox;
 
 /// Marker component for a battle box boundary.
 ///
@@ -146,8 +147,37 @@ pub struct AlightMotionBattleBoxBounds {
     pub center_offset: Vec2,
 }
 
-// Re-export from core where SplitAxis/GapPolicy are now canonically defined.
-pub use crate::core::sequencer::chapter_schema::{GapPolicy, SplitAxis};
+/// Axis along which a battle box split runs.
+///
+/// 战斗框分割使用的轴向。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum SplitAxis {
+    /// Split into left/right boxes.
+    ///
+    /// 分割为左右两个框。
+    Vertical,
+    /// Split into top/bottom boxes.
+    ///
+    /// 分割为上下两个框。
+    #[default]
+    Horizontal,
+}
+
+/// Policy for how the visible gap affects split dimensions.
+///
+/// 可见间隙如何影响分割后尺寸的策略。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum GapPolicy {
+    /// Expand the total occupied boundary to include the gap.
+    ///
+    /// 扩大整体占用边界以容纳间隙。
+    #[default]
+    Expands,
+    /// Keep the total boundary fixed and include the gap within it.
+    ///
+    /// 保持整体边界不变，并在其中包含间隙。
+    Includes,
+}
 
 /// Event to trigger a battle box split.
 ///

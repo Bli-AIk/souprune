@@ -98,3 +98,17 @@ if [ -n "$preset_hits" ]; then
 fi
 
 echo "Core boundary OK: no core -> preset dependencies."
+
+battle_semantic_hits="$(
+    cd "$ROOT_DIR"
+    rg -n "BattleBox|BattlePlayer|BoundToBattleBox" crates/souprune/src/core -g '*.rs' || true
+)"
+
+if [ -n "$battle_semantic_hits" ]; then
+    echo "Error: battle gameplay abstractions are not allowed in core/."
+    echo "Core may provide generic primitives, but BattleBox/BattlePlayer semantics must live outside core."
+    echo "$battle_semantic_hits"
+    exit 1
+fi
+
+echo "Core boundary OK: no BattleBox/BattlePlayer gameplay abstractions in core."

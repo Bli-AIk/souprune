@@ -15,6 +15,9 @@
 pub mod debug_collider {
     use crate::core::basic_components::Facing;
     use crate::core::collision::{HitboxOffset, PhysicsCollider, Rect2DCollider, TriggerCollider};
+    use crate::preset::battle::runtime_box::{
+        AlightMotionBattleBoxBounds, BattleBox, BattleBoxId, BattleBoxState,
+    };
     use crate::preset::overworld::character::components::PlayerControlled;
     use crate::preset::overworld::tilemap::systems::TilemapCollider;
     use crate::preset::overworld::tilemap::*;
@@ -173,20 +176,20 @@ pub mod debug_collider {
             (
                 &GlobalTransform,
                 &crate::core::view::components::ViewBox,
-                &crate::core::battle_box::BattleBoxId,
-                &crate::core::battle_box::BattleBoxState,
+                &BattleBoxId,
+                &BattleBoxState,
             ),
-            With<crate::core::battle_box::BattleBox>,
+            With<BattleBox>,
         >,
         am_battle_boxes: Query<
             (
                 &GlobalTransform,
-                &crate::core::battle_box::AlightMotionBattleBoxBounds,
-                &crate::core::battle_box::BattleBoxId,
-                &crate::core::battle_box::BattleBoxState,
+                &AlightMotionBattleBoxBounds,
+                &BattleBoxId,
+                &BattleBoxState,
             ),
             (
-                With<crate::core::battle_box::BattleBox>,
+                With<BattleBox>,
                 Without<crate::core::view::components::ViewBox>,
             ),
         >,
@@ -291,21 +294,21 @@ pub mod debug_collider {
                 Entity,
                 &GlobalTransform,
                 &crate::core::view::components::ViewBox,
-                &crate::core::battle_box::BattleBoxId,
-                &crate::core::battle_box::BattleBoxState,
+                &BattleBoxId,
+                &BattleBoxState,
             ),
-            With<crate::core::battle_box::BattleBox>,
+            With<BattleBox>,
         >,
         am_battle_boxes: Query<
             (
                 Entity,
                 &GlobalTransform,
-                &crate::core::battle_box::AlightMotionBattleBoxBounds,
-                &crate::core::battle_box::BattleBoxId,
-                &crate::core::battle_box::BattleBoxState,
+                &AlightMotionBattleBoxBounds,
+                &BattleBoxId,
+                &BattleBoxState,
             ),
             (
-                With<crate::core::battle_box::BattleBox>,
+                With<BattleBox>,
                 Without<crate::core::view::components::ViewBox>,
             ),
         >,

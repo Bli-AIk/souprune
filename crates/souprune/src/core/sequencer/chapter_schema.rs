@@ -25,22 +25,6 @@ use bevy_tween::interpolation::EaseKind;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Axis along which to split a box.
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq)]
-pub enum SplitAxis {
-    Vertical,
-    #[default]
-    Horizontal,
-}
-
-/// Policy for how gap affects split box dimensions.
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq)]
-pub enum GapPolicy {
-    #[default]
-    Expands,
-    Includes,
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Chapter {
     SpawnView {
@@ -142,31 +126,6 @@ pub enum Chapter {
         path: Option<String>,
         #[serde(default)]
         fade_in: Option<f32>,
-    },
-    SplitBattleBox {
-        source: String,
-        result: (String, String),
-        axis: SplitAxis,
-        #[serde(default)]
-        position: f32,
-        #[serde(default)]
-        gap: f32,
-        #[serde(default)]
-        gap_policy: GapPolicy,
-        #[serde(default)]
-        duration: f32,
-        #[serde(default = "default_easing", with = "ease_kind_serde")]
-        easing: EaseKind,
-    },
-    MergeBattleBoxes {
-        sources: (String, String),
-        result: String,
-        #[serde(default)]
-        gap_policy: GapPolicy,
-        #[serde(default)]
-        duration: f32,
-        #[serde(default = "default_easing", with = "ease_kind_serde")]
-        easing: EaseKind,
     },
     /// Start a preset battle enemy speech bubble.
     ///
