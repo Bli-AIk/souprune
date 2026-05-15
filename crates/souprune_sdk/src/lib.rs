@@ -96,7 +96,9 @@ pub mod context;
 pub mod traits;
 pub mod types;
 
-pub use context::{CollisionHelper, Context, FactValue, Vec2, ViewPrimitiveHelper};
+pub use context::{
+    CollisionHelper, Context, EntityPrimitiveHelper, FactValue, Vec2, ViewPrimitiveHelper,
+};
 pub use traits::{
     ActionParam, Behavior, CustomActionHandler, DanmakuBehavior, ModeLifecycle, RuleAction,
     RuleDef, RuleModification, RuleProvider, SpawnPatternBehavior,
@@ -104,7 +106,7 @@ pub use traits::{
 pub use types::{
     BulletContext, BulletOutput, ColliderShape, ConstraintHandle, Direction, EntityHandle,
     InputCommand, InputContextId, InputEffect, InputEnvelope, InputResult, InputTarget,
-    RegionHandle, SpawnContext, SpawnOutput, SpawnParam, ViewBoxHandle,
+    RegionHandle, Rgba, SpawnContext, SpawnOutput, SpawnParam, SpriteEntityConfig, ViewBoxHandle,
 };
 
 // Generate guest bindings from the WIT interface
@@ -153,7 +155,9 @@ impl Action {
 
 /// Convenience prelude for mod developers.
 pub mod prelude {
-    pub use crate::context::{CollisionHelper, Context, FactValue, Vec2, ViewPrimitiveHelper};
+    pub use crate::context::{
+        CollisionHelper, Context, EntityPrimitiveHelper, FactValue, Vec2, ViewPrimitiveHelper,
+    };
     pub use crate::traits::{
         ActionParam, Behavior, CustomActionHandler, DanmakuBehavior, ModeLifecycle, RuleAction,
         RuleDef, RuleModification, RuleProvider, SpawnPatternBehavior,
@@ -161,8 +165,8 @@ pub mod prelude {
     pub use crate::{
         Action, BulletContext, BulletOutput, ColliderShape, ConstraintHandle, Direction,
         EntityHandle, InputCommand, InputContextId, InputEffect, InputEnvelope, InputResult,
-        InputTarget, RegionHandle, SpawnContext, SpawnOutput, SpawnParam, ViewBoxHandle,
-        export_mod,
+        InputTarget, RegionHandle, Rgba, SpawnContext, SpawnOutput, SpawnParam, SpriteEntityConfig,
+        ViewBoxHandle, export_mod,
     };
 }
 

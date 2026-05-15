@@ -15,9 +15,6 @@
 pub mod debug_collider {
     use crate::core::basic_components::Facing;
     use crate::core::collision::{HitboxOffset, PhysicsCollider, Rect2DCollider, TriggerCollider};
-    use crate::preset::battle::runtime_box::{
-        AlightMotionBattleBoxBounds, BattleBox, BattleBoxId, BattleBoxState,
-    };
     use crate::preset::overworld::character::components::PlayerControlled;
     use crate::preset::overworld::tilemap::systems::TilemapCollider;
     use crate::preset::overworld::tilemap::*;
@@ -26,26 +23,12 @@ pub mod debug_collider {
     use bevy::math::Isometry2d;
     use bevy::prelude::*;
     use bevy_alight_motion::sdf_material::SdfMaterial;
-    use std::collections::HashMap;
 
     /// Custom GizmoConfigGroup for collider debug visualization.
     ///
     /// 用于碰撞体调试可视化的自定义 GizmoConfigGroup。
     #[derive(Default, Reflect, GizmoConfigGroup)]
     pub struct ColliderGizmos;
-
-    #[derive(Component)]
-    struct BattleBoxDebugLabel;
-
-    #[derive(Component)]
-    struct BattleBoxDebugLabelTarget(Entity);
-
-    struct BattleBoxLabelSnapshot {
-        target: Entity,
-        label: String,
-        translation: Vec3,
-        color: Color,
-    }
 
     /// Set up the collider debug systems.
     ///
@@ -60,7 +43,6 @@ pub mod debug_collider {
                 draw_interactable_gizmos_system,
                 draw_interaction_ray_gizmo_system,
                 draw_battle_collider_gizmos_system,
-                sync_battle_box_debug_labels_system,
                 draw_am_mask_gizmos_system,
             ),
         );
@@ -160,7 +142,7 @@ pub mod debug_collider {
         }
     }
 
-    /// Draw Battle colliders (PhysicsCollider, TriggerCollider, BattleBox) using Gizmos.
+    /// Draw battle colliders (PhysicsCollider and TriggerCollider) using Gizmos.
     ///
     /// 使用 Gizmos 绘制 Battle 碰撞体。
     fn draw_battle_collider_gizmos_system(
@@ -172,27 +154,6 @@ pub mod debug_collider {
             Option<&HitboxOffset>,
             Option<&crate::preset::overworld::chase::ChasePlayerHitbox>,
         )>,
-        battle_boxes: Query<
-            (
-                &GlobalTransform,
-                &crate::core::view::components::ViewBox,
-                &BattleBoxId,
-                &BattleBoxState,
-            ),
-            With<BattleBox>,
-        >,
-        am_battle_boxes: Query<
-            (
-                &GlobalTransform,
-                &AlightMotionBattleBoxBounds,
-                &BattleBoxId,
-                &BattleBoxState,
-            ),
-            (
-                With<BattleBox>,
-                Without<crate::core::view::components::ViewBox>,
-            ),
-        >,
     ) {
         // Physics colliders (green)
         for (transform, physics_collider) in physics_colliders.iter() {
@@ -229,142 +190,6 @@ pub mod debug_collider {
                     gizmos.rect_2d(Isometry2d::from_translation(pos), *half_size * 2.0, color);
                 }
             }
-        }
-
-        // UI Battle boxes — color by ID, dim if inactive
-        for (transform, view_box, box_id, state) in battle_boxes.iter() {
-            let pos = transform.translation().truncate();
-            let size = Vec2::new(view_box.width(), view_box.height());
-            let color = box_color(&box_id.0, state.active);
-            gizmos.rect_2d(Isometry2d::from_translation(pos), size, color);
-        }
-
-        // AM Battle boxes — color by ID, dim if inactive
-        for (transform, am_bounds, box_id, state) in am_battle_boxes.iter() {
-            let pos = transform.translation().truncate() + am_bounds.center_offset;
-            let size = Vec2::new(am_bounds.width, am_bounds.height);
-            let color = box_color(&box_id.0, state.active);
-            gizmos.rect_2d(Isometry2d::from_translation(pos), size, color);
-        }
-    }
-
-    /// Deterministic color for a BattleBoxId. Inactive boxes are dimmed.
-    fn box_color(id: &str, active: bool) -> bevy::color::Color {
-        let hash = id
-            .bytes()
-            .fold(0u32, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u32));
-        let hue = (hash % 360) as f32;
-        let saturation = if active { 0.85 } else { 0.3 };
-        let lightness = if active { 0.55 } else { 0.35 };
-        bevy::color::Color::hsl(hue, saturation, lightness)
-    }
-
-    fn battle_box_label_snapshot(
-        entity: Entity,
-        id: &str,
-        center: Vec2,
-        size: Vec2,
-        active: bool,
-    ) -> BattleBoxLabelSnapshot {
-        BattleBoxLabelSnapshot {
-            target: entity,
-            label: id.to_string(),
-            translation: (center + Vec2::new(0.0, size.y * 0.5 + 14.0)).extend(1000.0),
-            color: box_color(id, active),
-        }
-    }
-
-    fn spawn_battle_box_debug_label(commands: &mut Commands, snapshot: BattleBoxLabelSnapshot) {
-        commands.spawn((
-            BattleBoxDebugLabel,
-            BattleBoxDebugLabelTarget(snapshot.target),
-            Name::new(format!("BattleBoxDebugLabel:{}", snapshot.label)),
-            Text2d::new(snapshot.label),
-            TextFont::from_font_size(14.0),
-            TextColor(snapshot.color),
-            Transform::from_translation(snapshot.translation),
-        ));
-    }
-
-    fn sync_battle_box_debug_labels_system(
-        mut commands: Commands,
-        mut config_store: ResMut<GizmoConfigStore>,
-        battle_boxes: Query<
-            (
-                Entity,
-                &GlobalTransform,
-                &crate::core::view::components::ViewBox,
-                &BattleBoxId,
-                &BattleBoxState,
-            ),
-            With<BattleBox>,
-        >,
-        am_battle_boxes: Query<
-            (
-                Entity,
-                &GlobalTransform,
-                &AlightMotionBattleBoxBounds,
-                &BattleBoxId,
-                &BattleBoxState,
-            ),
-            (
-                With<BattleBox>,
-                Without<crate::core::view::components::ViewBox>,
-            ),
-        >,
-        mut existing_labels: Query<
-            (
-                Entity,
-                &BattleBoxDebugLabelTarget,
-                &mut Transform,
-                &mut TextColor,
-            ),
-            With<BattleBoxDebugLabel>,
-        >,
-    ) {
-        let enabled = {
-            let (config, _) = config_store.config_mut::<ColliderGizmos>();
-            config.enabled
-        };
-
-        if !enabled {
-            for (entity, _, _, _) in existing_labels.iter_mut() {
-                commands.entity(entity).despawn();
-            }
-            return;
-        }
-
-        let mut snapshots = HashMap::<Entity, BattleBoxLabelSnapshot>::new();
-
-        for (entity, transform, view_box, box_id, state) in battle_boxes.iter() {
-            let center = transform.translation().truncate();
-            let size = Vec2::new(view_box.width(), view_box.height());
-            snapshots.insert(
-                entity,
-                battle_box_label_snapshot(entity, &box_id.0, center, size, state.active),
-            );
-        }
-
-        for (entity, transform, am_bounds, box_id, state) in am_battle_boxes.iter() {
-            let center = transform.translation().truncate() + am_bounds.center_offset;
-            let size = Vec2::new(am_bounds.width, am_bounds.height);
-            snapshots.insert(
-                entity,
-                battle_box_label_snapshot(entity, &box_id.0, center, size, state.active),
-            );
-        }
-
-        for (label_entity, target, mut transform, mut text_color) in existing_labels.iter_mut() {
-            if let Some(snapshot) = snapshots.remove(&target.0) {
-                transform.translation = snapshot.translation;
-                text_color.0 = snapshot.color;
-            } else {
-                commands.entity(label_entity).despawn();
-            }
-        }
-
-        for snapshot in snapshots.into_values() {
-            spawn_battle_box_debug_label(&mut commands, snapshot);
         }
     }
 

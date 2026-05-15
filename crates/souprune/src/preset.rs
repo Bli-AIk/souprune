@@ -10,7 +10,6 @@
 //! their own implementations of these modules.
 
 pub mod battle;
-mod battle_player_spawn;
 mod data_paths;
 pub mod enemy;
 pub(crate) mod enemy_turn;
@@ -77,18 +76,6 @@ impl Plugin for PresetPlugin {
             enemy_turn::resolve_pick_enemy_turn_system
                 .in_set(crate::core::sequencer::SequencerUpdate)
                 .before(crate::core::sequencer::flow::advance_battle_flow_system),
-        );
-
-        // Register tag-based component injection systems.
-        app.add_systems(
-            schedule,
-            (
-                battle::runtime_box::apply_battle_box_tag_system,
-                battle_player_spawn::process_battle_player_spawn_system
-                    .in_set(crate::core::sequencer::SequencerUpdate),
-                battle_player_spawn::process_player_spawn_requests
-                    .in_set(crate::core::sequencer::SequencerUpdate),
-            ),
         );
     }
 }

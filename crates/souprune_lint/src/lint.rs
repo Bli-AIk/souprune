@@ -109,9 +109,6 @@ fn check_file(path: &Path) -> CheckResult {
         }
         Some(RonFileKind::Enemy) => validate::<souprune_schema::enemy::EnemyDef>(&source),
         Some(RonFileKind::Items) => validate::<souprune_schema::item::ItemListAsset>(&source),
-        Some(RonFileKind::BattlePlayer) => {
-            validate::<souprune_schema::battle::BattlePlayerConfig>(&source)
-        }
         Some(RonFileKind::Fre) => validate::<souprune_schema::fre::FreAsset>(&source),
         Some(RonFileKind::Dialogue) => {
             validate::<souprune_schema::dialogue::DialogueConfig>(&source)

@@ -29,6 +29,16 @@ interface host-api {
         y: f32,
     }
 
+    /// RGBA color with floating point components.
+    ///
+    /// 使用浮点分量的 RGBA 颜色。
+    record rgba {
+        red: f32,
+        green: f32,
+        blue: f32,
+        alpha: f32,
+    }
+
     /// Opaque handle for a host-owned entity primitive.
     ///
     /// 宿主拥有的实体 primitive 的不透明句柄。
@@ -51,6 +61,23 @@ interface host-api {
         ///
         /// 轴对齐矩形碰撞体半尺寸。
         rectangle(vec2),
+    }
+
+    /// Host-owned sprite entity descriptor.
+    ///
+    /// 宿主拥有的 sprite 实体描述。
+    record sprite-entity-desc {
+        texture: string,
+        position: vec2,
+        z: f32,
+        color: rgba,
+        physics-collider: option<collider-shape>,
+        trigger-collider: option<collider-shape>,
+        behavior-id: option<string>,
+        behavior-context: option<string>,
+        bullet-target: bool,
+        mode-scope: option<string>,
+        name: option<string>,
     }
 
     /// Typed value for FRE facts.
@@ -107,6 +134,11 @@ interface host-api {
     ///
     /// 生成一个由宿主拥有的可见 ViewBox primitive。
     spawn-view-box: func(center: vec2, size: vec2, border-width: f32) -> view-box-handle;
+
+    /// Spawn a host-owned visible sprite entity primitive.
+    ///
+    /// 生成一个由宿主拥有的可见 sprite 实体 primitive。
+    spawn-sprite-entity: func(desc: sprite-entity-desc) -> entity-handle;
 
     /// Update a host-owned ViewBox primitive's center and size.
     ///

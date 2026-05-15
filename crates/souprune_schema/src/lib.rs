@@ -50,8 +50,6 @@ pub enum RonFileKind {
     Enemy,
     /// `.items.ron`
     Items,
-    /// `.battle_player.ron`
-    BattlePlayer,
     /// `.fre.ron`
     Fre,
     /// `dialogue.ron` (exact filename)
@@ -98,9 +96,6 @@ impl RonFileKind {
         if path.ends_with(".items.ron") {
             return Some(Self::Items);
         }
-        if path.ends_with(".battle_player.ron") {
-            return Some(Self::BattlePlayer);
-        }
         if path.ends_with(".fre.ron") {
             return Some(Self::Fre);
         }
@@ -134,7 +129,6 @@ impl RonFileKind {
             ".sequence.ron",
             ".enemy.ron",
             ".items.ron",
-            ".battle_player.ron",
             ".fre.ron",
             ".animation_config.ron",
             ".character.ron",

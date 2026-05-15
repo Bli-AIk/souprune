@@ -185,6 +185,106 @@ impl From<ViewBoxHandle> for EntityHandle {
     }
 }
 
+/// RGBA color for host-owned sprite primitives.
+///
+/// 宿主拥有的 sprite primitive 使用的 RGBA 颜色。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Rgba {
+    pub red: f32,
+    pub green: f32,
+    pub blue: f32,
+    pub alpha: f32,
+}
+
+impl Rgba {
+    /// Create a color from red, green, blue, and alpha components.
+    ///
+    /// 从红、绿、蓝、透明度分量创建颜色。
+    pub fn new(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
+        Self {
+            red,
+            green,
+            blue,
+            alpha,
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn to_wit(self) -> crate::souprune::plugin::host_api::Rgba {
+        crate::souprune::plugin::host_api::Rgba {
+            red: self.red,
+            green: self.green,
+            blue: self.blue,
+            alpha: self.alpha,
+        }
+    }
+}
+
+impl Default for Rgba {
+    fn default() -> Self {
+        Self::new(1.0, 1.0, 1.0, 1.0)
+    }
+}
+
+/// Host-owned sprite entity primitive configuration.
+///
+/// 宿主拥有的 sprite 实体 primitive 配置。
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpriteEntityConfig {
+    pub texture: String,
+    pub position: Vec2,
+    pub z: f32,
+    pub color: Rgba,
+    pub physics_collider: Option<ColliderShape>,
+    pub trigger_collider: Option<ColliderShape>,
+    pub behavior_id: Option<String>,
+    pub behavior_context: Option<String>,
+    pub bullet_target: bool,
+    pub mode_scope: Option<String>,
+    pub name: Option<String>,
+}
+
+impl SpriteEntityConfig {
+    /// Create a sprite entity config with default optional components disabled.
+    ///
+    /// 创建一个默认不附加可选组件的 sprite 实体配置。
+    pub fn new(texture: impl Into<String>, position: Vec2) -> Self {
+        Self {
+            texture: texture.into(),
+            position,
+            z: 0.0,
+            color: Rgba::default(),
+            physics_collider: None,
+            trigger_collider: None,
+            behavior_id: None,
+            behavior_context: None,
+            bullet_target: false,
+            mode_scope: None,
+            name: None,
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn to_wit(self) -> crate::souprune::plugin::host_api::SpriteEntityDesc {
+        crate::souprune::plugin::host_api::SpriteEntityDesc {
+            texture: self.texture,
+            position: crate::souprune::plugin::host_api::Vec2 {
+                x: self.position.x,
+                y: self.position.y,
+            },
+            z: self.z,
+            color: self.color.to_wit(),
+            physics_collider: self.physics_collider.map(ColliderShape::to_wit),
+            trigger_collider: self.trigger_collider.map(ColliderShape::to_wit),
+            behavior_id: self.behavior_id,
+            behavior_context: self.behavior_context,
+            bullet_target: self.bullet_target,
+            mode_scope: self.mode_scope,
+            name: self.name,
+        }
+    }
+}
+
 /// Collider shape used by host-side movement constraints.
 ///
 /// 宿主侧移动约束使用的碰撞体形状。

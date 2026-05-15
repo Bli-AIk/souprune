@@ -12,10 +12,8 @@
 
 use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;
-use bevy_tween::interpolation::EaseKind;
 
 use crate::core::game_action::{GameActionDef, GameActionHandlerRegistry};
-use crate::preset::battle::runtime_box::{GapPolicy, MergeBattleBoxes, SplitAxis, SplitBattleBox};
 
 /// System to set up battle-specific action handlers.
 /// Called when entering Battle state.
@@ -137,107 +135,6 @@ pub fn setup_battle_action_handlers_system(
 
             // TODO: Despawn enemy entity
         }
-    });
-
-    // SplitBattleBox - Split a battle box into two
-    handler_registry.register("SplitBattleBox", |action, _db, commands| {
-        let GameActionDef::Custom { params, .. } = action else {
-            return;
-        };
-        let source = params
-            .get("source")
-            .cloned()
-            .unwrap_or_else(|| "main".to_string());
-        let left = params
-            .get("left")
-            .cloned()
-            .unwrap_or_else(|| "left".to_string());
-        let right = params
-            .get("right")
-            .cloned()
-            .unwrap_or_else(|| "right".to_string());
-        let axis = match params.get("axis").map(String::as_str) {
-            Some("Horizontal") => SplitAxis::Horizontal,
-            _ => SplitAxis::Vertical,
-        };
-        let position: f32 = params
-            .get("position")
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0.0);
-        let gap: f32 = params
-            .get("gap")
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0.0);
-        let gap_policy = match params.get("gap_policy").map(String::as_str) {
-            Some("Includes") => GapPolicy::Includes,
-            _ => GapPolicy::Expands,
-        };
-        let duration: f32 = params
-            .get("duration")
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0.0);
-
-        info!(
-            "Battle FRE Action: SplitBattleBox '{}' → '{}' + '{}' (axis={:?}, gap_policy={:?}, duration={})",
-            source, left, right, axis, gap_policy, duration
-        );
-
-        let msg = SplitBattleBox {
-            source_box: source,
-            result_boxes: (left, right),
-            split_axis: axis,
-            split_position: position,
-            gap,
-            gap_policy,
-            duration,
-            easing: EaseKind::Linear,
-        };
-        commands.queue(move |world: &mut World| {
-            world.write_message(msg);
-        });
-    });
-
-    // MergeBattleBoxes - Merge two battle boxes into one
-    handler_registry.register("MergeBattleBoxes", |action, _db, commands| {
-        let GameActionDef::Custom { params, .. } = action else {
-            return;
-        };
-        let box_a = params
-            .get("box_a")
-            .cloned()
-            .unwrap_or_else(|| "left".to_string());
-        let box_b = params
-            .get("box_b")
-            .cloned()
-            .unwrap_or_else(|| "right".to_string());
-        let result = params
-            .get("result")
-            .cloned()
-            .unwrap_or_else(|| "main".to_string());
-        let duration: f32 = params
-            .get("duration")
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0.0);
-        let gap_policy = match params.get("gap_policy").map(String::as_str) {
-            Some("Includes") => GapPolicy::Includes,
-            _ => GapPolicy::Expands,
-        };
-
-        info!(
-            "Battle FRE Action: MergeBattleBoxes '{}' + '{}' → '{}' (gap_policy={:?}, duration={})",
-            box_a, box_b, result, gap_policy, duration
-        );
-
-        let msg = MergeBattleBoxes {
-            source_boxes: (box_a, box_b),
-            result_box: result,
-            gap_policy,
-            duration,
-            easing: EaseKind::Linear,
-        };
-        commands.queue(move |world: &mut World| {
-            world.write_message(msg);
-        });
     });
 
     info!("Battle FRE: Action handlers registered");
