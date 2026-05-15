@@ -10,7 +10,7 @@ use bevy::prelude::*;
 /// Physical collider component for collision detection
 ///
 /// 物理碰撞体组件，用于碰撞检测
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Debug, Clone, PartialEq)]
 pub enum PhysicsCollider {
     Circle { radius: f32 },
     Box { half_size: Vec2 },
@@ -32,7 +32,7 @@ impl PhysicsCollider {
 /// Trigger collider component for damage detection
 ///
 /// 触发器碰撞体组件，用于伤害检测
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Debug, Clone, PartialEq)]
 pub enum TriggerCollider {
     Circle { radius: f32 },
     Box { half_size: Vec2 },

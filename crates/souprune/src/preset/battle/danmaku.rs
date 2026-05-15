@@ -14,16 +14,21 @@ pub use crate::core::danmaku::*;
 
 use crate::core::collision::TriggerCollider;
 use crate::core::mod_system::BehaviorParams;
-use crate::preset::battle::player_config::BattleInvincibilityConfig;
 use bevy::prelude::*;
 
 use crate::core::battle_runtime::BattleUpdate;
+
+const INVINCIBILITY_DURATION_FACT: &str = "battle:damage_target:invincibility_duration";
+const FLASH_INTERVAL_FACT: &str = "battle:damage_target:flash_interval";
+const DAMAGE_SOUND_FACT: &str = "battle:damage_target:damage_sound";
+const NORMAL_COLOR_PREFIX: &str = "battle:damage_target:normal_color";
+const FLASH_COLOR_PREFIX: &str = "battle:damage_target:flash_color";
 
 /// Resource to track player invincibility state in battle mode.
 ///
 /// 追踪战斗模式下玩家无敌状态的资源。
 #[derive(Resource, Default)]
-pub struct BattlePlayerInvincibility {
+pub struct BattleTargetInvincibility {
     /// Whether player is currently invincible
     pub active: bool,
     /// Remaining invincibility time
@@ -34,7 +39,7 @@ pub struct BattlePlayerInvincibility {
     pub flash_state: bool,
 }
 
-impl BattlePlayerInvincibility {
+impl BattleTargetInvincibility {
     /// Start invincibility with the given duration.
     pub fn start(&mut self, duration: f32) {
         self.active = true;
@@ -66,8 +71,7 @@ impl Plugin for DanmakuPlugin {
         );
 
         // Add damage detection and invincibility systems
-        app.init_resource::<BattleInvincibilityConfig>()
-            .init_resource::<BattlePlayerInvincibility>()
+        app.init_resource::<BattleTargetInvincibility>()
             .add_systems(
                 schedule,
                 (
@@ -94,8 +98,7 @@ fn set_battle_context(mut spawn_context: ResMut<DanmakuSpawnContext>) {
 fn battle_damage_detection_system(
     mut commands: Commands,
     time: Res<Time>,
-    invincibility_config: Res<BattleInvincibilityConfig>,
-    mut player_invincibility: ResMut<BattlePlayerInvincibility>,
+    mut player_invincibility: ResMut<BattleTargetInvincibility>,
     mut layered_db: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
     player_query: Query<(&GlobalTransform, &TriggerCollider), With<BehaviorParams>>,
     mut bullet_query: Query<
@@ -138,6 +141,8 @@ fn battle_damage_detection_system(
 
     // Update last state
     *last_player_state = Some((player_center, current_time));
+
+    let damage_settings = battle_damage_settings(&layered_db);
 
     // Check if player is invincible
     let is_invincible = player_invincibility.is_invincible();
@@ -212,10 +217,10 @@ fn battle_damage_detection_system(
             layered_db.set_global("player:hp", new_hp as i64);
 
             // Start player invincibility
-            player_invincibility.start(invincibility_config.duration);
+            player_invincibility.start(damage_settings.duration);
 
             // Play hurt sound from config
-            if let Some(sound_path) = &invincibility_config.damage_sound {
+            if let Some(sound_path) = &damage_settings.damage_sound {
                 crate::core::audio::play_sound_full_path(
                     &audio,
                     &asset_server,
@@ -247,8 +252,8 @@ fn battle_damage_detection_system(
 /// 更新战斗玩家无敌时间和心形闪烁效果的系统。
 fn update_battle_invincibility_system(
     time: Res<Time>,
-    invincibility_config: Res<BattleInvincibilityConfig>,
-    mut player_invincibility: ResMut<BattlePlayerInvincibility>,
+    layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
+    mut player_invincibility: ResMut<BattleTargetInvincibility>,
     mut player_query: Query<&mut Sprite, With<BehaviorParams>>,
 ) {
     if !player_invincibility.active {
@@ -256,6 +261,7 @@ fn update_battle_invincibility_system(
     }
 
     let delta = time.delta_secs();
+    let damage_settings = battle_damage_settings(&layered_db);
 
     // Update invincibility timer
     player_invincibility.timer -= delta;
@@ -268,7 +274,7 @@ fn update_battle_invincibility_system(
 
         // Reset heart color to pure red
         for mut sprite in player_query.iter_mut() {
-            sprite.color = invincibility_config.normal_color;
+            sprite.color = damage_settings.normal_color;
         }
 
         info!("Battle: Player invincibility ended");
@@ -278,21 +284,58 @@ fn update_battle_invincibility_system(
     // Update flash timer
     player_invincibility.flash_timer += delta;
 
-    if player_invincibility.flash_timer >= invincibility_config.flash_interval {
+    if player_invincibility.flash_timer >= damage_settings.flash_interval {
         player_invincibility.flash_timer = 0.0;
         player_invincibility.flash_state = !player_invincibility.flash_state;
 
         // Toggle heart color
         let color = if player_invincibility.flash_state {
-            invincibility_config.normal_color
+            damage_settings.normal_color
         } else {
-            invincibility_config.flash_color
+            damage_settings.flash_color
         };
 
         for mut sprite in player_query.iter_mut() {
             sprite.color = color;
         }
     }
+}
+
+#[derive(Clone)]
+struct BattleDamageSettings {
+    duration: f32,
+    flash_interval: f32,
+    normal_color: Color,
+    flash_color: Color,
+    damage_sound: Option<String>,
+}
+
+fn battle_damage_settings(db: &bevy_fact_rule_event::LayeredFactDatabase) -> BattleDamageSettings {
+    BattleDamageSettings {
+        duration: read_f32_fact(db, INVINCIBILITY_DURATION_FACT, 1.0),
+        flash_interval: read_f32_fact(db, FLASH_INTERVAL_FACT, 0.1).max(f32::EPSILON),
+        normal_color: read_color_fact(db, NORMAL_COLOR_PREFIX, Color::srgb(1.0, 0.0, 0.0)),
+        flash_color: read_color_fact(db, FLASH_COLOR_PREFIX, Color::srgb(0.5, 0.0, 0.0)),
+        damage_sound: db.get_string(DAMAGE_SOUND_FACT).map(ToString::to_string),
+    }
+}
+
+fn read_f32_fact(db: &bevy_fact_rule_event::LayeredFactDatabase, key: &str, default: f32) -> f32 {
+    db.get_float(key).map_or(default, |value| value as f32)
+}
+
+fn read_color_fact(
+    db: &bevy_fact_rule_event::LayeredFactDatabase,
+    prefix: &str,
+    default: Color,
+) -> Color {
+    let default = default.to_srgba();
+    Color::srgba(
+        read_f32_fact(db, &format!("{prefix}:red"), default.red),
+        read_f32_fact(db, &format!("{prefix}:green"), default.green),
+        read_f32_fact(db, &format!("{prefix}:blue"), default.blue),
+        read_f32_fact(db, &format!("{prefix}:alpha"), default.alpha),
+    )
 }
 
 /// Helper function to check collision between two trigger colliders.

@@ -24,11 +24,12 @@ wasmtime::component::bindgen!({
 });
 
 use self::souprune::plugin::host_api::{
-    Action as WitAction, ColliderShape as WitColliderShape, FactValue as WitFact, Vec2 as WitVec2,
+    Action as WitAction, ColliderShape as WitColliderShape, FactValue as WitFact, Rgba as WitRgba,
+    SpriteEntityDesc as WitSpriteEntityDesc, Vec2 as WitVec2,
 };
 use super::collision::{
     CollisionBoundary, CollisionRegion, CollisionRegionStore, ConstraintHandle, PhysicsCollider,
-    RegionHandle,
+    RegionHandle, TriggerCollider,
 };
 
 type SharedCollisionRegionStore = Arc<Mutex<CollisionRegionStore>>;
@@ -46,6 +47,23 @@ pub enum PendingHostEffect {
         center: Vec2,
         size: Vec2,
         border_width: f32,
+    },
+    /// Spawn a visible sprite entity primitive and bind it to the opaque handle.
+    ///
+    /// 生成可见 sprite 实体 primitive，并绑定到不透明句柄。
+    SpawnSpriteEntity {
+        handle: u64,
+        texture: String,
+        position: Vec2,
+        z: f32,
+        color: Color,
+        physics_collider: Option<PhysicsCollider>,
+        trigger_collider: Option<TriggerCollider>,
+        behavior_id: Option<String>,
+        behavior_context: Option<String>,
+        bullet_target: bool,
+        mode_scope: Option<String>,
+        name: Option<String>,
     },
     /// Update a ViewBox primitive's center and size.
     ///
@@ -319,6 +337,42 @@ impl self::souprune::plugin::host_api::Host for HostState {
         handle
     }
 
+    fn spawn_sprite_entity(&mut self, desc: WitSpriteEntityDesc) -> u64 {
+        let position = Vec2::new(desc.position.x, desc.position.y);
+        let Some(color) = wit_rgba_to_color(desc.color) else {
+            warn!("Ignoring sprite entity with invalid color");
+            return 0;
+        };
+        if desc.texture.trim().is_empty() || !position.is_finite() || !desc.z.is_finite() {
+            warn!(
+                "Ignoring invalid sprite entity texture='{}' position={:?} z={}",
+                desc.texture, position, desc.z
+            );
+            return 0;
+        }
+
+        let physics_collider = desc.physics_collider.and_then(wit_to_physics_collider);
+        let trigger_collider = desc.trigger_collider.and_then(wit_to_trigger_collider);
+        let handle = self.call_ctx.next_host_entity_handle();
+        self.call_ctx
+            .pending_host_effects
+            .push(PendingHostEffect::SpawnSpriteEntity {
+                handle,
+                texture: desc.texture,
+                position,
+                z: desc.z,
+                color,
+                physics_collider,
+                trigger_collider,
+                behavior_id: desc.behavior_id,
+                behavior_context: desc.behavior_context,
+                bullet_target: desc.bullet_target,
+                mode_scope: desc.mode_scope,
+                name: desc.name,
+            });
+        handle
+    }
+
     fn set_view_box_bounds(&mut self, handle: u64, center: WitVec2, size: WitVec2) {
         let center = Vec2::new(center.x, center.y);
         let size = Vec2::new(size.x, size.y);
@@ -482,6 +536,26 @@ fn wit_to_physics_collider(collider: WitColliderShape) -> Option<PhysicsCollider
         }
         _ => None,
     }
+}
+
+fn wit_to_trigger_collider(collider: WitColliderShape) -> Option<TriggerCollider> {
+    match collider {
+        WitColliderShape::Circle(radius) if radius.is_finite() && radius > 0.0 => {
+            Some(TriggerCollider::Circle { radius })
+        }
+        WitColliderShape::Rectangle(half_size) => {
+            let half_size = Vec2::new(half_size.x, half_size.y);
+            is_valid_positive_vec2(half_size).then_some(TriggerCollider::Box { half_size })
+        }
+        _ => None,
+    }
+}
+
+fn wit_rgba_to_color(color: WitRgba) -> Option<Color> {
+    [color.red, color.green, color.blue, color.alpha]
+        .iter()
+        .all(|component| component.is_finite())
+        .then(|| Color::srgba(color.red, color.green, color.blue, color.alpha))
 }
 
 fn is_valid_positive_vec2(value: Vec2) -> bool {
@@ -752,6 +826,52 @@ mod tests {
                 },
                 PendingHostEffect::RemoveEntity { handle },
             ]
+        );
+    }
+
+    #[test]
+    fn sprite_entity_host_api_queues_generic_entity_primitive() {
+        let shared = Arc::new(Mutex::new(CollisionRegionStore::default()));
+        let mut host = HostState::new_for_mod(shared);
+
+        let handle = host.spawn_sprite_entity(WitSpriteEntityDesc {
+            texture: "assets/textures/common/view/heart.png".into(),
+            position: WitVec2 { x: 0.0, y: -80.0 },
+            z: 10.0,
+            color: WitRgba {
+                red: 1.0,
+                green: 0.0,
+                blue: 0.0,
+                alpha: 1.0,
+            },
+            physics_collider: Some(WitColliderShape::Circle(8.0)),
+            trigger_collider: Some(WitColliderShape::Rectangle(WitVec2 { x: 2.0, y: 2.0 })),
+            behavior_id: Some("soul_red".into()),
+            behavior_context: Some("battle".into()),
+            bullet_target: true,
+            mode_scope: Some("battle".into()),
+            name: Some("Player".into()),
+        });
+
+        assert_eq!(handle, 1);
+        assert_eq!(
+            host.call_ctx.pending_host_effects,
+            vec![PendingHostEffect::SpawnSpriteEntity {
+                handle,
+                texture: "assets/textures/common/view/heart.png".into(),
+                position: Vec2::new(0.0, -80.0),
+                z: 10.0,
+                color: Color::srgba(1.0, 0.0, 0.0, 1.0),
+                physics_collider: Some(PhysicsCollider::Circle { radius: 8.0 }),
+                trigger_collider: Some(TriggerCollider::Box {
+                    half_size: Vec2::new(2.0, 2.0),
+                }),
+                behavior_id: Some("soul_red".into()),
+                behavior_context: Some("battle".into()),
+                bullet_target: true,
+                mode_scope: Some("battle".into()),
+                name: Some("Player".into()),
+            }]
         );
     }
 }

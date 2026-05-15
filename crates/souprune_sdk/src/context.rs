@@ -7,7 +7,10 @@
 //! 无需接触原始 WIT 类型。
 
 use crate::souprune::plugin::host_api;
-use crate::{Action, ColliderShape, ConstraintHandle, EntityHandle, RegionHandle, ViewBoxHandle};
+use crate::{
+    Action, ColliderShape, ConstraintHandle, EntityHandle, RegionHandle, SpriteEntityConfig,
+    ViewBoxHandle,
+};
 
 /// Typed fact value mirroring the WIT `fact-value` variant.
 /// Mod code uses this instead of raw strings.
@@ -94,6 +97,13 @@ impl Context {
     /// 访问宿主侧 ViewBox 与实体 primitive。
     pub fn view(&self) -> ViewPrimitiveHelper {
         ViewPrimitiveHelper
+    }
+
+    /// Access host-side generic entity primitives.
+    ///
+    /// 访问宿主侧通用实体 primitive。
+    pub fn entity(&self) -> EntityPrimitiveHelper {
+        EntityPrimitiveHelper
     }
 
     /// Get the current entity's world position.
@@ -448,6 +458,28 @@ impl ViewPrimitiveHelper {
     ///
     /// 移除宿主拥有的实体 primitive。
     pub fn remove_entity(&self, handle: EntityHandle) {
+        host_api::remove_entity(handle.0);
+    }
+}
+
+/// Generic host entity primitive helper (zero-sized, stateless).
+///
+/// 通用宿主实体 primitive 辅助对象（零大小、无状态）。
+pub struct EntityPrimitiveHelper;
+
+impl EntityPrimitiveHelper {
+    /// Spawn a host-owned sprite entity primitive.
+    ///
+    /// 生成宿主拥有的 sprite 实体 primitive。
+    pub fn spawn_sprite(&self, config: SpriteEntityConfig) -> Option<EntityHandle> {
+        let raw = host_api::spawn_sprite_entity(&config.to_wit());
+        (raw != 0).then_some(EntityHandle(raw))
+    }
+
+    /// Remove a host-owned entity primitive.
+    ///
+    /// 移除宿主拥有的实体 primitive。
+    pub fn remove(&self, handle: EntityHandle) {
         host_api::remove_entity(handle.0);
     }
 }

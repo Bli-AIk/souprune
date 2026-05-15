@@ -125,7 +125,6 @@ impl Plugin for AlightMotionBattlePlugin {
                     ApplyDeferred,
                     collision::add_am_collision_system,
                     markers::apply_am_hidden_visibility,
-                    collision::update_am_battle_box_bounds_system,
                     playback::check_am_performance_completion,
                 )
                     .chain()

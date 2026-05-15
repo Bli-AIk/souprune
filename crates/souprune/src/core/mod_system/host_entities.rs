@@ -12,6 +12,12 @@ use std::time::Duration;
 use crate::core::sequencer::tween::ViewBoxSizeInterpolator;
 use crate::core::view::ViewBox;
 use crate::core::wasm_runtime::PendingHostEffect;
+use crate::core::{
+    collision::{PhysicsCollider, TriggerCollider},
+    danmaku::BulletTarget,
+    mod_system::{BehaviorContext, BehaviorParams, BehaviorVelocity},
+    mode::ModeScoped,
+};
 
 /// Maps opaque WASM handles to concrete Bevy entities owned by the host.
 ///
@@ -53,6 +59,21 @@ struct PendingViewBoxState {
     tween_bounds: Option<PendingViewBoxTween>,
 }
 
+#[derive(Clone)]
+struct PendingSpriteEntityState {
+    texture: String,
+    position: Vec2,
+    z: f32,
+    color: Color,
+    physics_collider: Option<PhysicsCollider>,
+    trigger_collider: Option<TriggerCollider>,
+    behavior_id: Option<String>,
+    behavior_context: Option<String>,
+    bullet_target: bool,
+    mode_scope: Option<String>,
+    name: Option<String>,
+}
+
 #[derive(Default)]
 struct PendingViewBoxUpdate {
     bounds: Option<PendingViewBoxBounds>,
@@ -77,6 +98,7 @@ enum PendingViewBoxBounds {
 pub(super) fn apply_host_entity_effects(
     effects: Vec<PendingHostEffect>,
     commands: &mut Commands,
+    asset_server: Option<&AssetServer>,
     handles: &mut HostEntityHandles,
     view_boxes: &mut Query<(&mut Transform, &mut ViewBox, &mut Visibility)>,
 ) {
@@ -85,6 +107,7 @@ pub(super) fn apply_host_entity_effects(
     }
 
     let mut pending_spawns = HashMap::<u64, PendingViewBoxState>::new();
+    let mut pending_sprite_spawns = HashMap::<u64, PendingSpriteEntityState>::new();
     let mut pending_updates = HashMap::<u64, PendingViewBoxUpdate>::new();
 
     for effect in effects {
@@ -95,7 +118,9 @@ pub(super) fn apply_host_entity_effects(
                 size,
                 border_width,
             } => {
-                if handles.entities.contains_key(&handle) {
+                if handles.entities.contains_key(&handle)
+                    || pending_sprite_spawns.contains_key(&handle)
+                {
                     warn!("Ignoring duplicate host entity spawn handle={handle}");
                     continue;
                 }
@@ -114,6 +139,47 @@ pub(super) fn apply_host_entity_effects(
                     .is_some()
                 {
                     warn!("Replacing duplicate pending ViewBox spawn handle={handle}");
+                }
+            }
+            PendingHostEffect::SpawnSpriteEntity {
+                handle,
+                texture,
+                position,
+                z,
+                color,
+                physics_collider,
+                trigger_collider,
+                behavior_id,
+                behavior_context,
+                bullet_target,
+                mode_scope,
+                name,
+            } => {
+                if handles.entities.contains_key(&handle) || pending_spawns.contains_key(&handle) {
+                    warn!("Ignoring duplicate host entity spawn handle={handle}");
+                    continue;
+                }
+
+                if pending_sprite_spawns
+                    .insert(
+                        handle,
+                        PendingSpriteEntityState {
+                            texture,
+                            position,
+                            z,
+                            color,
+                            physics_collider,
+                            trigger_collider,
+                            behavior_id,
+                            behavior_context,
+                            bullet_target,
+                            mode_scope,
+                            name,
+                        },
+                    )
+                    .is_some()
+                {
+                    warn!("Replacing duplicate pending sprite entity spawn handle={handle}");
                 }
             }
             PendingHostEffect::SetViewBoxBounds {
@@ -156,7 +222,9 @@ pub(super) fn apply_host_entity_effects(
                 }
             }
             PendingHostEffect::RemoveEntity { handle } => {
-                if pending_spawns.remove(&handle).is_some() {
+                if pending_spawns.remove(&handle).is_some()
+                    || pending_sprite_spawns.remove(&handle).is_some()
+                {
                     pending_updates.remove(&handle);
                     continue;
                 }
@@ -242,6 +310,54 @@ pub(super) fn apply_host_entity_effects(
         }
         handles.entities.insert(handle, entity);
     }
+
+    for (handle, state) in pending_sprite_spawns {
+        let Some(asset_server) = asset_server else {
+            warn!("Ignoring sprite entity spawn handle={handle}; AssetServer is unavailable");
+            continue;
+        };
+        let mut entity = commands.spawn((
+            Sprite {
+                image: asset_server.load(state.texture),
+                color: state.color,
+                ..default()
+            },
+            Transform::from_translation(state.position.extend(state.z)),
+            GlobalTransform::default(),
+            Visibility::default(),
+            InheritedVisibility::default(),
+            ViewVisibility::default(),
+            HostEntityPrimitive,
+        ));
+        if let Some(mode_scope) = state.mode_scope {
+            entity.insert(ModeScoped(mode_scope));
+        }
+        if let Some(collider) = state.physics_collider {
+            entity.insert(collider);
+        }
+        if let Some(collider) = state.trigger_collider {
+            entity.insert(collider);
+        }
+        if let Some(behavior_id) = state.behavior_id {
+            entity.insert((
+                BehaviorParams {
+                    behavior_id,
+                    context: state
+                        .behavior_context
+                        .map(BehaviorContext::new)
+                        .unwrap_or_else(BehaviorContext::any),
+                },
+                BehaviorVelocity::default(),
+            ));
+        }
+        if state.bullet_target {
+            entity.insert(BulletTarget::new());
+        }
+        if let Some(name) = state.name {
+            entity.insert(Name::new(name));
+        }
+        handles.entities.insert(handle, entity.id());
+    }
 }
 
 fn spawn_view_box_bounds_tween(
@@ -285,12 +401,19 @@ fn visibility_from_bool(visible: bool) -> Visibility {
 
 pub(super) fn flush_host_entity_effects_system(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     mut pending: ResMut<PendingHostEntityEffects>,
     mut handles: ResMut<HostEntityHandles>,
     mut view_boxes: Query<(&mut Transform, &mut ViewBox, &mut Visibility)>,
 ) {
     let effects = std::mem::take(&mut pending.effects);
-    apply_host_entity_effects(effects, &mut commands, &mut handles, &mut view_boxes);
+    apply_host_entity_effects(
+        effects,
+        &mut commands,
+        Some(&asset_server),
+        &mut handles,
+        &mut view_boxes,
+    );
 }
 
 #[cfg(test)]
@@ -347,6 +470,7 @@ mod tests {
         apply_host_entity_effects(
             std::mem::take(&mut effects.0),
             &mut commands,
+            None,
             &mut handles,
             &mut view_boxes,
         );

@@ -24,12 +24,9 @@
 //! 对于更复杂的 STG 游戏，线性序列可以表现为更复杂的机制。
 
 pub mod alight_motion_integration;
-pub mod collision;
 pub mod danmaku;
 pub mod fre;
 pub mod menu_state;
-pub(crate) mod player_config;
-pub(crate) mod runtime_box;
 pub mod speech_bubble;
 
 use crate::core::battle_runtime::{
@@ -37,13 +34,10 @@ use crate::core::battle_runtime::{
 };
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::mode::{ModeChanged, ModeScoped, is_mode};
-use crate::core::ron_loader::RonAssetLoader;
 use crate::core::sequencer::SequencerPlugin;
 use crate::preset::battle::alight_motion_integration::AlightMotionBattlePlugin;
-use crate::preset::battle::collision::BattleCollisionPlugin;
 use crate::preset::battle::danmaku::DanmakuPlugin;
 use crate::preset::battle::fre::BattleFREPlugin;
-use crate::preset::battle::player_config::BattlePlayerConfig;
 use bevy::app::{App, Plugin};
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
@@ -75,13 +69,8 @@ impl Plugin for BattlePlugin {
         let schedule = crate::game_schedule(app);
         app.configure_sets(schedule, BattleUpdate.run_if(is_mode("battle")))
             .configure_sets(schedule, BattleMovementSet.in_set(BattleUpdate))
-            .init_asset::<BattlePlayerConfig>()
-            .register_asset_loader(RonAssetLoader::<BattlePlayerConfig>::new(&[
-                "battle_player.ron",
-            ]))
             .add_plugins((
                 SequencerPlugin,
-                BattleCollisionPlugin,
                 DanmakuPlugin,
                 AlightMotionBattlePlugin,
                 BattleFREPlugin,

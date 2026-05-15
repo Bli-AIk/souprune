@@ -214,7 +214,6 @@ fn ron_kind_suffix(kind: RonFileKind) -> &'static str {
         RonFileKind::Sequence => ".sequence.ron",
         RonFileKind::Enemy => ".enemy.ron",
         RonFileKind::Items => ".items.ron",
-        RonFileKind::BattlePlayer => ".battle_player.ron",
         RonFileKind::Fre => ".fre.ron",
         RonFileKind::Dialogue => ".ron",
         RonFileKind::Input => ".ron",
@@ -244,7 +243,6 @@ impl_canonical_ron_asset!(souprune_schema::danmaku::DanmakuPerformance => RonFil
 impl_canonical_ron_asset!(souprune_schema::sequence::SequenceAsset => RonFileKind::Sequence);
 impl_canonical_ron_asset!(souprune_schema::enemy::EnemyDef => RonFileKind::Enemy);
 impl_canonical_ron_asset!(souprune_schema::item::ItemListAsset => RonFileKind::Items);
-impl_canonical_ron_asset!(souprune_schema::battle::BattlePlayerConfig => RonFileKind::BattlePlayer);
 impl_canonical_ron_asset!(souprune_schema::fre::FreAsset => RonFileKind::Fre);
 impl_canonical_ron_asset!(souprune_schema::dialogue::DialogueConfig => RonFileKind::Dialogue);
 impl_canonical_ron_asset!(souprune_schema::config::InputConfig => RonFileKind::Input);
