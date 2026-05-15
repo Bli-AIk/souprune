@@ -62,10 +62,10 @@ pub struct EnemyDef {
     #[serde(default)]
     pub mercies: Vec<ActionOption>,
     /// Named turn groups — each group has its own turn list and selection strategy.
-    /// Use `PickEnemyTurn(group: "group_name")` to select from a specific group.
+    /// Project runtime code decides how to select from these groups.
     ///
     /// 命名回合组 — 每组有独立的回合列表和选择策略。
-    /// 通过 `PickEnemyTurn(group: "group_name")` 从指定组中选择。
+    /// 项目运行时代码决定如何从这些组里选择。
     #[serde(default)]
     pub turn_groups: IndexMap<String, TurnGroup>,
 }

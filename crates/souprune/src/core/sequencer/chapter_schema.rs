@@ -189,33 +189,6 @@ pub enum Chapter {
     /// **不要在 `.sequence.ron` 文件中使用。**
     #[serde(skip)]
     LoopIterationEnd,
-    /// Select the next turn for an enemy from a named `turn_group` and inject
-    /// the corresponding `RunSequence`. Preset-level chapter.
-    ///
-    /// 从命名的 `turn_group` 中选择下一个回合并注入对应的 `RunSequence`。
-    /// 属于 Preset 层的章节。
-    PickEnemyTurn {
-        /// Literal enemy id.
-        ///
-        /// 字面量敌人 id。
-        #[serde(default)]
-        enemy_id: Option<String>,
-        /// Fact key whose value is the enemy id (for template params).
-        ///
-        /// 值为敌人 id 的 fact 键名（用于模板参数）。
-        #[serde(default)]
-        enemy_id_fact: Option<String>,
-        /// Literal turn group name. Selects from `turn_groups[group]` in the enemy definition.
-        ///
-        /// 字面量回合组名。从敌人定义的 `turn_groups[group]` 中选择。
-        #[serde(default)]
-        group: Option<String>,
-        /// Fact key whose value is the turn group name (for template params).
-        ///
-        /// 值为回合组名的 fact 键名（用于模板参数）。
-        #[serde(default)]
-        group_fact: Option<String>,
-    },
 }
 
 fn default_true() -> bool {

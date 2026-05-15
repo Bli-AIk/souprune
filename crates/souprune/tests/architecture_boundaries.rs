@@ -104,3 +104,20 @@ fn framework_schema_no_longer_exposes_battle_player_config_files() {
         hits.join("\n")
     );
 }
+
+#[test]
+fn framework_no_longer_owns_enemy_turn_selection_chapter() {
+    let workspace = workspace_root();
+    let roots = [
+        workspace.join("crates/souprune/src"),
+        workspace.join("crates/souprune_schema/src"),
+    ];
+    let forbidden = ["PickEnemyTurn", "preset/enemy_turn.rs"];
+    let hits = forbidden_rust_source_hits(&roots, &workspace, &forbidden);
+
+    assert!(
+        hits.is_empty(),
+        "enemy turn selection must be project/prelude logic, not framework schema or preset runtime:\n{}",
+        hits.join("\n")
+    );
+}

@@ -16,6 +16,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 pub use souprune_schema::enemy::ActionOption;
 use souprune_schema::enemy::EnemyDef as SchemaEnemyDef;
+use souprune_schema::enemy::TurnStrategy;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
@@ -156,6 +157,18 @@ pub fn project_enemy_facts(enemy: &EnemyDef, db: &mut bevy_fact_rule_event::Fact
             FactValue::StringList(group.turns.clone()),
         );
         db.set(format!("{gk}.turn_index"), FactValue::Int(0));
+        db.set(
+            format!("{gk}.turn_strategy"),
+            FactValue::String(turn_strategy_name(&group.strategy).to_string()),
+        );
+    }
+}
+
+fn turn_strategy_name(strategy: &TurnStrategy) -> &'static str {
+    match strategy {
+        TurnStrategy::Sequential => "Sequential",
+        TurnStrategy::Random => "Random",
+        TurnStrategy::Shuffle => "Shuffle",
     }
 }
 
@@ -327,6 +340,10 @@ mod tests {
         assert_eq!(
             facts.get_by_str("dummy.main.turn_index"),
             Some(&FactValue::Int(0))
+        );
+        assert_eq!(
+            facts.get_by_str("dummy.main.turn_strategy"),
+            Some(&FactValue::String("Sequential".to_string()))
         );
     }
 }
