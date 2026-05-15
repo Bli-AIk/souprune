@@ -8,6 +8,7 @@ use souprune_api::Action;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::audio_effects::PendingAudioEffects;
 use super::custom_actions::{apply_pending_side_effects, build_fact_snapshot};
 use super::host_entities::PendingHostEntityEffects;
 use super::{BehaviorRegistry, LoadedMods, wasm_runtime};
@@ -81,6 +82,7 @@ pub(super) fn init_behaviors_system(
     mut fact_writer: MessageWriter<FactEvent>,
     mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
     mut host_entity_effects: ResMut<PendingHostEntityEffects>,
+    mut audio_effects: ResMut<PendingAudioEffects>,
     frame_count: Res<bevy::diagnostic::FrameCount>,
 ) {
     if query.is_empty() {
@@ -131,6 +133,7 @@ pub(super) fn init_behaviors_system(
                         &mut fact_writer,
                         &mut fact_history,
                         &mut host_entity_effects,
+                        &mut audio_effects,
                         frame_count.0 as u64,
                         &format!("behavior-enter:{mod_name}"),
                     );
@@ -166,6 +169,7 @@ pub(super) fn dispatch_behavior_input_system(
     mut fact_writer: MessageWriter<FactEvent>,
     mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
     mut host_entity_effects: ResMut<PendingHostEntityEffects>,
+    mut audio_effects: ResMut<PendingAudioEffects>,
     frame_count: Res<bevy::diagnostic::FrameCount>,
     mut wasm_tracer: ResMut<crate::core::trace::WasmCallTracer>,
 ) {
@@ -226,6 +230,7 @@ pub(super) fn dispatch_behavior_input_system(
                     &mut fact_writer,
                     &mut fact_history,
                     &mut host_entity_effects,
+                    &mut audio_effects,
                     frame_count.0 as u64,
                     &format!("behavior-input:{mod_name}"),
                 );
@@ -299,6 +304,7 @@ pub(super) fn update_behaviors_system(
     mut fact_writer: MessageWriter<FactEvent>,
     mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
     mut host_entity_effects: ResMut<PendingHostEntityEffects>,
+    mut audio_effects: ResMut<PendingAudioEffects>,
     frame_count: Res<bevy::diagnostic::FrameCount>,
     mut cached_snapshot: Local<Arc<HashMap<String, FactValue>>>,
 ) {
@@ -376,6 +382,7 @@ pub(super) fn update_behaviors_system(
                 &mut fact_writer,
                 &mut fact_history,
                 &mut host_entity_effects,
+                &mut audio_effects,
                 frame_count.0 as u64,
                 &format!("behavior:{mod_name}"),
             );

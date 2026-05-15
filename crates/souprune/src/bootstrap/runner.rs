@@ -194,29 +194,26 @@ pub fn run() {
     // Register game-specific mortar fact bindings.
     // These map FRE fact keys → Mortar dialogue functions/variables.
     use crate::core::dialogue::MortarFactBindings;
-    use crate::preset::item_actions::{
-        DIALOGUE_ITEM_HEAL_AMOUNT, DIALOGUE_ITEM_NAME, DIALOGUE_ITEM_VALUE,
-    };
     app.insert_resource(MortarFactBindings {
         number_functions: vec![
             ("get_player_hp".into(), "player:hp".into(), 20.0),
             ("get_player_hp_max".into(), "player:hp_max".into(), 20.0),
             (
                 "get_heal_amount".into(),
-                DIALOGUE_ITEM_HEAL_AMOUNT.into(),
+                "dialogue:item_heal_amount".into(),
                 0.0,
             ),
-            ("get_item_value".into(), DIALOGUE_ITEM_VALUE.into(), 0.0),
+            ("get_item_value".into(), "dialogue:item_value".into(), 0.0),
         ],
         string_variables: vec![
-            ("item_name".into(), DIALOGUE_ITEM_NAME.into(), true),
+            ("item_name".into(), "dialogue:item_name".into(), true),
             (
                 "item_description".into(),
                 "dialogue:item_description".into(),
                 false,
             ),
         ],
-        number_variables: vec![("heal_amount".into(), DIALOGUE_ITEM_HEAL_AMOUNT.into())],
+        number_variables: vec![("heal_amount".into(), "dialogue:item_heal_amount".into())],
     });
 
     app.add_plugins(get_game_plugins()).run();

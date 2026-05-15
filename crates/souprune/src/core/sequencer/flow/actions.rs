@@ -70,6 +70,7 @@ pub fn process_custom_chapter_system(
                 writer.write(crate::core::fre_bridge::FreCustomActionEvent {
                     action_type: action_type.clone(),
                     params: resolved_params,
+                    local_facts: std::collections::HashMap::new(),
                 });
             }
 

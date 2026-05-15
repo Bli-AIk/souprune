@@ -121,3 +121,28 @@ fn framework_no_longer_owns_enemy_turn_selection_chapter() {
         hits.join("\n")
     );
 }
+
+#[test]
+fn framework_preset_no_longer_owns_item_action_runtime() {
+    let workspace = workspace_root();
+    let roots = [
+        workspace.join("crates/souprune/src/preset.rs"),
+        workspace.join("crates/souprune/src/preset"),
+    ];
+    let forbidden = [
+        "item_actions",
+        "UseItem",
+        "CheckItem",
+        "DropItem",
+        "execute_use_item",
+        "execute_check_item",
+        "execute_drop_item",
+    ];
+    let hits = forbidden_rust_source_hits(&roots, &workspace, &forbidden);
+
+    assert!(
+        hits.is_empty(),
+        "item use/check/drop actions must live in project/prelude runtime, not framework preset:\n{}",
+        hits.join("\n")
+    );
+}

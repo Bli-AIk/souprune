@@ -20,6 +20,10 @@ pub enum FactValue {
     Float(f64),
     Bool(bool),
     Text(String),
+    IntList(Vec<i64>),
+    FloatList(Vec<f64>),
+    BoolList(Vec<bool>),
+    TextList(Vec<String>),
 }
 
 impl FactValue {
@@ -29,6 +33,23 @@ impl FactValue {
             host_api::FactValue::FloatVal(f) => Self::Float(f),
             host_api::FactValue::BoolVal(b) => Self::Bool(b),
             host_api::FactValue::TextVal(s) => Self::Text(s),
+            host_api::FactValue::IntList(list) => Self::IntList(list),
+            host_api::FactValue::FloatList(list) => Self::FloatList(list),
+            host_api::FactValue::BoolList(list) => Self::BoolList(list),
+            host_api::FactValue::TextList(list) => Self::TextList(list),
+        }
+    }
+
+    pub(crate) fn to_wit(&self) -> host_api::FactValue {
+        match self {
+            Self::Int(value) => host_api::FactValue::IntVal(*value),
+            Self::Float(value) => host_api::FactValue::FloatVal(*value),
+            Self::Bool(value) => host_api::FactValue::BoolVal(*value),
+            Self::Text(value) => host_api::FactValue::TextVal(value.clone()),
+            Self::IntList(value) => host_api::FactValue::IntList(value.clone()),
+            Self::FloatList(value) => host_api::FactValue::FloatList(value.clone()),
+            Self::BoolList(value) => host_api::FactValue::BoolList(value.clone()),
+            Self::TextList(value) => host_api::FactValue::TextList(value.clone()),
         }
     }
 }
@@ -168,6 +189,46 @@ impl Context {
         }
     }
 
+    /// Get a FRE fact as a list of strings. Returns None if not set or not text-list.
+    ///
+    /// 按字符串列表读取 FRE fact。未设置或类型不匹配时返回 None。
+    pub fn get_fact_string_list(&self, key: &str) -> Option<Vec<String>> {
+        match self.get_fact(key)? {
+            FactValue::TextList(list) => Some(list),
+            _ => None,
+        }
+    }
+
+    /// Get a FRE fact as a list of integers. Returns None if not set or not int-list.
+    ///
+    /// 按整数列表读取 FRE fact。未设置或类型不匹配时返回 None。
+    pub fn get_fact_int_list(&self, key: &str) -> Option<Vec<i64>> {
+        match self.get_fact(key)? {
+            FactValue::IntList(list) => Some(list),
+            _ => None,
+        }
+    }
+
+    /// Get a FRE fact as a list of floats. Returns None if not set or not float-list.
+    ///
+    /// 按浮点列表读取 FRE fact。未设置或类型不匹配时返回 None。
+    pub fn get_fact_float_list(&self, key: &str) -> Option<Vec<f64>> {
+        match self.get_fact(key)? {
+            FactValue::FloatList(list) => Some(list),
+            _ => None,
+        }
+    }
+
+    /// Get a FRE fact as a list of bools. Returns None if not set or not bool-list.
+    ///
+    /// 按布尔列表读取 FRE fact。未设置或类型不匹配时返回 None。
+    pub fn get_fact_bool_list(&self, key: &str) -> Option<Vec<bool>> {
+        match self.get_fact(key)? {
+            FactValue::BoolList(list) => Some(list),
+            _ => None,
+        }
+    }
+
     /// Set a FRE fact to a bool value.
     ///
     /// 将 FRE fact 设置为 bool 值。
@@ -194,6 +255,97 @@ impl Context {
     /// 将 FRE fact 设置为字符串值。
     pub fn set_fact_string(&self, key: &str, value: &str) {
         host_api::set_fact(key, &host_api::FactValue::TextVal(value.to_string()));
+    }
+
+    /// Set a persistent FRE fact to a typed value.
+    ///
+    /// 将持久 FRE fact 设置为类型化值。
+    pub fn set_global_fact(&self, key: &str, value: &FactValue) {
+        host_api::set_global_fact(key, &value.to_wit());
+    }
+
+    /// Set a FRE fact to a list of strings.
+    ///
+    /// 将 FRE fact 设置为字符串列表。
+    pub fn set_fact_string_list(&self, key: &str, value: &[String]) {
+        host_api::set_fact(key, &host_api::FactValue::TextList(value.to_vec()));
+    }
+
+    /// Set a FRE fact to a list of integers.
+    ///
+    /// 将 FRE fact 设置为整数列表。
+    pub fn set_fact_int_list(&self, key: &str, value: &[i64]) {
+        host_api::set_fact(key, &host_api::FactValue::IntList(value.to_vec()));
+    }
+
+    /// Set a FRE fact to a list of floats.
+    ///
+    /// 将 FRE fact 设置为浮点列表。
+    pub fn set_fact_float_list(&self, key: &str, value: &[f64]) {
+        host_api::set_fact(key, &host_api::FactValue::FloatList(value.to_vec()));
+    }
+
+    /// Set a FRE fact to a list of bools.
+    ///
+    /// 将 FRE fact 设置为布尔列表。
+    pub fn set_fact_bool_list(&self, key: &str, value: &[bool]) {
+        host_api::set_fact(key, &host_api::FactValue::BoolList(value.to_vec()));
+    }
+
+    /// Set a persistent FRE fact to a bool value.
+    ///
+    /// 将持久 FRE fact 设置为 bool 值。
+    pub fn set_global_fact_bool(&self, key: &str, value: bool) {
+        host_api::set_global_fact(key, &host_api::FactValue::BoolVal(value));
+    }
+
+    /// Set a persistent FRE fact to an int value.
+    ///
+    /// 将持久 FRE fact 设置为 int 值。
+    pub fn set_global_fact_int(&self, key: &str, value: i64) {
+        host_api::set_global_fact(key, &host_api::FactValue::IntVal(value));
+    }
+
+    /// Set a persistent FRE fact to a float value.
+    ///
+    /// 将持久 FRE fact 设置为 float 值。
+    pub fn set_global_fact_float(&self, key: &str, value: f64) {
+        host_api::set_global_fact(key, &host_api::FactValue::FloatVal(value));
+    }
+
+    /// Set a persistent FRE fact to a string value.
+    ///
+    /// 将持久 FRE fact 设置为字符串值。
+    pub fn set_global_fact_string(&self, key: &str, value: &str) {
+        host_api::set_global_fact(key, &host_api::FactValue::TextVal(value.to_string()));
+    }
+
+    /// Set a persistent FRE fact to a list of strings.
+    ///
+    /// 将持久 FRE fact 设置为字符串列表。
+    pub fn set_global_fact_string_list(&self, key: &str, value: &[String]) {
+        host_api::set_global_fact(key, &host_api::FactValue::TextList(value.to_vec()));
+    }
+
+    /// Set a persistent FRE fact to a list of integers.
+    ///
+    /// 将持久 FRE fact 设置为整数列表。
+    pub fn set_global_fact_int_list(&self, key: &str, value: &[i64]) {
+        host_api::set_global_fact(key, &host_api::FactValue::IntList(value.to_vec()));
+    }
+
+    /// Set a persistent FRE fact to a list of floats.
+    ///
+    /// 将持久 FRE fact 设置为浮点列表。
+    pub fn set_global_fact_float_list(&self, key: &str, value: &[f64]) {
+        host_api::set_global_fact(key, &host_api::FactValue::FloatList(value.to_vec()));
+    }
+
+    /// Set a persistent FRE fact to a list of bools.
+    ///
+    /// 将持久 FRE fact 设置为布尔列表。
+    pub fn set_global_fact_bool_list(&self, key: &str, value: &[bool]) {
+        host_api::set_global_fact(key, &host_api::FactValue::BoolList(value.to_vec()));
     }
 
     /// Emit a FRE event by name. Applied after the current callback returns.
@@ -244,6 +396,13 @@ impl Context {
     /// 按资源 key 播放音效。
     pub fn play_sound(&self, sound_key: &str) {
         host_api::play_sound(sound_key);
+    }
+
+    /// Play a sound effect by full asset path.
+    ///
+    /// 按完整资源路径播放音效。
+    pub fn play_sound_full_path(&self, sound_path: &str) {
+        host_api::play_sound_full_path(sound_path);
     }
 
     /// Get the current mode name. Returns None if no mode is active.

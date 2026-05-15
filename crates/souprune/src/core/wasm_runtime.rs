@@ -92,13 +92,30 @@ pub enum PendingHostEffect {
     RemoveEntity { handle: u64 },
 }
 
+/// Audio playback requested by a WASM callback.
+///
+/// WASM 回调请求的音频播放。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PendingSoundEffect {
+    /// Resolve the value through the configured audio resource roots.
+    ///
+    /// 通过配置的音频资源根目录解析此值。
+    SoundKey(String),
+    /// Load the value as a full Bevy asset path.
+    ///
+    /// 将此值作为完整 Bevy 资源路径加载。
+    FullPath(String),
+}
+
 /// Pending side effects collected after a WASM callback returns.
 ///
 /// WASM 回调返回后收集的待提交副作用。
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct PendingSideEffects {
     pub fact_mutations: Vec<(String, FactValue)>,
+    pub global_fact_mutations: Vec<(String, FactValue)>,
     pub events: Vec<String>,
+    pub sounds: Vec<PendingSoundEffect>,
     pub host_effects: Vec<PendingHostEffect>,
 }
 
@@ -107,7 +124,11 @@ impl PendingSideEffects {
     ///
     /// 返回此副作用集合是否为空。
     pub fn is_empty(&self) -> bool {
-        self.fact_mutations.is_empty() && self.events.is_empty() && self.host_effects.is_empty()
+        self.fact_mutations.is_empty()
+            && self.global_fact_mutations.is_empty()
+            && self.events.is_empty()
+            && self.sounds.is_empty()
+            && self.host_effects.is_empty()
     }
 }
 
@@ -123,6 +144,8 @@ pub struct CallContext {
     pub fact_snapshot: Arc<HashMap<String, FactValue>>,
     /// Fact mutations queued by the mod during a callback; applied afterwards.
     pub pending_fact_mutations: Vec<(String, FactValue)>,
+    /// Persistent fact mutations queued by the mod during a callback.
+    pub pending_global_fact_mutations: Vec<(String, FactValue)>,
     /// FRE events queued by the mod during a callback; emitted afterwards.
     pub pending_events: Vec<String>,
     /// Named entity positions for `get-entity-position-by-tag` queries.
@@ -135,8 +158,8 @@ pub struct CallContext {
     pub pending_view_opens: Vec<String>,
     /// Whether a close-view was requested.
     pub pending_view_close: bool,
-    /// Pending sound play requests (sound-key strings).
-    pub pending_sounds: Vec<String>,
+    /// Pending sound play requests.
+    pub pending_sounds: Vec<PendingSoundEffect>,
     /// Pending emitter spawn requests: (pattern_id, position) → assigned handle.
     pub pending_emitter_spawns: Vec<(String, Vec2)>,
     /// Pending emitter despawn requests (handles).
@@ -155,7 +178,9 @@ impl CallContext {
     /// 进入 WASM 前清空回调范围内的待提交副作用。
     pub fn clear_pending_side_effects(&mut self) {
         self.pending_fact_mutations.clear();
+        self.pending_global_fact_mutations.clear();
         self.pending_events.clear();
+        self.pending_sounds.clear();
         self.pending_host_effects.clear();
     }
 
@@ -165,7 +190,9 @@ impl CallContext {
     pub fn take_pending_side_effects(&mut self) -> PendingSideEffects {
         PendingSideEffects {
             fact_mutations: std::mem::take(&mut self.pending_fact_mutations),
+            global_fact_mutations: std::mem::take(&mut self.pending_global_fact_mutations),
             events: std::mem::take(&mut self.pending_events),
+            sounds: std::mem::take(&mut self.pending_sounds),
             host_effects: std::mem::take(&mut self.pending_host_effects),
         }
     }
@@ -468,6 +495,12 @@ impl self::souprune::plugin::host_api::Host for HostState {
             .push((key, wit_to_fre_fact(value)));
     }
 
+    fn set_global_fact(&mut self, key: String, value: WitFact) {
+        self.call_ctx
+            .pending_global_fact_mutations
+            .push((key, wit_to_fre_fact(value)));
+    }
+
     fn emit_event(&mut self, event_name: String) {
         self.call_ctx.pending_events.push(event_name);
     }
@@ -501,7 +534,15 @@ impl self::souprune::plugin::host_api::Host for HostState {
     }
 
     fn play_sound(&mut self, sound_key: String) {
-        self.call_ctx.pending_sounds.push(sound_key);
+        self.call_ctx
+            .pending_sounds
+            .push(PendingSoundEffect::SoundKey(sound_key));
+    }
+
+    fn play_sound_full_path(&mut self, sound_path: String) {
+        self.call_ctx
+            .pending_sounds
+            .push(PendingSoundEffect::FullPath(sound_path));
     }
 
     fn get_current_mode(&mut self) -> Option<String> {
@@ -569,25 +610,10 @@ fn fre_to_wit_fact(v: &FactValue) -> WitFact {
         FactValue::Float(f) => WitFact::FloatVal(*f),
         FactValue::Bool(b) => WitFact::BoolVal(*b),
         FactValue::String(s) => WitFact::TextVal(s.clone()),
-        FactValue::StringList(list) => WitFact::TextVal(list.join(",")),
-        FactValue::IntList(list) => WitFact::TextVal(
-            list.iter()
-                .map(|n| n.to_string())
-                .collect::<Vec<_>>()
-                .join(","),
-        ),
-        FactValue::FloatList(list) => WitFact::TextVal(
-            list.iter()
-                .map(|f| f.to_string())
-                .collect::<Vec<_>>()
-                .join(","),
-        ),
-        FactValue::BoolList(list) => WitFact::TextVal(
-            list.iter()
-                .map(|b| b.to_string())
-                .collect::<Vec<_>>()
-                .join(","),
-        ),
+        FactValue::StringList(list) => WitFact::TextList(list.clone()),
+        FactValue::IntList(list) => WitFact::IntList(list.clone()),
+        FactValue::FloatList(list) => WitFact::FloatList(list.clone()),
+        FactValue::BoolList(list) => WitFact::BoolList(list.clone()),
     }
 }
 
@@ -598,6 +624,10 @@ fn wit_to_fre_fact(v: WitFact) -> FactValue {
         WitFact::FloatVal(f) => FactValue::Float(f),
         WitFact::BoolVal(b) => FactValue::Bool(b),
         WitFact::TextVal(s) => FactValue::String(s),
+        WitFact::IntList(list) => FactValue::IntList(list),
+        WitFact::FloatList(list) => FactValue::FloatList(list),
+        WitFact::BoolList(list) => FactValue::BoolList(list),
+        WitFact::TextList(list) => FactValue::StringList(list),
     }
 }
 
@@ -750,7 +780,12 @@ mod tests {
         let mut ctx = CallContext::default();
         ctx.pending_fact_mutations
             .push(("cursor:index".to_string(), FactValue::Int(1)));
+        ctx.pending_global_fact_mutations
+            .push(("player:hp".to_string(), FactValue::Int(12)));
         ctx.pending_events.push("view.cursor.moved".to_string());
+        ctx.pending_sounds.push(PendingSoundEffect::FullPath(
+            "assets/audios/snd_heal_c.wav".to_string(),
+        ));
         ctx.pending_host_effects
             .push(PendingHostEffect::SpawnViewBox {
                 handle: 1,
@@ -762,11 +797,57 @@ mod tests {
         let pending = ctx.take_pending_side_effects();
 
         assert_eq!(pending.fact_mutations.len(), 1);
+        assert_eq!(pending.global_fact_mutations.len(), 1);
         assert_eq!(pending.events, vec!["view.cursor.moved".to_string()]);
+        assert_eq!(
+            pending.sounds,
+            vec![PendingSoundEffect::FullPath(
+                "assets/audios/snd_heal_c.wav".to_string()
+            )]
+        );
         assert_eq!(pending.host_effects.len(), 1);
         assert!(ctx.pending_fact_mutations.is_empty());
+        assert!(ctx.pending_global_fact_mutations.is_empty());
         assert!(ctx.pending_events.is_empty());
+        assert!(ctx.pending_sounds.is_empty());
         assert!(ctx.pending_host_effects.is_empty());
+    }
+
+    #[test]
+    fn wit_fact_conversion_preserves_list_fact_types() {
+        match fre_to_wit_fact(&FactValue::StringList(vec!["a".into(), "b".into()])) {
+            WitFact::TextList(list) => assert_eq!(list, vec!["a".to_string(), "b".to_string()]),
+            _ => panic!("expected TextList"),
+        }
+        match fre_to_wit_fact(&FactValue::IntList(vec![1, 2])) {
+            WitFact::IntList(list) => assert_eq!(list, vec![1, 2]),
+            _ => panic!("expected IntList"),
+        }
+        match fre_to_wit_fact(&FactValue::FloatList(vec![1.5, 2.5])) {
+            WitFact::FloatList(list) => assert_eq!(list, vec![1.5, 2.5]),
+            _ => panic!("expected FloatList"),
+        }
+        match fre_to_wit_fact(&FactValue::BoolList(vec![true, false])) {
+            WitFact::BoolList(list) => assert_eq!(list, vec![true, false]),
+            _ => panic!("expected BoolList"),
+        }
+
+        assert_eq!(
+            wit_to_fre_fact(WitFact::TextList(vec!["a".into(), "b".into()])),
+            FactValue::StringList(vec!["a".into(), "b".into()])
+        );
+        assert_eq!(
+            wit_to_fre_fact(WitFact::IntList(vec![1, 2])),
+            FactValue::IntList(vec![1, 2])
+        );
+        assert_eq!(
+            wit_to_fre_fact(WitFact::FloatList(vec![1.5, 2.5])),
+            FactValue::FloatList(vec![1.5, 2.5])
+        );
+        assert_eq!(
+            wit_to_fre_fact(WitFact::BoolList(vec![true, false])),
+            FactValue::BoolList(vec![true, false])
+        );
     }
 
     #[test]
