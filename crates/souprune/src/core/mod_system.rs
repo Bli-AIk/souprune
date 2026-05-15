@@ -67,7 +67,9 @@ impl Plugin for ModPlugin {
             .add_systems(
                 schedule,
                 custom_actions::dispatch_wasm_custom_actions_system
-                    .after(crate::core::fre_bridge::dispatch_custom_actions_system),
+                    .after(crate::core::fre_bridge::dispatch_custom_actions_system)
+                    .after(crate::core::sequencer::flow::process_custom_chapter_system)
+                    .before(crate::core::sequencer::flow::cleanup_finished_chapters_system),
             )
             .add_systems(
                 schedule,

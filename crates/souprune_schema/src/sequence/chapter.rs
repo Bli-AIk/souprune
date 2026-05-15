@@ -130,16 +130,6 @@ pub enum Chapter {
         #[serde(default)]
         allow_repeat: bool,
     },
-    PickEnemyTurn {
-        #[serde(default)]
-        enemy_id: Option<String>,
-        #[serde(default)]
-        enemy_id_fact: Option<String>,
-        #[serde(default)]
-        group: Option<String>,
-        #[serde(default)]
-        group_fact: Option<String>,
-    },
     Log {
         text: String,
         #[serde(default)]
