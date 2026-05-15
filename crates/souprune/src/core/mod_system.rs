@@ -515,6 +515,7 @@ fn dispatch_mode_call(
                 fact_history,
                 host_entity_effects,
                 audio_effects,
+                None,
                 frame_number,
                 &format!("mode-lifecycle:{method}:{}", loaded.name),
             );

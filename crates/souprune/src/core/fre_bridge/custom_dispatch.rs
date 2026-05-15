@@ -134,6 +134,7 @@ fn dispatch_single_custom_action(
                     action_type: action_type.clone(),
                     params: params.clone(),
                     local_facts: HashMap::new(),
+                    local_facts_target: false,
                 });
             }
         }

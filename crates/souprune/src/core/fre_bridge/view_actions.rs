@@ -302,6 +302,7 @@ fn execute_action(
                     action_type: action_type.clone(),
                     params: params.clone(),
                     local_facts: local_facts_snapshot,
+                    local_facts_target: true,
                 });
             }
         }
