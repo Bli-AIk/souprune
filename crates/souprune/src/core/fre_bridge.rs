@@ -43,6 +43,10 @@ pub struct FreCustomActionEvent {
     ///
     /// View 作用域规则发出该 action 时捕获的 View 局部事实。
     pub local_facts: HashMap<String, bevy_fact_rule_event::FactValue>,
+    /// Whether plain WASM fact mutations should write back to the active View.
+    ///
+    /// 普通 WASM fact mutation 是否应写回当前活跃 View。
+    pub local_facts_target: bool,
 }
 
 /// Plugin for FRE-View bridge systems.

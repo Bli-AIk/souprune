@@ -71,6 +71,7 @@ pub fn process_custom_chapter_system(
                     action_type: action_type.clone(),
                     params: resolved_params,
                     local_facts: std::collections::HashMap::new(),
+                    local_facts_target: false,
                 });
             }
 

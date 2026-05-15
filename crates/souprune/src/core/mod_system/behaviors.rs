@@ -134,6 +134,7 @@ pub(super) fn init_behaviors_system(
                         &mut fact_history,
                         &mut host_entity_effects,
                         &mut audio_effects,
+                        None,
                         frame_count.0 as u64,
                         &format!("behavior-enter:{mod_name}"),
                     );
@@ -231,6 +232,7 @@ pub(super) fn dispatch_behavior_input_system(
                     &mut fact_history,
                     &mut host_entity_effects,
                     &mut audio_effects,
+                    None,
                     frame_count.0 as u64,
                     &format!("behavior-input:{mod_name}"),
                 );
@@ -383,6 +385,7 @@ pub(super) fn update_behaviors_system(
                 &mut fact_history,
                 &mut host_entity_effects,
                 &mut audio_effects,
+                None,
                 frame_count.0 as u64,
                 &format!("behavior:{mod_name}"),
             );
