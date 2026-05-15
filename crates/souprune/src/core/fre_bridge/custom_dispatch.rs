@@ -14,6 +14,7 @@
 use super::{FreCustomActionEvent, evaluate_conditions};
 use bevy::prelude::*;
 use bevy_fact_rule_event::{EnumRegistry, FactEvent, FactValue, LayeredFactDatabase};
+use std::collections::HashMap;
 
 use crate::core::fre_facts;
 use crate::core::game_action::{
@@ -132,6 +133,7 @@ fn dispatch_single_custom_action(
                 custom_action_writer.write(FreCustomActionEvent {
                     action_type: action_type.clone(),
                     params: params.clone(),
+                    local_facts: HashMap::new(),
                 });
             }
         }

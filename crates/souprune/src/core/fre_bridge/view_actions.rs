@@ -14,6 +14,7 @@
 
 use super::extensions::{ViewActionExecCtx, ViewActionExtensions};
 use super::{evaluate_conditions, evaluate_local_fact_value};
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy_fact_rule_event::{
     CombinedFactReader, EnumRegistry, FactEvent, FactValue, LayeredFactDatabase, PendingFactEvents,
@@ -21,10 +22,29 @@ use bevy_fact_rule_event::{
 
 use crate::config::SoupruneConfig;
 use crate::core::audio;
+use crate::core::fre_bridge::FreCustomActionEvent;
 use crate::core::fre_facts;
 use crate::core::game_action::{GameActionDef, GameRule, GameRuleRegistry};
 use crate::core::mode::SequenceSubState;
 use crate::core::view::components::{ActiveView, ViewRoot};
+
+#[derive(SystemParam)]
+pub struct ViewActionSystemParams<'w> {
+    audio: Res<'w, bevy_kira_audio::Audio>,
+    asset_server: Res<'w, AssetServer>,
+    audio_cache: ResMut<'w, audio::AudioSourceCache>,
+    global_facts: ResMut<'w, LayeredFactDatabase>,
+    pending_events: ResMut<'w, PendingFactEvents>,
+    trigger_history: Option<ResMut<'w, crate::extra::debug::RuleTriggerHistory>>,
+    time: Res<'w, Time>,
+    enum_registry: Res<'w, EnumRegistry>,
+    souprune_config: Res<'w, SoupruneConfig>,
+    event_trace: ResMut<'w, crate::core::trace::EventTraceLog>,
+    fact_history: ResMut<'w, crate::core::trace::FactChangeHistory>,
+    frame_count: Res<'w, bevy::diagnostic::FrameCount>,
+    extensions: Res<'w, ViewActionExtensions>,
+    custom_action_writer: MessageWriter<'w, FreCustomActionEvent>,
+}
 
 fn log_event_rule_matches(event: &FactEvent, rule_groups: &[Vec<&GameRule>]) {
     if !event.id.0.contains("Left") && !event.id.0.contains("Right") {
@@ -85,6 +105,7 @@ fn process_event_view_actions(
     fact_history: &mut crate::core::trace::FactChangeHistory,
     frame_number: u64,
     extensions: &ViewActionExtensions,
+    custom_action_writer: &mut MessageWriter<FreCustomActionEvent>,
 ) {
     let rule_groups = rule_registry.get_matching_rules_grouped(event);
     log_event_rule_matches(event, &rule_groups);
@@ -145,6 +166,7 @@ fn process_event_view_actions(
                     frame_number,
                     &rule.id,
                     extensions,
+                    custom_action_writer,
                 );
             }
 
@@ -163,25 +185,13 @@ pub fn process_view_actions_system(
     mut events: MessageReader<FactEvent>,
     rule_registry: Res<GameRuleRegistry>,
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
-    audio: Res<bevy_kira_audio::Audio>,
-    asset_server: Res<AssetServer>,
-    mut audio_cache: ResMut<audio::AudioSourceCache>,
-    mut global_facts: ResMut<LayeredFactDatabase>,
-    mut pending_events: ResMut<PendingFactEvents>,
-    mut trigger_history: Option<ResMut<crate::extra::debug::RuleTriggerHistory>>,
-    time: Res<Time>,
-    enum_registry: Res<EnumRegistry>,
-    souprune_config: Res<SoupruneConfig>,
-    mut event_trace: ResMut<crate::core::trace::EventTraceLog>,
-    mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
-    frame_count: Res<bevy::diagnostic::FrameCount>,
-    extensions: Res<ViewActionExtensions>,
+    mut params: ViewActionSystemParams,
 ) {
     let events_to_process: Vec<FactEvent> = events.read().cloned().collect();
 
     for event in &events_to_process {
-        let ts = time.elapsed_secs_f64();
-        event_trace.record(
+        let ts = params.time.elapsed_secs_f64();
+        params.event_trace.record(
             crate::core::trace::EventPhase::Logic,
             "FactEvent",
             format!("event '{}'", event.id.0),
@@ -193,19 +203,20 @@ pub fn process_view_actions_system(
             event,
             &rule_registry,
             &mut active_view_query,
-            &audio,
-            &asset_server,
-            &mut audio_cache,
-            &mut global_facts,
-            &mut pending_events,
-            &mut trigger_history,
-            &time,
-            &enum_registry,
-            &souprune_config,
-            &mut event_trace,
-            &mut fact_history,
-            frame_count.0 as u64,
-            &extensions,
+            &params.audio,
+            &params.asset_server,
+            &mut params.audio_cache,
+            &mut params.global_facts,
+            &mut params.pending_events,
+            &mut params.trigger_history,
+            &params.time,
+            &params.enum_registry,
+            &params.souprune_config,
+            &mut params.event_trace,
+            &mut params.fact_history,
+            params.frame_count.0 as u64,
+            &params.extensions,
+            &mut params.custom_action_writer,
         );
     }
 }
@@ -223,6 +234,7 @@ fn execute_action(
     frame_number: u64,
     rule_id: &str,
     extensions: &ViewActionExtensions,
+    custom_action_writer: &mut MessageWriter<FreCustomActionEvent>,
 ) {
     if execute_view_state_action(
         action,
@@ -261,6 +273,11 @@ fn execute_action(
             action_type,
             params,
         } => {
+            let local_facts_snapshot = view_root
+                .local_state()
+                .iter()
+                .map(|(key, value)| (key.clone(), value.clone()))
+                .collect();
             let local_facts = view_root
                 .local_state_mut_for_owner()
                 .as_facts_mut_for_owner();
@@ -281,6 +298,11 @@ fn execute_action(
                     "FRE Bridge: Unhandled custom action '{}' with params {:?}",
                     action_type, params
                 );
+                custom_action_writer.write(FreCustomActionEvent {
+                    action_type: action_type.clone(),
+                    params: params.clone(),
+                    local_facts: local_facts_snapshot,
+                });
             }
         }
         GameActionDef::Log { message } => {

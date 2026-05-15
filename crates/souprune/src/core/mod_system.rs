@@ -18,6 +18,8 @@ use super::wasm_runtime::{self, LoadedMod, WasmRuntime};
 
 mod danmaku_runtime;
 
+mod audio_effects;
+
 mod custom_actions;
 
 mod behaviors;
@@ -52,6 +54,7 @@ impl Plugin for ModPlugin {
             .init_resource::<SpawnPatternRegistry>()
             .init_resource::<host_entities::HostEntityHandles>()
             .init_resource::<host_entities::PendingHostEntityEffects>()
+            .init_resource::<audio_effects::PendingAudioEffects>()
             .add_systems(Startup, load_mods_system)
             .add_systems(
                 schedule,
@@ -74,6 +77,12 @@ impl Plugin for ModPlugin {
             .add_systems(
                 schedule,
                 host_entities::flush_host_entity_effects_system
+                    .after(behaviors::update_behaviors_system)
+                    .after(custom_actions::dispatch_wasm_custom_actions_system),
+            )
+            .add_systems(
+                schedule,
+                audio_effects::flush_audio_effects_system
                     .after(behaviors::update_behaviors_system)
                     .after(custom_actions::dispatch_wasm_custom_actions_system),
             )
@@ -405,6 +414,7 @@ fn dispatch_mode_lifecycle_system(
     mut fact_writer: MessageWriter<bevy_fact_rule_event::FactEvent>,
     mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
     mut host_entity_effects: ResMut<host_entities::PendingHostEntityEffects>,
+    mut audio_effects: ResMut<audio_effects::PendingAudioEffects>,
     frame_count: Res<bevy::diagnostic::FrameCount>,
 ) {
     let events: Vec<crate::core::mode::ModeChanged> = mode_events.read().cloned().collect();
@@ -422,6 +432,7 @@ fn dispatch_mode_lifecycle_system(
                 &mut fact_writer,
                 &mut fact_history,
                 &mut host_entity_effects,
+                &mut audio_effects,
                 &fact_snapshot,
                 frame_count.0 as u64,
                 from,
@@ -437,6 +448,7 @@ fn dispatch_mode_lifecycle_system(
                 &mut fact_writer,
                 &mut fact_history,
                 &mut host_entity_effects,
+                &mut audio_effects,
                 &fact_snapshot,
                 frame_count.0 as u64,
                 to,
@@ -453,6 +465,7 @@ fn dispatch_mode_call(
     fact_writer: &mut MessageWriter<bevy_fact_rule_event::FactEvent>,
     fact_history: &mut crate::core::trace::FactChangeHistory,
     host_entity_effects: &mut host_entities::PendingHostEntityEffects,
+    audio_effects: &mut audio_effects::PendingAudioEffects,
     fact_snapshot: &std::sync::Arc<HashMap<String, bevy_fact_rule_event::FactValue>>,
     frame_number: u64,
     mode: &str,
@@ -501,6 +514,7 @@ fn dispatch_mode_call(
                 fact_writer,
                 fact_history,
                 host_entity_effects,
+                audio_effects,
                 frame_number,
                 &format!("mode-lifecycle:{method}:{}", loaded.name),
             );

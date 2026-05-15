@@ -86,6 +86,10 @@ interface host-api {
         float-val(f64),
         bool-val(bool),
         text-val(string),
+        int-list(list<s64>),
+        float-list(list<f64>),
+        bool-list(list<bool>),
+        text-list(list<string>),
     }
 
     /// Print a log message to the engine console.
@@ -172,6 +176,11 @@ interface host-api {
     /// Set a FRE fact by key. Applied after the current callback returns.
     set-fact: func(key: string, value: fact-value);
 
+    /// Set a persistent FRE fact by key. Applied after the current callback returns.
+    ///
+    /// 按 key 设置持久 FRE fact。当前回调返回后应用。
+    set-global-fact: func(key: string, value: fact-value);
+
     /// Emit a FRE event by name.
     emit-event: func(event-name: string);
 
@@ -194,6 +203,11 @@ interface host-api {
 
     /// Play a sound effect by asset key.
     play-sound: func(sound-key: string);
+
+    /// Play a sound effect by full asset path.
+    ///
+    /// 按完整资源路径播放音效。
+    play-sound-full-path: func(sound-path: string);
 
     /// Get the current mode name. Returns none if no mode is active.
     get-current-mode: func() -> option<string>;

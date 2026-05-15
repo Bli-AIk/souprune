@@ -39,6 +39,10 @@ use std::collections::HashMap;
 pub struct FreCustomActionEvent {
     pub action_type: String,
     pub params: HashMap<String, String>,
+    /// View-local facts captured when a view-scoped rule emitted this action.
+    ///
+    /// View 作用域规则发出该 action 时捕获的 View 局部事实。
+    pub local_facts: HashMap<String, bevy_fact_rule_event::FactValue>,
 }
 
 /// Plugin for FRE-View bridge systems.
