@@ -4,7 +4,7 @@
 //!
 //! Core danmaku (bullet hell) system - generic and state-agnostic.
 //! This module provides the foundation for bullet pattern systems that can be
-//! used in both Battle and Overworld states.
+//! used in both project modes states.
 //!
 //! ## 模块概述
 //!

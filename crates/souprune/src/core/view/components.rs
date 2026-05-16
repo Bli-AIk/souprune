@@ -1,4 +1,4 @@
-//! Overworld UI components used by the top_down app state.
+//! top-down UI components used by the top_down app state.
 //!
 //! 用于 top_down 应用状态的 UI 组件。
 //!

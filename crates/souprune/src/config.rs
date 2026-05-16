@@ -285,7 +285,7 @@ pub enum ModePrimitiveConfig {
     Chase,
     AlightMotion,
     SpeechBubble,
-    BattleMenuState,
+    MenuProjection,
 }
 
 /// Project-owned runtime mode declaration.
@@ -313,6 +313,11 @@ pub struct ModeConfig {
     ///
     /// fixed-camera scene primitive 使用的缩放。
     pub fixed_camera_zoom: Option<f32>,
+
+    /// Optional mode-scoped Alight Motion runtime configuration path.
+    ///
+    /// 可选的 mode 作用域 Alight Motion 运行时配置路径。
+    pub alight_motion_config: Option<String>,
 }
 
 impl ModeConfig {
@@ -679,6 +684,9 @@ fn merge_mode_config(target: &mut ModeConfig, incoming: ModeConfig) {
     target.rules.extend(incoming.rules);
     if incoming.fixed_camera_zoom.is_some() {
         target.fixed_camera_zoom = incoming.fixed_camera_zoom;
+    }
+    if incoming.alight_motion_config.is_some() {
+        target.alight_motion_config = incoming.alight_motion_config;
     }
 }
 

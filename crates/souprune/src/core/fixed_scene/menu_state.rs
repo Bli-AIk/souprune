@@ -1,8 +1,8 @@
-//! Battle menu derived state ownership.
+//! Menu projection derived state ownership.
 //!
 //! battle 菜单派生状态的所有权边界。
 //!
-//! This module owns the runtime-only values that are derived from battle menu
+//! This module owns the runtime-only values that are derived from menu projection
 //! selection and player inventory. FRE rules still own explicit menu commands
 //! such as changing `depth`, `menu_context`, or `item_selection`; this module
 //! only publishes the read-only display facts consumed by the View.
@@ -26,16 +26,16 @@ const ITEM_MENU_CONTEXT: i64 = 2;
 ///
 /// 跟踪上一次物品状态投影，避免不必要地重写展示列表。
 #[derive(Resource, Default)]
-pub struct BattleMenuStateTracker {
+pub struct MenuProjectionTracker {
     last_in_item_mode: bool,
     last_inventory: Vec<String>,
 }
 
-/// Synchronize battle menu derived state for the active View.
+/// Synchronize menu projection derived state for the active View.
 ///
 /// 同步激活 View 的 battle 菜单派生状态。
-pub fn sync_battle_menu_state_system(
-    mut tracker: ResMut<BattleMenuStateTracker>,
+pub fn sync_menu_projection_system(
+    mut tracker: ResMut<MenuProjectionTracker>,
     mut view_roots: Query<&mut ViewRoot, With<ActiveView>>,
     layered_db: Res<LayeredFactDatabase>,
     mortar_strings: Res<MortarStringTable>,
@@ -44,11 +44,11 @@ pub fn sync_battle_menu_state_system(
         return;
     };
 
-    sync_battle_menu_state_for_view(&mut tracker, &mut view_root, &layered_db, &mortar_strings);
+    sync_menu_projection_for_view(&mut tracker, &mut view_root, &layered_db, &mortar_strings);
 }
 
-pub(crate) fn sync_battle_menu_state_for_view(
-    tracker: &mut BattleMenuStateTracker,
+pub(crate) fn sync_menu_projection_for_view(
+    tracker: &mut MenuProjectionTracker,
     view_root: &mut ViewRoot,
     layered_db: &LayeredFactDatabase,
     mortar_strings: &MortarStringTable,
@@ -104,7 +104,7 @@ fn item_page_count(item_count: usize) -> i64 {
     ((item_count as i64 + ITEM_PAGE_SIZE - 1) / ITEM_PAGE_SIZE).max(1)
 }
 
-/// Resolve an item's display name for the battle menu.
+/// Resolve an item's display name for the menu projection.
 ///
 /// 解析物品在 battle 菜单中的显示名称。
 fn resolve_item_display_name(
@@ -141,7 +141,7 @@ mod tests {
 
     #[test]
     fn clamps_stale_item_selection_to_last_inventory_item() {
-        let mut tracker = BattleMenuStateTracker::default();
+        let mut tracker = MenuProjectionTracker::default();
         let mut view_root = item_mode_view(8);
         let mut layered_db = LayeredFactDatabase::new();
         layered_db.set_global(
@@ -160,7 +160,7 @@ mod tests {
         );
         let mortar_strings = MortarStringTable::default();
 
-        sync_battle_menu_state_for_view(&mut tracker, &mut view_root, &layered_db, &mortar_strings);
+        sync_menu_projection_for_view(&mut tracker, &mut view_root, &layered_db, &mortar_strings);
 
         assert_eq!(view_root.local_state().get_int("item_selection"), Some(4));
         assert_eq!(view_root.local_state().get_int("item_page"), Some(2));
@@ -170,13 +170,13 @@ mod tests {
 
     #[test]
     fn keeps_empty_inventory_on_page_one() {
-        let mut tracker = BattleMenuStateTracker::default();
+        let mut tracker = MenuProjectionTracker::default();
         let mut view_root = item_mode_view(3);
         let mut layered_db = LayeredFactDatabase::new();
         layered_db.set_global("player:inventory", FactValue::StringList(Vec::new()));
         let mortar_strings = MortarStringTable::default();
 
-        sync_battle_menu_state_for_view(&mut tracker, &mut view_root, &layered_db, &mortar_strings);
+        sync_menu_projection_for_view(&mut tracker, &mut view_root, &layered_db, &mortar_strings);
 
         assert_eq!(view_root.local_state().get_int("item_selection"), Some(0));
         assert_eq!(view_root.local_state().get_int("item_page"), Some(1));

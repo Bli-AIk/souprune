@@ -8,7 +8,7 @@
 //!
 //! This module manages top_down player movement, facing, and animation states.
 //!
-//! 该模块负责 Overworld 玩家移动、朝向与动画状态的管理。
+//! 该模块负责 top-down 玩家移动、朝向与动画状态的管理。
 //!
 //! ## Source File Overview
 //!
@@ -60,7 +60,7 @@ impl Plugin for PlayerPlugin {
             }
             Err(e) => {
                 bevy::log::warn!(
-                    "Player behavior config not loaded: {}. Overworld player systems will be disabled.",
+                    "Player behavior config not loaded: {}. top-down player systems will be disabled.",
                     e
                 );
             }
@@ -85,7 +85,7 @@ fn spawn_player_on_event(
         return;
     };
 
-    spawn_overworld_player(
+    spawn_top_down_player(
         &mut commands,
         &mut sprite_params,
         &player_input,
@@ -108,7 +108,7 @@ pub(super) fn force_player_idle_on_state_change_system(
     }
 }
 
-pub fn spawn_overworld_player(
+pub fn spawn_top_down_player(
     commands: &mut Commands,
     sprite_params: &mut SpriteParams,
     player_input: &Res<PlayerInputSettings>,
@@ -149,7 +149,7 @@ pub fn spawn_overworld_player(
     };
 
     commands.spawn((
-        Name::new("OverworldPlayer"),
+        Name::new("TopDownPlayer"),
         StateIdle,
         PlayerControlled,
         BulletTarget::new(),

@@ -70,6 +70,7 @@ fn mod_game_config_accepts_project_declared_modes() {
         primitives = ["fixed_scene", "sequencer", "danmaku"]
         entry_sequence = "encounters/start.sequence.ron"
         fixed_camera_zoom = 1.5
+        alight_motion_config = "encounters/alight_motion_config.ron"
         "#,
     )
     .expect("mode config should parse");
@@ -82,6 +83,10 @@ fn mod_game_config_accepts_project_declared_modes() {
     assert!(modes["field"].has_primitive(ModePrimitiveConfig::TopDownMap));
     assert!(modes["encounter"].has_primitive(ModePrimitiveConfig::FixedScene));
     assert_eq!(modes["encounter"].fixed_camera_zoom(), 1.5);
+    assert_eq!(
+        modes["encounter"].alight_motion_config.as_deref(),
+        Some("encounters/alight_motion_config.ron")
+    );
 }
 
 #[test]

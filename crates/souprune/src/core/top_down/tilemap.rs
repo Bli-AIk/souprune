@@ -8,7 +8,7 @@
 //!
 //! This module manages the top_down tilemap setup, initialization, and render ordering.
 //!
-//! 该模块管理 Overworld 瓦片地图的设置、初始化以及渲染顺序。
+//! 该模块管理 top-down 瓦片地图的设置、初始化以及渲染顺序。
 //!
 //! ## Source File Overview
 //!

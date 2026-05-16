@@ -16,7 +16,7 @@ use crate::core::fixed_scene::{
 };
 use crate::core::fixed_scene::{
     alight_motion_integration::AlightMotionFixedScenePlugin, danmaku::DanmakuPlugin,
-    fre::BattleFREPlugin, speech_bubble,
+    fre::FixedSceneFREPlugin, speech_bubble,
 };
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::mode::{
@@ -64,21 +64,25 @@ impl Plugin for FixedScenePlugin {
             SequencerPlugin,
             DanmakuPlugin,
             AlightMotionFixedScenePlugin,
-            BattleFREPlugin,
-            speech_bubble::BattleSpeechBubblePlugin,
+            FixedSceneFREPlugin,
+            speech_bubble::SceneSpeechBubblePlugin,
         ))
         .add_systems(
             schedule,
             (
                 load_fixed_scene_entry_sequence_system,
-                setup_battle_camera,
-                setup_battle_input_manager,
+                setup_fixed_scene_camera,
+                setup_fixed_scene_input_manager,
             )
                 .run_if(on_entering_fixed_scene),
         )
         .add_systems(
             schedule,
-            (cleanup_battle_camera, cleanup_battle_input_manager).run_if(on_exiting_fixed_scene),
+            (
+                cleanup_fixed_scene_camera,
+                cleanup_fixed_scene_input_manager,
+            )
+                .run_if(on_exiting_fixed_scene),
         );
     }
 }
@@ -108,7 +112,7 @@ fn load_fixed_scene_entry_sequence_system(
     info!("FixedScene: Loading entry sequence from '{sequence_path}' for mode '{mode_name}'");
 }
 
-fn setup_battle_camera(
+fn setup_fixed_scene_camera(
     mut commands: Commands,
     mut q_game_cameras: Query<
         (Entity, &mut Camera),
@@ -142,7 +146,7 @@ fn setup_battle_camera(
     );
 
     // Capture render target and camera order before deactivating the main game camera,
-    // so the battle camera inherits them (e.g. editor texture render target).
+    // so the fixed-scene camera inherits them (e.g. editor texture render target).
     let mut inherited_order: isize = 0;
     let mut inherited_target: Option<bevy::camera::RenderTarget> = None;
 
@@ -153,18 +157,19 @@ fn setup_battle_camera(
     }
 
     #[cfg(target_os = "android")]
-    let projection = battle_projection(&config.render, zoom, BattleProjectionPlatform::Android);
+    let projection =
+        fixed_scene_projection(&config.render, zoom, FixedSceneProjectionPlatform::Android);
     #[cfg(not(target_os = "android"))]
-    let projection = battle_projection(
+    let projection = fixed_scene_projection(
         &config.render,
         zoom,
-        BattleProjectionPlatform::Desktop {
+        FixedSceneProjectionPlatform::Desktop {
             resolution_scale: scale_value,
         },
     );
 
     info!(
-        "[Battle] Inherited camera settings: order={}, has_render_target={}",
+        "[Sequencer] Inherited camera settings: order={}, has_render_target={}",
         inherited_order,
         inherited_target.is_some()
     );
@@ -191,18 +196,18 @@ fn setup_battle_camera(
 }
 
 #[derive(Clone, Copy)]
-enum BattleProjectionPlatform {
+enum FixedSceneProjectionPlatform {
     Android,
     Desktop { resolution_scale: u32 },
 }
 
-fn battle_projection(
+fn fixed_scene_projection(
     render_config: &crate::config::RenderConfig,
     fixed_scene_camera_zoom: f32,
-    platform: BattleProjectionPlatform,
+    platform: FixedSceneProjectionPlatform,
 ) -> Projection {
     match platform {
-        BattleProjectionPlatform::Android => Projection::Orthographic(OrthographicProjection {
+        FixedSceneProjectionPlatform::Android => Projection::Orthographic(OrthographicProjection {
             scaling_mode: bevy::camera::ScalingMode::Fixed {
                 width: render_config.base_resolution_width as f32,
                 height: render_config.base_resolution_height as f32,
@@ -210,7 +215,7 @@ fn battle_projection(
             scale: fixed_scene_camera_zoom,
             ..OrthographicProjection::default_2d()
         }),
-        BattleProjectionPlatform::Desktop { resolution_scale } => {
+        FixedSceneProjectionPlatform::Desktop { resolution_scale } => {
             Projection::Orthographic(OrthographicProjection {
                 scale: fixed_scene_camera_zoom / resolution_scale as f32,
                 ..OrthographicProjection::default_2d()
@@ -219,12 +224,12 @@ fn battle_projection(
     }
 }
 
-/// Sets up the Battle input manager entity with ActionState for handling UI navigation.
+/// Sets up the fixed-scene input manager entity with ActionState for handling UI navigation.
 /// Uses input configuration from PlayerInputSettings resource.
 ///
 /// 设置 Battle 输入管理器实体，用于处理 UI 导航的 ActionState。
 /// 使用来自 PlayerInputSettings 资源的输入配置。
-fn setup_battle_input_manager(
+fn setup_fixed_scene_input_manager(
     mut commands: Commands,
     player_input_settings: Res<PlayerInputSettings>,
     sequence_mode: Res<SequenceMode>,
@@ -246,10 +251,10 @@ fn setup_battle_input_manager(
     info!("[FixedScene] Input manager spawned with project input configuration");
 }
 
-/// Reactivates the main game camera when exiting Battle state.
+/// Reactivates the main game camera when exiting fixed-scene mode.
 ///
-/// 退出 Battle 状态时恢复主游戏相机。
-fn cleanup_battle_camera(
+/// 退出 fixed-scene mode时恢复主游戏相机。
+fn cleanup_fixed_scene_camera(
     mut q_game_cameras: Query<
         &mut Camera,
         (
@@ -264,10 +269,10 @@ fn cleanup_battle_camera(
     }
 }
 
-/// Cleans up the Battle input manager when exiting Battle state.
+/// Cleans up the fixed-scene input manager when exiting fixed-scene mode.
 ///
-/// 退出 Battle 状态时清理 Battle 输入管理器。
-fn cleanup_battle_input_manager(
+/// 退出 fixed-scene mode时清理 Battle 输入管理器。
+fn cleanup_fixed_scene_input_manager(
     mut commands: Commands,
     query: Query<Entity, With<FixedSceneInputManager>>,
 ) {
@@ -293,12 +298,12 @@ mod tests {
     }
 
     #[test]
-    fn android_battle_projection_applies_battle_zoom_to_fixed_base_resolution() {
+    fn android_fixed_scene_projection_applies_battle_zoom_to_fixed_base_resolution() {
         let size = visible_size(
-            battle_projection(
+            fixed_scene_projection(
                 &crate::config::RenderConfig::default(),
                 2.0,
-                BattleProjectionPlatform::Android,
+                FixedSceneProjectionPlatform::Android,
             ),
             1920.0,
             1080.0,
@@ -308,12 +313,12 @@ mod tests {
     }
 
     #[test]
-    fn desktop_battle_projection_keeps_existing_resolution_scale_mapping() {
+    fn desktop_fixed_scene_projection_keeps_existing_resolution_scale_mapping() {
         let size = visible_size(
-            battle_projection(
+            fixed_scene_projection(
                 &crate::config::RenderConfig::default(),
                 2.0,
-                BattleProjectionPlatform::Desktop {
+                FixedSceneProjectionPlatform::Desktop {
                     resolution_scale: 2,
                 },
             ),

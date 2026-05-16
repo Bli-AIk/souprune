@@ -20,13 +20,13 @@ use crate::core::view::{ActiveView, ViewRoot};
 /// Default dialogue channel for battle enemy speech.
 ///
 /// 战斗敌人对话的默认 dialogue 通道。
-pub const BATTLE_ENEMY_SPEECH_CHANNEL: &str = "battle_enemy_speech";
+pub const DEFAULT_SCENE_SPEECH_CHANNEL: &str = "battle_enemy_speech";
 
 /// Static presentation profile for a battle speech bubble.
 ///
 /// 战斗对话气泡的静态表现配置。
 #[derive(Debug, Clone)]
-pub struct BattleSpeechBubbleProfile {
+pub struct SceneSpeechBubbleProfile {
     /// Bubble sprite visual path.
     ///
     /// 气泡贴图资源路径。
@@ -61,7 +61,7 @@ pub struct BattleSpeechBubbleProfile {
     pub typewriter_speed: f64,
 }
 
-impl BattleSpeechBubbleProfile {
+impl SceneSpeechBubbleProfile {
     fn mad_dummy_wide() -> Self {
         Self {
             bubble_visual: "battle/speech_bubble/mad_dummy_wide.png",
@@ -80,7 +80,7 @@ impl BattleSpeechBubbleProfile {
 ///
 /// 投影到当前战斗 View 的运行时表现状态。
 #[derive(Debug, Clone)]
-struct BattleSpeechBubblePresentation {
+struct SceneSpeechBubblePresentation {
     visible: bool,
     bubble_visual: String,
     bubble_x: f64,
@@ -90,8 +90,8 @@ struct BattleSpeechBubblePresentation {
     text_width: f64,
 }
 
-impl BattleSpeechBubblePresentation {
-    fn visible(profile: &BattleSpeechBubbleProfile) -> Self {
+impl SceneSpeechBubblePresentation {
+    fn visible(profile: &SceneSpeechBubbleProfile) -> Self {
         Self {
             visible: true,
             bubble_visual: profile.bubble_visual.to_string(),
@@ -152,7 +152,7 @@ impl BattleSpeechBubblePresentation {
 ///
 /// 启动战斗敌人对话气泡的请求。
 #[derive(Message, Debug, Clone)]
-pub struct BattleSpeechBubbleRequest {
+pub struct SceneSpeechBubbleRequest {
     /// Typed bubble request data.
     ///
     /// 类型化的气泡请求数据。
@@ -160,11 +160,11 @@ pub struct BattleSpeechBubbleRequest {
 }
 
 #[derive(Resource, Default)]
-struct BattleSpeechBubbleRuntime {
-    active: Option<BattleSpeechBubbleActive>,
+struct SceneSpeechBubbleRuntime {
+    active: Option<SceneSpeechBubbleActive>,
 }
 
-struct BattleSpeechBubbleActive {
+struct SceneSpeechBubbleActive {
     channel: String,
     advance: BattleSpeechBubbleAdvance,
     timer: Option<Timer>,
@@ -174,21 +174,21 @@ struct BattleSpeechBubbleActive {
 /// Plugin that binds battle speech bubble requests to Core Dialogue.
 ///
 /// 将战斗对话气泡请求绑定到 Core Dialogue 的插件。
-pub struct BattleSpeechBubblePlugin;
+pub struct SceneSpeechBubblePlugin;
 
-impl Plugin for BattleSpeechBubblePlugin {
+impl Plugin for SceneSpeechBubblePlugin {
     fn build(&self, app: &mut App) {
         let schedule = crate::game_schedule(app);
-        app.add_message::<BattleSpeechBubbleRequest>()
-            .init_resource::<BattleSpeechBubbleRuntime>()
+        app.add_message::<SceneSpeechBubbleRequest>()
+            .init_resource::<SceneSpeechBubbleRuntime>()
             .add_systems(
                 schedule,
                 (
-                    process_battle_speech_bubble_chapter_system
+                    process_scene_speech_bubble_chapter_system
                         .after(crate::core::sequencer::flow::advance_battle_flow_system),
                     forward_danmaku_cues_to_speech_bubble_requests,
-                    start_battle_speech_bubble_requests,
-                    update_battle_speech_bubble_runtime,
+                    start_scene_speech_bubble_requests,
+                    update_scene_speech_bubble_runtime,
                 )
                     .chain()
                     .in_set(FixedSceneUpdate),
@@ -199,47 +199,47 @@ impl Plugin for BattleSpeechBubblePlugin {
 /// Processes typed battle speech bubble sequencer chapters.
 ///
 /// 处理类型化战斗对话气泡序列章节。
-pub fn process_battle_speech_bubble_chapter_system(
+pub fn process_scene_speech_bubble_chapter_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), Without<ChapterFinished>>,
-    mut requests: MessageWriter<BattleSpeechBubbleRequest>,
+    mut requests: MessageWriter<SceneSpeechBubbleRequest>,
 ) {
     for (entity, active_chapter) in &query {
         let Chapter::BattleSpeechBubble(bubble) = &active_chapter.chapter else {
             continue;
         };
 
-        requests.write(BattleSpeechBubbleRequest {
+        requests.write(SceneSpeechBubbleRequest {
             bubble: bubble.clone(),
         });
         commands.entity(entity).insert(ChapterFinished);
     }
 }
 
-fn resolve_frame(frame: BattleSpeechBubbleFrame) -> BattleSpeechBubbleProfile {
+fn resolve_frame(frame: BattleSpeechBubbleFrame) -> SceneSpeechBubbleProfile {
     match frame {
-        BattleSpeechBubbleFrame::MadDummyWide => BattleSpeechBubbleProfile::mad_dummy_wide(),
+        BattleSpeechBubbleFrame::MadDummyWide => SceneSpeechBubbleProfile::mad_dummy_wide(),
     }
 }
 
 fn forward_danmaku_cues_to_speech_bubble_requests(
     mut cues: MessageReader<DanmakuTimelineCueEvent>,
-    mut requests: MessageWriter<BattleSpeechBubbleRequest>,
+    mut requests: MessageWriter<SceneSpeechBubbleRequest>,
 ) {
     for cue in cues.read() {
         if let TimelineCueDef::BattleSpeechBubble(bubble) = &cue.cue {
-            requests.write(BattleSpeechBubbleRequest {
+            requests.write(SceneSpeechBubbleRequest {
                 bubble: bubble.clone(),
             });
         }
     }
 }
 
-fn start_battle_speech_bubble_requests(
-    mut requests: MessageReader<BattleSpeechBubbleRequest>,
+fn start_scene_speech_bubble_requests(
+    mut requests: MessageReader<SceneSpeechBubbleRequest>,
     mut facts: ResMut<LayeredFactDatabase>,
     mut view_roots: Query<&mut ViewRoot, With<ActiveView>>,
-    mut runtime: ResMut<BattleSpeechBubbleRuntime>,
+    mut runtime: ResMut<SceneSpeechBubbleRuntime>,
 ) {
     let Ok(mut view_root) = view_roots.single_mut() else {
         return;
@@ -263,7 +263,7 @@ fn start_battle_speech_bubble_requests(
             .map(f64::from)
             .unwrap_or(profile.typewriter_speed);
 
-        BattleSpeechBubblePresentation::visible(&profile).apply_to_view(&mut view_root);
+        SceneSpeechBubblePresentation::visible(&profile).apply_to_view(&mut view_root);
 
         facts.set(
             fre_facts::DIALOGUE_PENDING_CHANNEL,
@@ -305,7 +305,7 @@ fn start_battle_speech_bubble_requests(
             );
         }
 
-        runtime.active = Some(BattleSpeechBubbleActive {
+        runtime.active = Some(SceneSpeechBubbleActive {
             channel,
             advance: bubble.advance,
             timer,
@@ -314,9 +314,9 @@ fn start_battle_speech_bubble_requests(
     }
 }
 
-fn update_battle_speech_bubble_runtime(
+fn update_scene_speech_bubble_runtime(
     time: Res<Time>,
-    mut runtime: ResMut<BattleSpeechBubbleRuntime>,
+    mut runtime: ResMut<SceneSpeechBubbleRuntime>,
     mut view_roots: Query<&mut ViewRoot, With<ActiveView>>,
     facts: Res<LayeredFactDatabase>,
     mut mortar_events: MessageWriter<MortarEvent>,
@@ -347,7 +347,7 @@ fn update_battle_speech_bubble_runtime(
     }
 
     if let Ok(mut view_root) = view_roots.single_mut() {
-        BattleSpeechBubblePresentation::hidden_from_current(&view_root)
+        SceneSpeechBubblePresentation::hidden_from_current(&view_root)
             .apply_to_view(&mut view_root);
     }
 
@@ -375,7 +375,7 @@ mod tests {
         advance: BattleSpeechBubbleAdvance,
     ) -> BattleSpeechBubbleDef {
         BattleSpeechBubbleDef {
-            channel: BATTLE_ENEMY_SPEECH_CHANNEL.into(),
+            channel: DEFAULT_SCENE_SPEECH_CHANNEL.into(),
             mortar_path: "battle/enemies/mad_dummy.mortar".into(),
             mortar_node: "enemy_speech_manual_intro".into(),
             frame: BattleSpeechBubbleFrame::MadDummyWide,
@@ -389,25 +389,25 @@ mod tests {
 
     fn app_with_speech_bubble(text_style: Option<&str>) -> App {
         let mut app = App::new();
-        app.add_message::<BattleSpeechBubbleRequest>();
-        app.init_resource::<BattleSpeechBubbleRuntime>();
+        app.add_message::<SceneSpeechBubbleRequest>();
+        app.init_resource::<SceneSpeechBubbleRuntime>();
         app.init_resource::<Time>();
         app.insert_resource(LayeredFactDatabase::new());
         app.world_mut().spawn((
             ViewRoot::new("battle/view/undertale.view.ron".into()),
             ActiveView,
         ));
-        app.world_mut().write_message(BattleSpeechBubbleRequest {
+        app.world_mut().write_message(SceneSpeechBubbleRequest {
             bubble: speech_bubble(text_style),
         });
-        app.add_systems(Update, start_battle_speech_bubble_requests);
+        app.add_systems(Update, start_scene_speech_bubble_requests);
         app
     }
 
     #[test]
     fn speech_bubble_presentation_projects_visible_profile_to_view_state() {
-        let profile = BattleSpeechBubbleProfile::mad_dummy_wide();
-        let presentation = BattleSpeechBubblePresentation::visible(&profile);
+        let profile = SceneSpeechBubbleProfile::mad_dummy_wide();
+        let presentation = SceneSpeechBubblePresentation::visible(&profile);
         let mut view_root = ViewRoot::new("battle/view/undertale.view.ron".into());
 
         presentation.apply_to_view(&mut view_root);
@@ -453,7 +453,7 @@ mod tests {
         let facts = app.world().resource::<LayeredFactDatabase>();
         assert_eq!(
             facts.get_string(&fre_facts::dialogue_channel_key(
-                BATTLE_ENEMY_SPEECH_CHANNEL,
+                DEFAULT_SCENE_SPEECH_CHANNEL,
                 fre_facts::DIALOGUE_TEXT_STYLE_FIELD,
             )),
             None,
@@ -469,7 +469,7 @@ mod tests {
         let facts = app.world().resource::<LayeredFactDatabase>();
         assert_eq!(
             facts.get_string(&fre_facts::dialogue_channel_key(
-                BATTLE_ENEMY_SPEECH_CHANNEL,
+                DEFAULT_SCENE_SPEECH_CHANNEL,
                 fre_facts::DIALOGUE_TEXT_STYLE_FIELD,
             )),
             Some("mad_dummy"),
@@ -480,17 +480,17 @@ mod tests {
     fn manual_speech_bubble_hides_after_dialogue_finishes() {
         let mut app = app_with_speech_bubble(None);
         app.add_message::<MortarEvent>();
-        app.add_systems(Update, update_battle_speech_bubble_runtime);
+        app.add_systems(Update, update_scene_speech_bubble_runtime);
 
         app.update();
         {
             let mut facts = app.world_mut().resource_mut::<LayeredFactDatabase>();
             facts.set(
-                fre_facts::dialogue_channel_key(BATTLE_ENEMY_SPEECH_CHANNEL, "active"),
+                fre_facts::dialogue_channel_key(DEFAULT_SCENE_SPEECH_CHANNEL, "active"),
                 FactValue::Bool(false),
             );
             facts.set(
-                fre_facts::dialogue_channel_key(BATTLE_ENEMY_SPEECH_CHANNEL, "finished"),
+                fre_facts::dialogue_channel_key(DEFAULT_SCENE_SPEECH_CHANNEL, "finished"),
                 FactValue::Bool(true),
             );
         }

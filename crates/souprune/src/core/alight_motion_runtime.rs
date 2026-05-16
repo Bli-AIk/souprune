@@ -1,6 +1,6 @@
 //! Shared Alight Motion runtime state and events.
 //!
-//! 供 core sequencer 与 battle 集成共同使用的 Alight Motion 运行时类型。
+//! 供 core sequencer 与 fixed-scene 集成共同使用的 Alight Motion 运行时类型。
 
 use bevy::prelude::*;
 
@@ -17,7 +17,7 @@ pub struct AlightMotionPerformanceState {
 #[derive(bevy::ecs::message::Message, Debug, Clone)]
 pub struct PlayAlightMotionPerformanceEvent {
     pub amproj_path: String,
-    pub alight_motion_config_path: Option<String>,
+    pub scene_config_path: Option<String>,
     pub wait_for_completion: bool,
 }
 
@@ -25,15 +25,15 @@ impl PlayAlightMotionPerformanceEvent {
     pub fn new(amproj_path: String) -> Self {
         Self {
             amproj_path,
-            alight_motion_config_path: None,
+            scene_config_path: None,
             wait_for_completion: true,
         }
     }
 
-    pub fn with_config(amproj_path: String, alight_motion_config_path: Option<String>) -> Self {
+    pub fn with_config(amproj_path: String, scene_config_path: Option<String>) -> Self {
         Self {
             amproj_path,
-            alight_motion_config_path,
+            scene_config_path,
             wait_for_completion: true,
         }
     }

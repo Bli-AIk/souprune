@@ -2,7 +2,7 @@
 //!
 //! ## Module Overview
 //!
-//! AwaitFact systems for the battle sequencer.
+//! AwaitFact systems for the fixed-scene sequencer.
 //! This module implements reactive fact-based blocking for chapter sequences.
 //!
 //! 战斗序列管理器的 AwaitFact 系统。
@@ -43,7 +43,7 @@ pub fn process_await_fact_system(
     for (chapter_entity, active_chapter) in query.iter() {
         if let Chapter::AwaitFact { condition, local } = &active_chapter.chapter {
             info!(
-                "[Battle] Starting AwaitFact with condition: '{}' (local: {})",
+                "[Sequencer] Starting AwaitFact with condition: '{}' (local: {})",
                 condition, local
             );
 
@@ -75,7 +75,7 @@ pub fn check_await_fact_completion_system(
                 );
                 evaluate_single_condition(&awaiting.condition, &combined, &enum_registry)
             } else {
-                warn!("[Battle] No ViewRoot found for local fact evaluation!");
+                warn!("[Sequencer] No ViewRoot found for local fact evaluation!");
                 false
             }
         } else {
@@ -85,7 +85,7 @@ pub fn check_await_fact_completion_system(
 
         if condition_met {
             info!(
-                "[Battle] AwaitFact condition '{}' met, completing chapter",
+                "[Sequencer] AwaitFact condition '{}' met, completing chapter",
                 awaiting.condition
             );
             commands.entity(chapter_entity).insert(ChapterFinished);

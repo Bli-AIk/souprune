@@ -9,7 +9,7 @@ use crate::core::top_down::character::components::PlayerControlled;
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
 
-pub(crate) fn sync_overworld_screen_facts_system(
+pub(crate) fn sync_top_down_screen_facts_system(
     mut facts: ResMut<LayeredFactDatabase>,
     mut event_writer: MessageWriter<FactEvent>,
     state_config: Option<Res<LoadedStateConfig>>,

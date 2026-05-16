@@ -32,7 +32,7 @@ pub struct FixedSceneMovementSet;
 #[derive(Component)]
 pub struct FixedSceneCamera;
 
-/// Marker component for the battle input manager entity.
+/// Marker component for the fixed-scene input manager entity.
 /// This entity holds the battle mode `ActionState<Action>`.
 #[derive(Component)]
 pub struct FixedSceneInputManager;

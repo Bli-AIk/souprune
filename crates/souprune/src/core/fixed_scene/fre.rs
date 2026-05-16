@@ -1,6 +1,6 @@
 //! # fre.rs
 //!
-//! Battle FRE (Fact-Rule-Event) integration module.
+//! FixedScene FRE (Fact-Rule-Event) integration module.
 //!
 //! 战斗 FRE（事实-规则-事件）集成模块。
 //!
@@ -13,7 +13,7 @@ mod action_handlers;
 mod bridge;
 
 use crate::core::fixed_scene::FixedSceneUpdate;
-use crate::core::fixed_scene::menu_state::{BattleMenuStateTracker, sync_battle_menu_state_system};
+use crate::core::fixed_scene::menu_state::{MenuProjectionTracker, sync_menu_projection_system};
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::mode::SequenceMode;
 use crate::core::sequencer::SequenceRulesHandle;
@@ -24,7 +24,7 @@ use crate::core::game_action::{GameFreAsset, GameRuleRegistry};
 use leafwing_input_manager::action_state::ActionState;
 
 pub use crate::core::fixed_scene::speech_bubble::{
-    BATTLE_ENEMY_SPEECH_CHANNEL, BattleSpeechBubbleRequest,
+    DEFAULT_SCENE_SPEECH_CHANNEL, SceneSpeechBubbleRequest,
 };
 pub use action_handlers::{
     apply_pending_damage_system, has_pending_damage, setup_battle_action_handlers_system,
@@ -33,53 +33,56 @@ pub use bridge::{
     ChapterCompletedEvent, emit_chapter_completed_events_system, has_chapter_completed_events,
 };
 
-/// System set for Battle FRE processing.
+/// System set for FixedScene FRE processing.
 ///
 /// 战斗 FRE 处理的系统集。
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct BattleFRESet;
+pub struct FixedSceneFRESet;
 
-/// Marker component for the battle input entity.
+/// Marker component for the fixed-scene input entity.
 /// This entity carries ActionState for FRE input processing during battle.
 ///
 /// 战斗输入实体的标记组件。
 /// 此实体在战斗期间携带 ActionState 用于 FRE 输入处理。
 #[derive(Component)]
-pub struct BattleInputEntity;
+pub struct FixedSceneFreInputEntity;
 
-/// Plugin for Battle FRE integration.
+/// Plugin for FixedScene FRE integration.
 ///
 /// 战斗 FRE 集成插件。
-pub struct BattleFREPlugin;
+pub struct FixedSceneFREPlugin;
 
-impl Plugin for BattleFREPlugin {
+impl Plugin for FixedSceneFREPlugin {
     fn build(&self, app: &mut App) {
         let schedule = crate::game_schedule(app);
         app.add_message::<ChapterCompletedEvent>()
-            .init_resource::<BattleMenuStateTracker>()
-            .configure_sets(schedule, BattleFRESet.in_set(FixedSceneUpdate))
+            .init_resource::<MenuProjectionTracker>()
+            .configure_sets(schedule, FixedSceneFRESet.in_set(FixedSceneUpdate))
             .add_systems(
                 schedule,
-                (setup_battle_fre_system, setup_battle_action_handlers_system)
+                (
+                    setup_fixed_scene_fre_system,
+                    setup_battle_action_handlers_system,
+                )
                     .run_if(super::on_entering_fixed_scene),
             )
             .add_systems(
                 schedule,
-                cleanup_battle_fre_system.run_if(super::on_exiting_fixed_scene),
+                cleanup_fixed_scene_fre_system.run_if(super::on_exiting_fixed_scene),
             )
             .add_systems(
                 schedule,
                 (
-                    register_battle_rules_system,
+                    register_fixed_scene_rules_system,
                     emit_chapter_completed_events_system.run_if(has_chapter_completed_events),
                     apply_pending_damage_system.run_if(has_pending_damage),
-                    sync_battle_menu_state_system,
+                    sync_menu_projection_system,
                     // Note: Battle UI navigation is now handled by FRE rules in battle_menu.fre.ron
                     // The core::fre_bridge::FREBridgePlugin provides ActionEvent-to-FRE conversion
                     // 注意：战斗 UI 导航现在由 battle_menu.fre.ron 中的 FRE 规则处理
                     // core::fre_bridge::FREBridgePlugin 提供 ActionEvent 到 FRE 的转换
                 )
-                    .in_set(BattleFRESet),
+                    .in_set(FixedSceneFRESet),
             );
     }
 }
@@ -91,7 +94,7 @@ impl Plugin for BattleFREPlugin {
 /// 进入战斗时初始化 FRE 状态的系统。
 /// 清空局部层并设置初始战斗事实。
 /// 玩家数据已由 data.rs 模块存储在全局层中。
-fn setup_battle_fre_system(
+fn setup_fixed_scene_fre_system(
     mut commands: Commands,
     mut layered_db: ResMut<LayeredFactDatabase>,
     player_input: Res<PlayerInputSettings>,
@@ -112,17 +115,17 @@ fn setup_battle_fre_system(
     // Spawn input entity for FRE to receive ActionState events
     // 生成输入实体，用于 FRE 接收 ActionState 事件
     commands.spawn((
-        Name::new("BattleInputEntity"),
-        BattleInputEntity,
+        Name::new("FixedSceneFreInputEntity"),
+        FixedSceneFreInputEntity,
         crate::core::fixed_scene::fixed_scene_scoped(mode_name),
         player_input.get_merged_map(),
         ActionState::<Action>::default(),
     ));
-    info!("Battle FRE: Spawned input entity for ActionState");
+    info!("FixedScene FRE: Spawned input entity for ActionState");
 
-    // NOTE: Battle menu rules (battle_menu.fre.ron) are loaded via View's requires mechanism.
+    // NOTE: Menu projection rules (battle_menu.fre.ron) are loaded via View's requires mechanism.
     // The View layout declares: requires: [File("battle/rules/battle_menu.fre.ron")]
-    // 注意：战斗菜单规则通过 View 的 requires 机制加载。
+    // 注意：menu projection规则通过 View 的 requires 机制加载。
     // View 布局声明：requires: [File("battle/rules/battle_menu.fre.ron")]
 
     // Player data is already in global layer (managed by core::data module)
@@ -130,17 +133,20 @@ fn setup_battle_fre_system(
 
     let hp = layered_db.get_int("player:hp").unwrap_or(20);
     let hp_max = layered_db.get_int("player:hp_max").unwrap_or(20);
-    info!("Battle FRE: Initialized with player HP {}/{}", hp, hp_max);
+    info!(
+        "FixedScene FRE: Initialized with player HP {}/{}",
+        hp, hp_max
+    );
 }
 
-/// System to register battle-specific rules when loaded.
-/// Handles custom battle rules (optional).
-/// NOTE: Battle menu rules are loaded via View's requires mechanism.
+/// System to register fixed-scene rules when loaded.
+/// Handles custom project rules (optional).
+/// NOTE: Menu projection rules are loaded via View's requires mechanism.
 ///
 /// 当战斗规则加载完成时注册它们的系统。
 /// 处理自定义战斗规则（可选）。
-/// 注意：战斗菜单规则通过 View 的 requires 机制加载。
-fn register_battle_rules_system(
+/// 注意：menu projection规则通过 View 的 requires 机制加载。
+fn register_fixed_scene_rules_system(
     mut sequence_rules_handle: ResMut<SequenceRulesHandle>,
     fre_assets: Res<Assets<GameFreAsset>>,
     mut registry: ResMut<GameRuleRegistry>,
@@ -163,28 +169,28 @@ fn register_battle_rules_system(
         return;
     }
 
-    // Process custom battle rules (if any)
+    // Process custom project rules (if any)
     if let Some(handle) = &sequence_rules_handle.handle
         && let Some(fre_asset) = fre_assets.get(handle)
     {
-        // Register enums from battle rules
+        // Register enums from project rules
         enum_registry.register_from_asset(fre_asset);
 
         for (key, value) in fre_asset.resolve_facts(&enum_registry) {
             fact_db.set_local(key.as_str(), value);
-            info!("Battle FRE: Set fact '{}' from battle rules", key);
+            info!("FixedScene FRE: Set fact '{}' from project rules", key);
         }
 
         // Register rules (actions are now part of Rule struct)
         fre_asset.register_rules_layered(&mut registry);
         info!(
-            "Battle FRE: Registered {} custom rules",
+            "FixedScene FRE: Registered {} custom rules",
             fre_asset.get_rule_defs().len()
         );
     }
 
     sequence_rules_handle.registered = true;
-    info!("Battle FRE: All rules registered");
+    info!("FixedScene FRE: All rules registered");
 }
 
 /// System to clean up FRE state when exiting battle.
@@ -192,7 +198,7 @@ fn register_battle_rules_system(
 ///
 /// 退出战斗时清理 FRE 状态的系统。
 /// 可选地将重要事实提升到全局层。
-fn cleanup_battle_fre_system(
+fn cleanup_fixed_scene_fre_system(
     mut layered_db: ResMut<LayeredFactDatabase>,
     mut registry: ResMut<GameRuleRegistry>,
     mut sequence_rules_handle: ResMut<SequenceRulesHandle>,
@@ -209,5 +215,5 @@ fn cleanup_battle_fre_system(
     sequence_rules_handle.handle = None;
     sequence_rules_handle.registered = false;
 
-    info!("Battle FRE: Cleaned up local layer (facts and rules) and reset rules handle");
+    info!("FixedScene FRE: Cleaned up local layer (facts and rules) and reset rules handle");
 }

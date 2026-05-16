@@ -312,7 +312,7 @@ pub fn setup_action_handlers_system(world: &mut World) {
 }
 
 /// System that handles unregistered Custom FRE actions.
-pub fn handle_overworld_custom_actions_system(
+pub fn log_unhandled_top_down_custom_actions_system(
     mut events: MessageReader<crate::core::fre_bridge::FreCustomActionEvent>,
 ) {
     for event in events.read() {

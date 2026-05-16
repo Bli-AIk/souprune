@@ -6,16 +6,16 @@
 //!
 //! ## 模块概述
 //!
-//! Classifies newly spawned Alight Motion entities for the battle layer. It listens to
+//! Classifies newly spawned Alight Motion entities for the fixed-scene layer. It listens to
 //! imported layer-spawn notifications, tags entities as bullets, collision boundaries, or hidden layers,
 //! and then propagates those markers through the imported hierarchy when needed.
 //!
-//! 负责给战斗层里新生成的 Alight Motion 实体打分类标记。它会监听导入图层的生成
+//! 负责给fixed-scene layer里新生成的 Alight Motion 实体打分类标记。它会监听导入图层的生成
 //! 通知，把实体标成弹幕、碰撞边界或隐藏层，并在需要时把这些标记沿导入层级继续向下传播。
 
 use super::{
-    AlightMotionBattlePatterns, AlightMotionBoundaryMarker, AlightMotionBulletMarker,
-    AlightMotionEntity, AlightMotionHiddenMarker,
+    AlightMotionBoundaryMarker, AlightMotionBulletMarker, AlightMotionEntity,
+    AlightMotionHiddenMarker, AlightMotionScenePatterns,
 };
 use bevy::prelude::*;
 use bevy_alight_motion::prelude::{AmEntitySpawned, AmForceHidden};
@@ -24,13 +24,13 @@ use bevy_alight_motion::prelude::{AmEntitySpawned, AmForceHidden};
 pub(super) fn on_am_entity_spawned(
     trigger: On<AmEntitySpawned>,
     mut commands: Commands,
-    patterns: Option<Res<AlightMotionBattlePatterns>>,
+    patterns: Option<Res<AlightMotionScenePatterns>>,
 ) {
     let event = trigger.event();
     let layer_name = &event.layer_name;
 
     trace!(
-        "[AM Battle] Entity spawned: '{}' (type={:?})",
+        "[AM Scene] Entity spawned: '{}' (type={:?})",
         layer_name, event.element_type
     );
 
@@ -133,14 +133,14 @@ pub(super) fn propagate_am_markers_system(
         if inherited_bullet {
             commands.entity(entity).insert(AlightMotionBulletMarker);
             info!(
-                "[AM Battle] Inherited AlightMotionBulletMarker to entity {:?}",
+                "[AM Scene] Inherited AlightMotionBulletMarker to entity {:?}",
                 entity
             );
         }
         if inherited_boundary {
             commands.entity(entity).insert(AlightMotionBoundaryMarker);
             info!(
-                "[AM Battle] Inherited AlightMotionBoundaryMarker to entity {:?}",
+                "[AM Scene] Inherited AlightMotionBoundaryMarker to entity {:?}",
                 entity
             );
         }
@@ -151,7 +151,7 @@ pub(super) fn propagate_am_markers_system(
                 Visibility::Hidden,
             ));
             info!(
-                "[AM Battle] Inherited AlightMotionHiddenMarker + AmForceHidden to entity {:?}",
+                "[AM Scene] Inherited AlightMotionHiddenMarker + AmForceHidden to entity {:?}",
                 entity
             );
         }
@@ -166,7 +166,7 @@ pub(super) fn apply_am_hidden_visibility(
         if *visibility != Visibility::Hidden {
             *visibility = Visibility::Hidden;
             info!(
-                "[AM Battle] Applied Hidden visibility to entity {:?} '{}'",
+                "[AM Scene] Applied Hidden visibility to entity {:?} '{}'",
                 entity, name
             );
         }

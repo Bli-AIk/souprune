@@ -8,7 +8,7 @@
 //!
 //! Defines the `PlayerBehavior` resource and configuration, which dictates how the player behaves in the top_down, including movement, animation, and interaction settings.
 //!
-//! 定义 `PlayerBehavior` 资源和配置，规定玩家在 Overworld 中的行为，包括移动、动画和交互设置。
+//! 定义 `PlayerBehavior` 资源和配置，规定玩家在 top-down 中的行为，包括移动、动画和交互设置。
 
 use crate::config;
 use crate::core::basic_components::Direction;
@@ -21,7 +21,7 @@ use std::fs;
 
 /// Runtime configuration describing how the top_down player should behave.
 ///
-/// 描述 Overworld 玩家行为的运行时配置资源。
+/// 描述 top-down 玩家行为的运行时配置资源。
 #[derive(Resource, Debug, Clone)]
 pub struct PlayerBehavior {
     pub spawn_position: Vec2,

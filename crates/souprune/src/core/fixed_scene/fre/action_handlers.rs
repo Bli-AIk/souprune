@@ -1,13 +1,13 @@
 //! # action_handlers.rs
 //!
-//! Battle-specific FRE action handlers.
+//! Fixed-scene FRE action handlers.
 //!
-//! 战斗特定的 FRE 动作处理器。
+//! fixed-scene的 FRE 动作处理器。
 //!
-//! This module registers custom action handlers for battle-related
+//! This module registers custom action handlers for fixed-scene
 //! actions that can be triggered from FRE rules.
 //!
-//! 本模块注册战斗相关动作的自定义处理器，
+//! 本模块注册fixed-scene动作的自定义处理器，
 //! 这些动作可以从 FRE 规则中触发。
 
 use bevy::prelude::*;
@@ -15,11 +15,11 @@ use bevy_fact_rule_event::LayeredFactDatabase;
 
 use crate::core::game_action::{GameActionDef, GameActionHandlerRegistry};
 
-/// System to set up battle-specific action handlers.
-/// Called when entering Battle state.
+/// System to set up fixed-scene action handlers.
+/// Called when entering fixed-scene mode.
 ///
-/// 设置战斗特定动作处理器的系统。
-/// 在进入 Battle 状态时调用。
+/// 设置fixed-scene动作处理器的系统。
+/// 在进入 fixed-scene mode时调用。
 pub fn setup_battle_action_handlers_system(
     mut handler_registry: ResMut<GameActionHandlerRegistry>,
 ) {
@@ -31,7 +31,7 @@ pub fn setup_battle_action_handlers_system(
             let amount: i64 = amount_str.parse().unwrap_or(0);
 
             info!(
-                "Battle FRE Action: DealDamage to '{}' for {} damage",
+                "FixedScene FRE Action: DealDamage to '{}' for {} damage",
                 target, amount
             );
 
@@ -48,7 +48,7 @@ pub fn setup_battle_action_handlers_system(
             let amount_str = params.get("amount").map(String::as_str).unwrap_or("0");
             let amount: i64 = amount_str.parse().unwrap_or(0);
 
-            info!("Battle FRE Action: Heal '{}' for {} HP", target, amount);
+            info!("FixedScene FRE Action: Heal '{}' for {} HP", target, amount);
         }
     });
 
@@ -60,32 +60,32 @@ pub fn setup_battle_action_handlers_system(
                 .map(String::as_str)
                 .unwrap_or("default.performance.ron");
 
-            info!("Battle FRE Action: PlayDanmaku '{}'", performance_path);
+            info!("FixedScene FRE Action: PlayDanmaku '{}'", performance_path);
 
             // TODO: Emit danmaku play event
         }
     });
 
-    // EndBattle - End the current battle
-    handler_registry.register("EndBattle", |action, _db, _commands| {
+    // EndScene - End the current scene
+    handler_registry.register("EndScene", |action, _db, _commands| {
         if let GameActionDef::Custom { params, .. } = action {
             let result = params
                 .get("result")
                 .map(String::as_str)
                 .unwrap_or("victory");
 
-            info!("Battle FRE Action: EndBattle with result '{}'", result);
+            info!("FixedScene FRE Action: EndScene with result '{}'", result);
 
-            // TODO: Emit battle end event or set state
+            // TODO: Emit scene end event or set state
         }
     });
 
-    // SetPhase - Change the current battle phase
+    // SetPhase - Change the current scene phase
     handler_registry.register("SetPhase", |action, _db, _commands| {
         if let GameActionDef::Custom { params, .. } = action {
             let phase = params.get("phase").map(String::as_str).unwrap_or("unknown");
 
-            info!("Battle FRE Action: SetPhase to '{}'", phase);
+            info!("FixedScene FRE Action: SetPhase to '{}'", phase);
 
             // Note: Phase change should be done through a system that modifies LayeredFactDatabase
         }
@@ -93,7 +93,7 @@ pub fn setup_battle_action_handlers_system(
 
     // IncrementTurn - Increment the turn counter
     handler_registry.register("IncrementTurn", |_action, _db, _commands| {
-        info!("Battle FRE Action: IncrementTurn");
+        info!("FixedScene FRE Action: IncrementTurn");
         // Note: Turn increment should be done through fact modifications in rules,
         // not through custom actions
     });
@@ -115,7 +115,7 @@ pub fn setup_battle_action_handlers_system(
                 .unwrap_or(0.0);
 
             info!(
-                "Battle FRE Action: SpawnEnemy '{}' at ({}, {})",
+                "FixedScene FRE Action: SpawnEnemy '{}' at ({}, {})",
                 enemy_type, position_x, position_y
             );
 
@@ -131,13 +131,13 @@ pub fn setup_battle_action_handlers_system(
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(0);
 
-            info!("Battle FRE Action: DespawnEnemy index {}", enemy_index);
+            info!("FixedScene FRE Action: DespawnEnemy index {}", enemy_index);
 
             // TODO: Despawn enemy entity
         }
     });
 
-    info!("Battle FRE: Action handlers registered");
+    info!("FixedScene FRE: Action handlers registered");
 }
 
 /// Run condition: Check if there's pending damage to apply.
@@ -168,7 +168,7 @@ pub fn apply_pending_damage_system(mut layered_db: ResMut<LayeredFactDatabase>) 
         layered_db.remove("player:pending_damage");
 
         info!(
-            "Battle FRE: Applied {} damage to player (HP: {} -> {})",
+            "FixedScene FRE: Applied {} damage to player (HP: {} -> {})",
             pending_damage, current_hp, new_hp
         );
     }
@@ -184,7 +184,7 @@ pub fn apply_pending_damage_system(mut layered_db: ResMut<LayeredFactDatabase>) 
         layered_db.remove("enemy:0:pending_damage");
 
         info!(
-            "Battle FRE: Applied {} damage to enemy_0 (HP: {} -> {})",
+            "FixedScene FRE: Applied {} damage to enemy_0 (HP: {} -> {})",
             pending_damage, current_hp, new_hp
         );
     }

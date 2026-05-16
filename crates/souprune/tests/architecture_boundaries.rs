@@ -111,6 +111,33 @@ fn framework_core_does_not_register_battle_or_overworld_as_first_class_modes() {
 }
 
 #[test]
+fn framework_core_does_not_keep_project_path_or_old_specialized_names() {
+    let workspace = workspace_root();
+    let roots = [workspace.join("crates/souprune/src/core")];
+    let forbidden = [
+        "projects/undertale_preset",
+        "projects/deltarune_preset",
+        "BattleFREPlugin",
+        "BattleFRESet",
+        "BattleInputEntity",
+        "BattleMenuStateTracker",
+        "BattleSpeechBubblePlugin",
+        "BattleSpeechBubbleRequest",
+        "AlightMotionBattleConfig",
+        "AlightMotionBattlePatterns",
+        "battle/alight_motion_config.ron",
+        "load_am_battle_config",
+    ];
+    let hits = forbidden_rust_source_hits(&roots, &workspace, &forbidden);
+
+    assert!(
+        hits.is_empty(),
+        "core must not retain project paths or old specialized runtime names:\n{}",
+        hits.join("\n")
+    );
+}
+
+#[test]
 fn preset_no_longer_defines_temporary_battle_box_runtime_types() {
     let workspace = workspace_root();
     let roots = [workspace.join("crates/souprune/src")];

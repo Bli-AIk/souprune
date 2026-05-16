@@ -119,7 +119,7 @@ fn check_file(path: &Path) -> CheckResult {
             validate::<souprune_schema::config::TouchLayoutDef>(&source)
         }
         Some(RonFileKind::AlightMotionConfig) => {
-            validate::<souprune_schema::config::AlightMotionBattleConfig>(&source)
+            validate::<souprune_schema::config::AlightMotionSceneConfig>(&source)
         }
         Some(RonFileKind::Character) => {
             validate::<souprune_schema::character::CharacterAsset>(&source)

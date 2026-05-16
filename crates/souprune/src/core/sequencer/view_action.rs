@@ -2,7 +2,7 @@
 //!
 //! ## Module Overview
 //!
-//! View control systems for the battle sequencer.
+//! View control systems for the fixed-scene sequencer.
 //! All view spawning is unified through SpawnViewRequest messages.
 //!
 //! 战斗序列管理器的视图控制系统。
@@ -46,7 +46,10 @@ pub fn process_view_action_system(
             bindings,
         } = &active_chapter.chapter
         {
-            info!("[Battle] Loading view layout for battle: {}", view_layout);
+            info!(
+                "[Sequencer] Loading view layout for fixed-scene mode: {}",
+                view_layout
+            );
 
             spawn_writer.write(crate::core::view::SpawnViewRequest {
                 path: view_layout.clone(),
@@ -84,17 +87,20 @@ pub fn process_set_view_fact_system(
                 FactValueMatch::Float(f) => Some(FactValue::Float(*f)),
                 FactValueMatch::String(s) => Some(FactValue::String(s.clone())),
                 FactValueMatch::Expr(_expr) => {
-                    warn!("[Battle] SetViewFact: Expr not supported yet for '{}'", key);
+                    warn!(
+                        "[Sequencer] SetViewFact: Expr not supported yet for '{}'",
+                        key
+                    );
                     None
                 }
             };
 
             if let Some(fv) = fact_value {
                 view_root.set_local_value(key.as_str(), fv.clone());
-                info!("[Battle] SetViewFact: Set '{}' = {:?}", key, fv);
+                info!("[Sequencer] SetViewFact: Set '{}' = {:?}", key, fv);
             }
         } else {
-            warn!("[Battle] SetViewFact: No ViewRoot found!");
+            warn!("[Sequencer] SetViewFact: No ViewRoot found!");
         }
 
         commands.entity(chapter_entity).insert(ChapterFinished);

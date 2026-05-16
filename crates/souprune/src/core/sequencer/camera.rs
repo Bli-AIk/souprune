@@ -2,7 +2,7 @@
 //!
 //! ## Module Overview
 //!
-//! Camera control systems for the battle sequencer.
+//! Camera control systems for the fixed-scene sequencer.
 //!
 //! 战斗序列管理器的摄像机控制系统。
 
@@ -59,7 +59,7 @@ fn apply_camera_zoom(proj: &mut Projection, zoom: f32, scale_factor: f32) {
     };
     ortho.scale = zoom / scale_factor;
     info!(
-        "[Battle] SetZoom: requested={}, actual={}",
+        "[Sequencer] SetZoom: requested={}, actual={}",
         zoom, ortho.scale
     );
 }

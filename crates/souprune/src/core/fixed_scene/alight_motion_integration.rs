@@ -5,11 +5,11 @@
 //!
 //! ## 模块概述
 //!
-//! This module integrates Alight Motion animations into the battle system.
+//! This module integrates Alight Motion animations into the fixed-scene primitive.
 //! It handles loading Alight Motion projects, spawning entities, and adding collision
 //! components based on layer naming conventions.
 //!
-//! 此模块将 Alight Motion 动画集成到战斗系统中。
+//! 此模块将 Alight Motion 动画集成到fixed-scene primitive中。
 //! 它处理加载 Alight Motion 项目、生成实体，以及根据图层命名约定添加碰撞组件。
 //!
 //! ## Layer Naming Conventions / 图层命名约定
@@ -52,10 +52,10 @@ pub struct AlightMotionBoundaryMarker;
 #[derive(Component, Debug, Clone, Default)]
 pub struct AlightMotionHiddenMarker;
 
-/// Configuration for Alight Motion battle integration.
+/// Configuration for Alight Motion fixed-scene integration.
 #[derive(Resource, Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
-pub struct AlightMotionBattleConfig {
+pub struct AlightMotionSceneConfig {
     /// Scale multiplier for Alight Motion project.
     pub scale: f32,
     /// Offset position for Alight Motion project (x, y).
@@ -79,7 +79,7 @@ fn default_boundary_size() -> (f32, f32) {
     (565.0, 140.0)
 }
 
-impl Default for AlightMotionBattleConfig {
+impl Default for AlightMotionSceneConfig {
     fn default() -> Self {
         Self {
             scale: 1.0,
@@ -96,24 +96,24 @@ impl Default for AlightMotionBattleConfig {
 
 /// Compiled regex patterns for runtime matching.
 #[derive(Resource)]
-pub struct AlightMotionBattlePatterns {
+pub struct AlightMotionScenePatterns {
     pub bullet_regex: Option<Regex>,
     pub boundary_regex: Option<Regex>,
     pub hidden_regex: Option<Regex>,
 }
 
-/// Plugin for Alight Motion battle integration.
+/// Plugin for Alight Motion fixed-scene integration.
 pub struct AlightMotionFixedScenePlugin;
 
 impl Plugin for AlightMotionFixedScenePlugin {
     fn build(&self, app: &mut App) {
         let schedule = crate::game_schedule(app);
         app.init_resource::<AlightMotionPerformanceState>()
-            .init_resource::<AlightMotionBattleConfig>()
+            .init_resource::<AlightMotionSceneConfig>()
             .add_message::<PlayAlightMotionPerformanceEvent>()
             .add_systems(
                 schedule,
-                config_loading::load_am_battle_config.run_if(super::on_entering_fixed_scene),
+                config_loading::load_am_scene_config.run_if(super::on_entering_fixed_scene),
             )
             .add_systems(
                 schedule,

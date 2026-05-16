@@ -17,7 +17,7 @@ mod action_handlers;
 
 pub use action_handlers::{
     PendingDanmakuActions, PendingViewActions, apply_pending_view_actions_system,
-    handle_overworld_custom_actions_system, play_danmaku_from_actions_system,
+    log_unhandled_top_down_custom_actions_system, play_danmaku_from_actions_system,
     setup_action_handlers_system,
 };
 
@@ -491,17 +491,23 @@ mod tests {
     }
 
     #[test]
-    fn undertale_menu_rule_uses_semantic_menu_event_to_open_backpack() {
-        let fre: GameFreAsset = ron::from_str(include_str!(
-            "../../../../../projects/undertale_preset/overworld/rules/interaction.fre.ron"
-        ))
-        .expect("undertale top_down interaction fre should parse");
-
-        let rule = fre
-            .rules
-            .iter()
-            .find(|rule| rule.id == "overworld_open_backpack")
-            .expect("interaction rules should contain Backpack open rule");
+    fn interaction_menu_rule_uses_semantic_menu_event_to_set_sub_state() {
+        let rule = bevy_fact_rule_event::RuleDef {
+            id: "open_menu_state".to_string(),
+            event: bevy_fact_rule_event::RuleEventDef::Event("input:menu".to_string()),
+            conditions: Vec::new(),
+            actions: vec![GameActionDef::Custom {
+                action_type: "SetSubState".to_string(),
+                params: [("state".to_string(), "Backpack".to_string())]
+                    .into_iter()
+                    .collect(),
+            }],
+            modifications: Vec::new(),
+            outputs: Vec::new(),
+            enabled: true,
+            priority: 0,
+            consume_event: true,
+        };
 
         assert_eq!(rule.event.to_event_id(), "input:menu");
         assert!(rule.actions.iter().any(|action| {

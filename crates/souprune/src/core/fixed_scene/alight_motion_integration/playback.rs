@@ -6,15 +6,15 @@
 //!
 //! ## 模块概述
 //!
-//! Acts as the playback entry for battle-side Alight Motion performances. It reacts to
-//! play events, loads projects and optional battle config overrides, inserts the runtime entities
-//! into battle scope, and detects when the imported animation has finished.
+//! Acts as the playback entry for fixed-scene Alight Motion performances. It reacts to
+//! play events, loads projects and optional scene config overrides, inserts the runtime entities
+//! into fixed-scene scope, and detects when the imported animation has finished.
 //!
-//! 战斗侧 Alight Motion 演出的播放入口。它会响应播放事件，加载工程与可选的战斗
-//! 覆盖配置，把运行时实体放进 battle scope，并检测导入动画何时真正播放完毕。
+//! fixed-scene Alight Motion 演出的播放入口。它会响应播放事件，加载工程与可选的fixed-scene
+//! 覆盖配置，把运行时实体放进 fixed-scene scope，并检测导入动画何时真正播放完毕。
 
 use super::config_loading::load_alight_motion_config_from_path;
-use super::{AlightMotionBattleConfig, AlightMotionBattlePatterns, AlightMotionEntity, markers};
+use super::{AlightMotionEntity, AlightMotionSceneConfig, AlightMotionScenePatterns, markers};
 use bevy::prelude::*;
 use bevy_alight_motion::prelude::{AmPendingLayers, AmPlayback, load_am_project};
 
@@ -29,9 +29,8 @@ pub(super) fn handle_play_am_performance_event(
     mut commands: Commands,
     mut events: MessageReader<PlayAlightMotionPerformanceEvent>,
     mut am_state: ResMut<AlightMotionPerformanceState>,
-    mut am_config: ResMut<AlightMotionBattleConfig>,
+    mut am_config: ResMut<AlightMotionSceneConfig>,
     asset_server: Res<AssetServer>,
-    project_config: Res<crate::config::SoupruneConfig>,
     sequence_mode: Res<SequenceMode>,
 ) {
     for event in events.read() {
@@ -39,20 +38,14 @@ pub(super) fn handle_play_am_performance_event(
             warn!("FixedScene AM: no active mode while starting performance.");
             continue;
         };
-        info!("[AM Battle] Starting performance: {}", event.amproj_path);
+        info!("[AM Scene] Starting performance: {}", event.amproj_path);
 
-        if let Some(custom_config_path) = &event.alight_motion_config_path {
-            let full_path = format!(
-                "{}/{}/{}",
-                crate::config::get_projects_base_path().display(),
-                project_config.project.mod_name,
-                custom_config_path
-            );
-            info!("[AM Battle] Using custom config: {}", full_path);
+        if let Some(custom_config_path) = &event.scene_config_path {
+            info!("[AM Scene] Using custom config: {}", custom_config_path);
             let (config, bullet_regex, boundary_regex, hidden_regex) =
-                load_alight_motion_config_from_path(&full_path);
+                load_alight_motion_config_from_path(custom_config_path);
             *am_config = config;
-            commands.insert_resource(AlightMotionBattlePatterns {
+            commands.insert_resource(AlightMotionScenePatterns {
                 bullet_regex,
                 boundary_regex,
                 hidden_regex,
@@ -85,14 +78,14 @@ pub(super) fn handle_play_am_performance_event(
                     let old_inv_fit_scale = pending.inv_fit_scale;
                     pending.inv_fit_scale = 1.0 / final_scale;
                     info!(
-                        "[AM Battle] Updated inv_fit_scale: {} -> {} (final_scale={})",
+                        "[AM Scene] Updated inv_fit_scale: {} -> {} (final_scale={})",
                         old_inv_fit_scale, pending.inv_fit_scale, final_scale
                     );
                 }
             });
 
         info!(
-            "[AM Battle] Performance started, entity: {:?}, base_scale: {}, config_scale: {}, final_scale: {}, offset: {:?}",
+            "[AM Scene] Performance started, entity: {:?}, base_scale: {}, config_scale: {}, final_scale: {}, offset: {:?}",
             entity, base_scale, am_config.scale, final_scale, am_config.offset
         );
 
@@ -119,7 +112,7 @@ pub(super) fn check_am_performance_completion(
 
         if playback.current_time_ms >= total_duration {
             info!(
-                "[AM Battle] Performance completed ({}ms / {}ms)",
+                "[AM Scene] Performance completed ({}ms / {}ms)",
                 playback.current_time_ms, total_duration
             );
             am_state.is_playing = false;
@@ -127,7 +120,7 @@ pub(super) fn check_am_performance_completion(
     }
 }
 
-/// System to cleanup AM entities when exiting battle.
+/// System to cleanup AM entities when exiting fixed-scene mode.
 pub(super) fn cleanup_am_entities(
     mut commands: Commands,
     query: Query<Entity, With<AlightMotionEntity>>,
@@ -140,5 +133,5 @@ pub(super) fn cleanup_am_entities(
     am_state.is_playing = false;
     am_state.project_entity = None;
 
-    info!("[AM Battle] Cleaned up AM entities");
+    info!("[AM Scene] Cleaned up AM entities");
 }

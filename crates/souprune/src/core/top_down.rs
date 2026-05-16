@@ -74,13 +74,13 @@ impl Plugin for TopDownPlugin {
         // Mode enter/exit systems react to ModeChanged events
         .add_systems(
             schedule,
-            on_enter_overworld_system.run_if(on_entering_mode_with_primitive(
+            on_enter_top_down_system.run_if(on_entering_mode_with_primitive(
                 ModePrimitiveConfig::TopDownMap,
             )),
         )
         .add_systems(
             schedule,
-            on_exit_overworld_system.run_if(on_exiting_mode_with_primitive(
+            on_exit_top_down_system.run_if(on_exiting_mode_with_primitive(
                 ModePrimitiveConfig::TopDownMap,
             )),
         )
@@ -93,7 +93,7 @@ impl Plugin for TopDownPlugin {
         .add_systems(schedule, bind_camera_target_system.in_set(TopDownUpdate))
         .add_systems(
             schedule,
-            screen_facts::sync_overworld_screen_facts_system
+            screen_facts::sync_top_down_screen_facts_system
                 .after(crate::core::camera::CameraUpdateSet)
                 .before(crate::core::view::lifecycle::StateViewTransitionSet)
                 .before(bevy_fact_rule_event::FRESystemSet::EmitEvents)
@@ -101,11 +101,11 @@ impl Plugin for TopDownPlugin {
         )
         .add_systems(
             schedule,
-            mark_tilemap_as_overworld_scoped.in_set(TopDownUpdate),
+            mark_tilemap_as_top_down_scoped.in_set(TopDownUpdate),
         )
         .add_systems(
             schedule,
-            process_overworld_player_spawn_system.in_set(crate::core::sequencer::SequencerUpdate),
+            process_top_down_player_spawn_system.in_set(crate::core::sequencer::SequencerUpdate),
         )
         .add_systems(
             schedule,
@@ -145,7 +145,7 @@ impl Plugin for TopDownPlugin {
                 trigger::trigger_zone_detection_system,
                 trigger::interactable_detection_system,
                 trigger::handle_interaction_input_system,
-                trigger::handle_overworld_custom_actions_system,
+                trigger::log_unhandled_top_down_custom_actions_system,
                 trigger::apply_pending_view_actions_system,
                 trigger::play_danmaku_from_actions_system,
                 trigger::log_fact_changes_system,
@@ -157,7 +157,7 @@ impl Plugin for TopDownPlugin {
 }
 
 /// Reacts to entering top_down mode via ModeChanged event.
-fn on_enter_overworld_system(
+fn on_enter_top_down_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     sequence_mode: Res<SequenceMode>,
@@ -189,7 +189,7 @@ fn on_enter_overworld_system(
 }
 
 /// Reacts to exiting top_down mode via ModeChanged event.
-fn on_exit_overworld_system(
+fn on_exit_top_down_system(
     mut bgm_handle: ResMut<tilemap::CurrentBgmHandle>,
     mut current_map_bgm: ResMut<tilemap::CurrentMapBgm>,
     mut audio_instances: ResMut<Assets<bevy_kira_audio::AudioInstance>>,
@@ -213,15 +213,15 @@ fn on_exit_overworld_system(
     loaded_rule_sets.initialized = false;
     loaded_rule_sets.registered = false;
 
-    info!("Overworld: Cleaned up on exit (BGM + FRE)");
+    info!("TopDown: Cleaned up on exit (BGM + FRE)");
 }
 
 /// Process `SetPlayer(Spawn { .. })` chapters in top_down for non-battle configs.
 /// Sends `SpawnPlayerRequest` using the already-loaded `PlayerBehavior` config.
 ///
-/// 处理 Overworld 中非战斗配置的 `SetPlayer(Spawn { .. })` 章节。
+/// 处理 top-down 中非战斗配置的 `SetPlayer(Spawn { .. })` 章节。
 /// 使用已加载的 `PlayerBehavior` 配置发送 `SpawnPlayerRequest`。
-fn process_overworld_player_spawn_system(
+fn process_top_down_player_spawn_system(
     mut commands: Commands,
     active_chapters: Query<
         (Entity, &crate::core::sequencer::ActiveChapter),
@@ -243,7 +243,7 @@ fn process_overworld_player_spawn_system(
             commands
                 .entity(entity)
                 .insert(crate::core::sequencer::ChapterFinished);
-            info!("Overworld: Spawning player from config '{}'", config_path);
+            info!("TopDown: Spawning player from config '{}'", config_path);
         }
     }
 }
@@ -260,7 +260,7 @@ fn bind_camera_target_system(
 }
 
 /// Mark TiledMap entities with the active mode scope for cleanup.
-fn mark_tilemap_as_overworld_scoped(
+fn mark_tilemap_as_top_down_scoped(
     mut commands: Commands,
     sequence_mode: Res<SequenceMode>,
     query: Query<
@@ -322,7 +322,7 @@ fn force_player_idle_on_non_movable_state_system(
                 .insert(character::components::StateIdle);
         }
         info!(
-            "Overworld: Forced player idle on entering non-movable state '{}'",
+            "TopDown: Forced player idle on entering non-movable state '{}'",
             current_state.0
         );
     }

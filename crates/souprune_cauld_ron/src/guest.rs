@@ -249,7 +249,7 @@ impl_canonical_ron_asset!(souprune_schema::config::InputConfig => RonFileKind::I
 impl_canonical_ron_asset!(souprune_schema::config::StateConfig => RonFileKind::Flow);
 impl_canonical_ron_asset!(souprune_schema::config::TouchLayoutDef => RonFileKind::TouchLayout);
 impl_canonical_ron_asset!(
-    souprune_schema::config::AlightMotionBattleConfig => RonFileKind::AlightMotionConfig
+    souprune_schema::config::AlightMotionSceneConfig => RonFileKind::AlightMotionConfig
 );
 impl_canonical_ron_asset!(souprune_schema::character::CharacterAsset => RonFileKind::Character);
 impl_canonical_ron_asset!(

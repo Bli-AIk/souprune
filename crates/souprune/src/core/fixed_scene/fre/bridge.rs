@@ -10,10 +10,10 @@
 //! 本模块提供系统，在特定 Sequencer 事件发生时发出 FRE 事件
 //! （Chapter 完成、选择确认等）。
 //!
-//! NOTE: Battle UI navigation has been moved to FRE rules in battle_menu.fre.ron.
+//! NOTE: Menu navigation is expected to be owned by project FRE rules.
 //! The old hardcoded navigation system has been removed.
 //!
-//! 注意：战斗 UI 导航已移至 battle_menu.fre.ron 中的 FRE 规则。
+//! 注意：菜单导航应由项目 FRE 规则拥有。
 //! 旧的硬编码导航系统已被移除。
 
 use bevy::prelude::*;
@@ -100,7 +100,7 @@ pub fn emit_chapter_completed_events_system(
         }
 
         info!(
-            "Battle FRE Bridge: Emitted events for chapter completion: {}",
+            "FixedScene FRE Bridge: Emitted events for chapter completion: {}",
             event.chapter_type
         );
     }
@@ -112,14 +112,47 @@ mod tests {
     use crate::core::fre_bridge::evaluate_local_fact_value;
     use crate::core::game_action::{GameActionDef, GameFreAsset};
     use crate::core::view::ViewRoot;
-    use bevy_fact_rule_event::{CombinedFactReader, EnumRegistry, FactValue};
+    use bevy_fact_rule_event::{
+        CombinedFactReader, EnumRegistry, FactValue, RuleEventDef, RuleScopeDef,
+    };
 
     #[test]
-    fn act_menu_state_comes_from_fre_rule_dynamic_enemy_data() {
-        let fre: GameFreAsset = ron::from_str(include_str!(
-            "../../../../../../projects/undertale_preset/battle/rules/menu_confirm.fre.ron"
-        ))
-        .expect("undertale menu_confirm fre should parse");
+    fn menu_state_can_be_projected_from_rule_dynamic_actor_data() {
+        let fre = GameFreAsset {
+            scope: RuleScopeDef::Local,
+            enums: Default::default(),
+            facts: Default::default(),
+            rules: vec![bevy_fact_rule_event::RuleDef {
+                id: "open_actor_action_menu".to_string(),
+                event: RuleEventDef::Event("input:confirm".to_string()),
+                conditions: Vec::new(),
+                actions: vec![
+                    GameActionDef::SetLocalFact(
+                        "current_enemy_id".to_string(),
+                        bevy_fact_rule_event::LocalFactValue::Expr(
+                            "$enemy_ids[$enemy_selection]".to_string(),
+                        ),
+                    ),
+                    GameActionDef::SetLocalFact(
+                        "act_count".to_string(),
+                        bevy_fact_rule_event::LocalFactValue::Expr(
+                            "$${current_enemy_id}.act_count".to_string(),
+                        ),
+                    ),
+                    GameActionDef::SetLocalFact(
+                        "action_labels".to_string(),
+                        bevy_fact_rule_event::LocalFactValue::Expr(
+                            "$${current_enemy_id}.action_labels".to_string(),
+                        ),
+                    ),
+                ],
+                modifications: Vec::new(),
+                outputs: Vec::new(),
+                enabled: true,
+                priority: 0,
+                consume_event: true,
+            }],
+        };
         let act_rule = fre
             .rules
             .iter()
@@ -128,7 +161,7 @@ mod tests {
                     matches!(action, GameActionDef::SetLocalFact(key, _) if key == "act_count")
                 })
             })
-            .expect("menu_confirm should contain an ACT submenu confirmation rule");
+            .expect("projected menu rule should set action count");
 
         let mut enum_registry = EnumRegistry::default();
         enum_registry.register_from_asset(&fre);

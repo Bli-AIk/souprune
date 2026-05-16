@@ -5,7 +5,7 @@
 //! ## 模块概述
 //!
 //! Battle-specific danmaku configuration.
-//! This module configures the core danmaku system for battle state.
+//! This module configures the core danmaku system for fixed-scene mode.
 //!
 //! 战斗特定的弹幕配置。
 //! 此模块为战斗状态配置核心弹幕系统。
@@ -56,7 +56,7 @@ impl BattleTargetInvincibility {
 }
 
 /// Battle-specific danmaku plugin.
-/// Configures CoreDanmakuPlugin for battle state.
+/// Configures CoreDanmakuPlugin for fixed-scene mode.
 ///
 /// 战斗特定的弹幕插件。
 /// 为战斗状态配置 CoreDanmakuPlugin。
@@ -65,7 +65,7 @@ pub struct DanmakuPlugin;
 impl Plugin for DanmakuPlugin {
     fn build(&self, app: &mut App) {
         let schedule = crate::game_schedule(app);
-        // Set spawn context to Battle when entering battle state
+        // Set spawn context to fixed-scene mode when entering fixed-scene mode
         app.add_systems(
             schedule,
             set_battle_context.run_if(super::on_entering_fixed_scene),

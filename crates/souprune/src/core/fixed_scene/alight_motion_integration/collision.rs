@@ -10,10 +10,10 @@
 //! and boundary layers, derives their runtime bounds from animated layer specs, and keeps those
 //! bounds synchronized as the animation scale changes over time.
 //!
-//! 负责把导入的 Alight Motion 图层转换成战斗碰撞数据。它会识别子弹层和边界层，
+//! 负责把导入的 Alight Motion 图层转换成fixed-scene碰撞数据。它会识别子弹层和边界层，
 //! 从动画化的图层规格里推导运行时边界，并在缩放随时间变化时持续同步这些边界。
 
-use super::{AlightMotionBattleConfig, AlightMotionBulletMarker};
+use super::{AlightMotionBulletMarker, AlightMotionSceneConfig};
 use bevy::prelude::*;
 use bevy_alight_motion::prelude::{AmAnimated, AmLayerSpec, AmPendingLayers};
 
@@ -25,7 +25,7 @@ use crate::core::danmaku::{
 /// System to add collision components to marked AM entities.
 pub(super) fn add_am_collision_system(
     mut commands: Commands,
-    am_config: Res<AlightMotionBattleConfig>,
+    am_config: Res<AlightMotionSceneConfig>,
     am_state: Res<AlightMotionPerformanceState>,
     bullet_marker_query: Query<Entity, (With<AlightMotionBulletMarker>, Without<Bullet>)>,
     layer_spec_query: Query<&AmLayerSpec>,
@@ -36,19 +36,19 @@ pub(super) fn add_am_collision_system(
         let (width, height) = if let Ok(spec) = layer_spec_query.get(entity) {
             if let Some((w, h)) = get_layer_size(spec) {
                 info!(
-                    "[AM Battle] Entity {:?} layer spec size: {}x{} (spec={:?})",
+                    "[AM Scene] Entity {:?} layer spec size: {}x{} (spec={:?})",
                     entity, w, h, spec
                 );
                 (w, h)
             } else {
                 info!(
-                    "[AM Battle] SKIPPING entity {:?} - not a visual element (spec={:?})",
+                    "[AM Scene] SKIPPING entity {:?} - not a visual element (spec={:?})",
                     entity, spec
                 );
                 continue;
             }
         } else {
-            info!("[AM Battle] SKIPPING entity {:?} - no AmLayerSpec", entity);
+            info!("[AM Scene] SKIPPING entity {:?} - no AmLayerSpec", entity);
             continue;
         };
 
@@ -71,7 +71,7 @@ pub(super) fn add_am_collision_system(
         ));
 
         info!(
-            "[AM Battle] ADDED COLLISION to entity {:?} (half_size={:?}, size=({:.1}x{:.1}), total_scale={:?}, damage={})",
+            "[AM Scene] ADDED COLLISION to entity {:?} (half_size={:?}, size=({:.1}x{:.1}), total_scale={:?}, damage={})",
             entity, half_size, width, height, total_scale, am_config.bullet_damage
         );
     }
@@ -90,7 +90,7 @@ pub(super) fn sync_am_fit_scale_system(
         let expected_inv_fit_scale = 1.0 / am_state.final_scale;
         if (pending_layers.inv_fit_scale - expected_inv_fit_scale).abs() > 0.0001 {
             info!(
-                "[AM Battle] Updating inv_fit_scale from {} to {} (final_scale={})",
+                "[AM Scene] Updating inv_fit_scale from {} to {} (final_scale={})",
                 pending_layers.inv_fit_scale, expected_inv_fit_scale, am_state.final_scale
             );
             pending_layers.inv_fit_scale = expected_inv_fit_scale;
