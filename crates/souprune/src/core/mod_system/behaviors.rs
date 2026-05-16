@@ -18,7 +18,7 @@ use crate::core::input::{
 
 /// Which game context a WASM behavior is allowed to run in.
 /// An empty string means "any mode". Otherwise, the tag is matched against
-/// the current `SequenceMode` name (e.g. `"battle"`, `"overworld"`).
+/// the current project-declared `SequenceMode` name.
 ///
 /// WASM 行为允许运行的游戏上下文。
 /// 空字符串表示"任何模式"。否则标签与当前 `SequenceMode` 名称匹配。
@@ -256,8 +256,7 @@ fn input_context_to_wit(
     };
 
     let (kind, custom_name) = match context {
-        InputContextId::Overworld => (InputContextKind::Overworld, None),
-        InputContextId::Battle => (InputContextKind::Battle, None),
+        InputContextId::Mode(name) => (InputContextKind::Mode, Some(name.clone())),
         InputContextId::Dialogue => (InputContextKind::Dialogue, None),
         InputContextId::View => (InputContextKind::View, None),
         InputContextId::Custom(name) => (InputContextKind::Custom, Some(name.clone())),
@@ -296,7 +295,7 @@ pub(super) fn update_behaviors_system(
     )>,
     action_states: Query<
         &leafwing_input_manager::action_state::ActionState<crate::core::input::actions::Action>,
-        With<crate::core::battle_runtime::BattleInputManager>,
+        With<crate::core::fixed_scene::FixedSceneInputManager>,
     >,
     registry: Res<crate::core::input::actions::ActionRegistry>,
     time: Res<Time>,
@@ -403,7 +402,7 @@ mod tests {
     #[test]
     fn behavior_target_only_matches_requested_behavior_id() {
         let envelope = InputEnvelope::new(
-            InputContextId::Battle,
+            InputContextId::Mode("battle".to_string()),
             InputTarget::Behavior("menu".to_string()),
             InputCommand::Confirm,
             "Confirm",
@@ -416,13 +415,13 @@ mod tests {
     #[test]
     fn side_channel_targets_reach_active_behaviors_for_phase_five() {
         let fre_envelope = InputEnvelope::new(
-            InputContextId::Battle,
+            InputContextId::Mode("battle".to_string()),
             InputTarget::FreScope,
             InputCommand::Confirm,
             "Confirm",
         );
         let view_envelope = InputEnvelope::new(
-            InputContextId::Battle,
+            InputContextId::Mode("battle".to_string()),
             InputTarget::ActiveView,
             InputCommand::Confirm,
             "Confirm",
@@ -430,6 +429,14 @@ mod tests {
 
         assert!(input_envelope_targets_behavior(&fre_envelope, "menu"));
         assert!(input_envelope_targets_behavior(&view_envelope, "menu"));
+    }
+
+    #[test]
+    fn input_context_converts_declared_mode_to_wit_mode_context() {
+        let context = input_context_to_wit(&InputContextId::Mode("battle".to_string()));
+
+        assert!(matches!(context.kind, InputContextKind::Mode));
+        assert_eq!(context.custom_name.as_deref(), Some("battle"));
     }
 
     #[test]

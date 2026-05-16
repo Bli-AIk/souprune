@@ -34,7 +34,6 @@ pub mod alight_motion_runtime;
 pub(crate) mod animation;
 pub(crate) mod audio;
 pub(crate) mod basic_components;
-pub mod battle_runtime;
 pub mod camera;
 pub(crate) mod character_asset;
 pub(crate) mod collision;
@@ -43,6 +42,7 @@ pub mod danmaku;
 pub(crate) mod data;
 pub mod dialogue;
 pub mod event_phase;
+pub mod fixed_scene;
 pub mod fre_bridge;
 pub mod fre_facts;
 pub mod game_action;
@@ -50,7 +50,6 @@ pub mod input;
 pub mod map_property_schema;
 pub mod mod_system;
 pub mod mode;
-pub mod overworld;
 pub mod render_layers;
 pub mod resource_resolver;
 pub mod ron_loader;
@@ -58,6 +57,7 @@ pub mod sequencer;
 pub mod sprite;
 pub mod state_config;
 pub mod text_escape;
+pub mod top_down;
 pub mod trace;
 pub mod view;
 pub mod visual;
@@ -117,7 +117,11 @@ impl Plugin for CorePlugin {
                 sprite::SpritePlugin,
                 state_config::StateConfigPlugin,
             ))
-            .add_plugins((battle_runtime::BattlePlugin, overworld::OverworldPlugin));
+            .add_plugins((fixed_scene::FixedScenePlugin, top_down::TopDownPlugin));
+
+        app.world_mut()
+            .resource_mut::<mode::ModeRegistry>()
+            .set_modes(config.game.modes.clone());
     }
 }
 

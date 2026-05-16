@@ -20,7 +20,7 @@ mod timeline_ui;
 mod wasm_ui;
 
 use crate::core::input::Action;
-use crate::core::overworld::character::components::PlayerControlled;
+use crate::core::top_down::character::components::PlayerControlled;
 use bevy::camera::RenderTarget;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;

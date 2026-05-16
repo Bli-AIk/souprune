@@ -53,7 +53,7 @@ impl Plugin for ContentPlugin {
             )
                 .chain()
                 .in_set(crate::core::sequencer::SequencerUpdate)
-                .after(crate::core::sequencer::load_default_chapter_system),
+                .after(crate::core::sequencer::sync_sequence_flow_system),
         );
     }
 }

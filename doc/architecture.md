@@ -22,8 +22,8 @@ semantics are authored in project content and project WASM runtimes.
 │  Framework Layer                              │
 │  crates/souprune/src/core/                    │
 │  View, FRE bridge, Mortar integration,         │
-│  danmaku, collision, input, mode runtimes,      │
-│  schema-backed content loading                 │
+│  danmaku, collision, input, mode registry,      │
+│  host primitives, schema-backed content loading │
 ├──────────────────────────────────────────────┤
 │  Schema and SDK Layer                          │
 │  crates/souprune_schema, souprune_api,         │
@@ -54,19 +54,27 @@ primitives into a game. Framework Rust must not regain a `preset` or
 - `collision/`: host collision primitives exposed to project runtimes.
 - `mod_system/`: WASM loading, behavior dispatch, custom action dispatch, host
   entity primitives, and audio side effects.
-- `battle_runtime/`: generic battle-mode scheduling, camera/input setup,
-  sequencer/FRE wiring, danmaku integration, and battle speech presentation.
-- `overworld/`: generic top-down mode runtime for maps, player movement,
-  interaction zones, and map-scoped FRE integration.
+- `fixed_scene/`: fixed-camera scene primitive bundle for camera/input setup,
+  sequencer/FRE wiring, and danmaku integration. It is not a built-in mode
+  named `battle`.
+- `top_down/`: top-down map primitive bundle for tilemaps, player movement,
+  interaction zones, chase, and map-scoped FRE integration. Core may provide
+  tilemaps and other high-frequency primitives; project configuration owns mode
+  names and gameplay meaning.
 - `content/`: schema-backed asset loading and fact projection for enemy/item
   data used by the current project formats.
 
-Some modules still use RPG terms such as item, enemy, battle, or overworld
-because those are supported schema surfaces and runtime modes. The boundary is
-not the word itself; the boundary is ownership. Framework code may load typed
-data, project it into facts, and provide generic mode glue. Project-specific
-rules such as item use effects, enemy turn selection, battle boxes, and player
-spawn semantics must live in project content or project WASM runtimes.
+Projects declare mode names, enabled primitives, entry sequences, FRE rules, and
+fixed-camera parameters through `game.modes.<id>` in `mod.toml`. Names such as
+`battle`, `overworld`, `field`, or `puzzle` are project data. Core does not
+register those names by default and must not switch systems by matching them.
+
+Some modules still use current project-format terms such as item, enemy, or
+battle. The boundary is not the word itself; the boundary is ownership.
+Framework code may load typed data, project it into facts, and provide reusable
+primitives. Project-specific rules such as item use effects, enemy turn
+selection, battle boxes, and player spawn semantics must live in project content
+or project WASM runtimes.
 
 ---
 
@@ -95,7 +103,10 @@ Framework owns:
 - `core::mod_system` host entity primitives such as spawning a sprite or view
   box from WASM.
 - `core::sequencer::Chapter::Custom` and custom action dispatch.
-- `core::battle_runtime::BattleUpdate` and battle camera/input setup.
+- tilemaps, fixed-camera scenes, top-down movement, and interaction-zone
+  primitives.
+- `ModeRegistry` checks project configuration to decide which primitives are
+  active in the current mode.
 - `core::content::enemy::EnemyDef` loading and projection into facts.
 
 Project runtime owns:
@@ -131,8 +142,9 @@ hidden inside FRE as an implicit owner.
 
 Input enters the framework through normalized input transactions. View, FRE, and
 WASM behaviors consume the same transaction model, but each bridge decides how
-to translate it into local commands. Raw direct key reads are not a long-term
-extension point.
+to translate it into local commands. The input transaction carries the current
+project-declared mode name rather than built-in `battle` / `overworld` contexts.
+Raw direct key reads are not a long-term extension point.
 
 ### WASM Runtime
 

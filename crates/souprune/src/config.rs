@@ -149,22 +149,6 @@ pub struct GameConfig {
     /// 包含初始玩家数据和游戏全局事实。
     pub global_rules: String,
 
-    /// Initial sequence path for the Battle state.
-    /// When set and `initial_sequence_path` is absent, the game starts directly in Battle mode.
-    ///
-    /// 战斗状态的初始序列路径。
-    /// 当设置此项且 `initial_sequence_path` 未设置时，游戏直接以 Battle 模式启动。
-    pub initial_battle_path: String,
-
-    /// Optional sequence path to load when entering Overworld.
-    /// When set, the Overworld initialization is driven by this sequence
-    /// instead of hardcoded OnEnter systems.
-    ///
-    /// 进入 Overworld 时加载的可选序列路径。
-    /// 设置后，Overworld 的初始化由此序列驱动，而非硬编码的 OnEnter 系统。
-    #[serde(default)]
-    pub initial_sequence_path: Option<String>,
-
     /// Path to player behavior configuration file.
     ///
     /// 玩家行为配置文件路径。
@@ -233,29 +217,18 @@ pub struct GameConfig {
     pub hidden_layer_keywords: Vec<String>,
 
     /// Initial mode to enter after loading completes.
-    /// Determined from config: if `initial_sequence_path` is set, the mode is
-    /// inferred from the sequence; otherwise falls back to this value.
     ///
     /// 加载完成后进入的初始模式。
-    /// 若 `initial_sequence_path` 已设置，模式从序列中推导；否则使用此值。
     #[serde(default = "default_initial_mode")]
     pub initial_mode: String,
 
-    /// FRE rule files loaded for overworld state (accumulated from dependency chain).
-    /// Rules from dependency mods come first, main mod's rules last.
+    /// Runtime mode declarations owned by project configuration.
+    /// Dependency modes are merged before the main project.
     ///
-    /// Overworld 状态加载的 FRE 规则文件（从依赖链累积）。
-    /// 依赖 mod 的规则在前，主 mod 的规则在后。
+    /// 项目配置拥有的运行模式声明。
+    /// 依赖项目的 mode 先合并，主项目随后覆盖或扩展。
     #[serde(default)]
-    pub overworld_rules: Vec<String>,
-
-    /// Camera zoom level applied immediately when entering battle mode.
-    /// This avoids the visual delay of setting zoom through the sequencer.
-    ///
-    /// 进入战斗模式时立即应用的摄像机缩放级别。
-    /// 避免通过序列器设置缩放产生的视觉延迟。
-    #[serde(default = "default_battle_camera_zoom")]
-    pub battle_camera_zoom: f32,
+    pub modes: HashMap<String, ModeConfig>,
 
     /// Optional fixed RNG seed for deterministic behavior.
     /// When set, all random operations (enemy turns, RandomPick, etc.) produce
@@ -268,20 +241,14 @@ pub struct GameConfig {
     pub rng_seed: Option<u64>,
 }
 
-fn default_battle_camera_zoom() -> f32 {
-    2.0
-}
-
 fn default_initial_mode() -> String {
-    "overworld".to_string()
+    "main".to_string()
 }
 
 impl Default for GameConfig {
     fn default() -> Self {
         Self {
             global_rules: String::new(),
-            initial_battle_path: String::new(),
-            initial_sequence_path: None,
             player_behavior_path: String::new(),
             input_config_path: "app/input.ron".to_string(),
             flow_config_path: "app/flow.ron".to_string(),
@@ -292,13 +259,69 @@ impl Default for GameConfig {
             enemy_directory: "actors/enemies".to_string(),
             item_directory: "actors/items".to_string(),
             locales_directory: "assets/locales".to_string(),
-            required_modules: vec!["overworld".to_string(), "common".to_string()],
+            required_modules: Vec::new(),
             hidden_layer_keywords: vec!["prototype".to_string(), "collision".to_string()],
             initial_mode: default_initial_mode(),
-            overworld_rules: Vec::new(),
-            battle_camera_zoom: default_battle_camera_zoom(),
+            modes: HashMap::new(),
             rng_seed: None,
         }
+    }
+}
+
+/// Core primitive that a project mode can enable.
+///
+/// 项目 mode 可启用的 core 原子能力。
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum ModePrimitiveConfig {
+    FixedScene,
+    TopDownMap,
+    TopDownPlayer,
+    InteractionZones,
+    ViewRuntime,
+    FreRules,
+    Sequencer,
+    Danmaku,
+    Chase,
+    AlightMotion,
+    SpeechBubble,
+    BattleMenuState,
+}
+
+/// Project-owned runtime mode declaration.
+///
+/// 项目拥有的运行模式声明。
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct ModeConfig {
+    /// Core primitives enabled while this mode is active.
+    ///
+    /// 此 mode 激活时启用的 core 原子能力。
+    pub primitives: Vec<ModePrimitiveConfig>,
+
+    /// Sequence loaded when entering this mode.
+    ///
+    /// 进入此 mode 时加载的 sequence。
+    pub entry_sequence: Option<String>,
+
+    /// FRE rules loaded while this mode is active.
+    ///
+    /// 此 mode 激活时加载的 FRE 规则。
+    pub rules: Vec<String>,
+
+    /// Zoom for fixed-camera scene primitives.
+    ///
+    /// fixed-camera scene primitive 使用的缩放。
+    pub fixed_camera_zoom: Option<f32>,
+}
+
+impl ModeConfig {
+    pub fn has_primitive(&self, primitive: ModePrimitiveConfig) -> bool {
+        self.primitives.contains(&primitive)
+    }
+
+    pub fn fixed_camera_zoom(&self) -> f32 {
+        self.fixed_camera_zoom.unwrap_or(2.0)
     }
 }
 
@@ -518,11 +541,9 @@ struct ResourcePathsPartial {
 /// `mod.toml` 中 `[game]` 节的覆盖结构体。
 /// 所有字段均为 `Option`，缺失项不会覆盖运行时默认值。
 #[derive(Deserialize, Default)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 struct ModGameConfig {
     global_rules: Option<String>,
-    initial_battle_path: Option<String>,
-    initial_sequence_path: Option<String>,
     player_behavior_path: Option<String>,
     input_config_path: Option<String>,
     flow_config_path: Option<String>,
@@ -536,8 +557,7 @@ struct ModGameConfig {
     required_modules: Option<Vec<String>>,
     hidden_layer_keywords: Option<Vec<String>>,
     initial_mode: Option<String>,
-    overworld_rules: Option<Vec<String>>,
-    battle_camera_zoom: Option<f32>,
+    modes: Option<HashMap<String, ModeConfig>>,
     rng_seed: Option<u64>,
 }
 
@@ -572,7 +592,6 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
             };
         }
         merge!(global_rules);
-        merge!(initial_battle_path);
         merge!(player_behavior_path);
         merge!(input_config_path);
         merge!(flow_config_path);
@@ -585,14 +604,8 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         merge!(required_modules);
         merge!(hidden_layer_keywords);
         merge!(initial_mode);
-        merge!(battle_camera_zoom);
-        // overworld_rules: extend rather than overwrite (dependency chain accumulation)
-        if let Some(val) = g.overworld_rules {
-            config.game.overworld_rules.extend(val);
-        }
-        // Option<T> fields: wrap in Some
-        if let Some(val) = g.initial_sequence_path {
-            config.game.initial_sequence_path = Some(val);
+        if let Some(modes) = g.modes {
+            merge_mode_configs(&mut config.game.modes, modes);
         }
         if let Some(val) = g.chase_config {
             config.game.chase_config = Some(val);
@@ -641,6 +654,31 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
     // Fonts default to "assets/fonts" when not specified
     if config.resources.fonts.is_empty() {
         config.resources.fonts = "assets/fonts".to_string();
+    }
+}
+
+fn merge_mode_configs(
+    target: &mut HashMap<String, ModeConfig>,
+    incoming: HashMap<String, ModeConfig>,
+) {
+    for (mode_id, mode_config) in incoming {
+        target
+            .entry(mode_id)
+            .and_modify(|existing| merge_mode_config(existing, mode_config.clone()))
+            .or_insert(mode_config);
+    }
+}
+
+fn merge_mode_config(target: &mut ModeConfig, incoming: ModeConfig) {
+    if !incoming.primitives.is_empty() {
+        target.primitives = incoming.primitives;
+    }
+    if incoming.entry_sequence.is_some() {
+        target.entry_sequence = incoming.entry_sequence;
+    }
+    target.rules.extend(incoming.rules);
+    if incoming.fixed_camera_zoom.is_some() {
+        target.fixed_camera_zoom = incoming.fixed_camera_zoom;
     }
 }
 

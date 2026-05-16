@@ -17,7 +17,7 @@ mod toast;
 mod window_lifecycle;
 
 use crate::core::input::Action;
-use crate::core::overworld::character::components::PlayerControlled;
+use crate::core::top_down::character::components::PlayerControlled;
 use crate::extra::debug::DebugToastEvent;
 use bevy::app::App;
 use bevy::ecs::schedule::ScheduleLabel;

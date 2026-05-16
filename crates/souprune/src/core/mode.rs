@@ -4,6 +4,9 @@
 
 use bevy::ecs::message::{Message, MessageReader, MessageWriter};
 use bevy::prelude::*;
+use std::collections::HashMap;
+
+use crate::config::{ModeConfig, ModePrimitiveConfig};
 
 /// Application lifecycle state. Loading = resources loading, Running = gameplay active.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]
@@ -109,33 +112,94 @@ pub fn cleanup_entities_system<T: Component>(
     }
 }
 
-/// Registry of mode names known to the framework.
+/// Registry of project-declared runtime modes.
 ///
-/// Presets register modes here during plugin initialization.
-/// The framework core uses this to validate mode transitions without
-/// knowing specific mode names.
+/// Projects register modes through `mod.toml`; core systems query this resource
+/// to decide which primitive systems are active without hardcoding mode names.
 ///
-/// 框架已知模式名注册表。Preset 在初始化时注册模式。
-/// 框架核心通过此注册表验证模式切换，而无需了解具体模式名。
-#[derive(Resource, Default, Debug)]
+/// 项目声明的运行模式注册表。
+/// 项目通过 `mod.toml` 注册 mode；core 系统查询此资源来决定哪些 primitive 系统激活，
+/// 而不在框架内硬编码 mode 名。
+#[derive(Resource, Default, Debug, Clone)]
 pub struct ModeRegistry {
-    /// Set of registered mode names.
-    modes: std::collections::HashSet<String>,
+    modes: HashMap<String, ModeConfig>,
 }
 
 impl ModeRegistry {
-    /// Register a mode name. Call during plugin initialization.
-    pub fn register(&mut self, mode: impl Into<String>) {
-        self.modes.insert(mode.into());
+    /// Replace all registered modes from project configuration.
+    ///
+    /// 使用项目配置替换所有已注册 mode。
+    pub fn set_modes(&mut self, modes: HashMap<String, ModeConfig>) {
+        self.modes = modes;
     }
 
     /// Check if a mode is registered.
     pub fn is_registered(&self, mode: &str) -> bool {
-        self.modes.contains(mode)
+        self.modes.contains_key(mode)
+    }
+
+    /// Get a mode declaration.
+    ///
+    /// 获取 mode 声明。
+    pub fn mode(&self, mode: &str) -> Option<&ModeConfig> {
+        self.modes.get(mode)
+    }
+
+    /// Check whether a mode enables a primitive.
+    ///
+    /// 检查 mode 是否启用了某个 primitive。
+    pub fn mode_has_primitive(&self, mode: &str, primitive: ModePrimitiveConfig) -> bool {
+        self.mode(mode)
+            .is_some_and(|mode_config| mode_config.has_primitive(primitive))
     }
 
     /// Get all registered mode names.
     pub fn modes(&self) -> impl Iterator<Item = &str> {
-        self.modes.iter().map(|s| s.as_str())
+        self.modes.keys().map(|s| s.as_str())
+    }
+}
+
+/// Helper for `run_if` checks against the current mode's primitive set.
+///
+/// 根据当前 mode 的 primitive 集合生成 `run_if` 检查。
+pub fn current_mode_has_primitive(
+    primitive: ModePrimitiveConfig,
+) -> impl Fn(Res<SequenceMode>, Res<ModeRegistry>) -> bool + Clone {
+    move |mode: Res<SequenceMode>, registry: Res<ModeRegistry>| {
+        mode.0
+            .as_deref()
+            .is_some_and(|mode_name| registry.mode_has_primitive(mode_name, primitive))
+    }
+}
+
+/// Helper for mode enter run conditions filtered by primitive.
+///
+/// 根据 primitive 过滤 mode enter 事件的 `run_if` 辅助函数。
+pub fn on_entering_mode_with_primitive(
+    primitive: ModePrimitiveConfig,
+) -> impl FnMut(MessageReader<ModeChanged>, Res<ModeRegistry>) -> bool + Clone {
+    move |mut events: MessageReader<ModeChanged>, registry: Res<ModeRegistry>| {
+        events.read().any(|event| {
+            event
+                .to
+                .as_deref()
+                .is_some_and(|mode_name| registry.mode_has_primitive(mode_name, primitive))
+        })
+    }
+}
+
+/// Helper for mode exit run conditions filtered by primitive.
+///
+/// 根据 primitive 过滤 mode exit 事件的 `run_if` 辅助函数。
+pub fn on_exiting_mode_with_primitive(
+    primitive: ModePrimitiveConfig,
+) -> impl FnMut(MessageReader<ModeChanged>, Res<ModeRegistry>) -> bool + Clone {
+    move |mut events: MessageReader<ModeChanged>, registry: Res<ModeRegistry>| {
+        events.read().any(|event| {
+            event
+                .from
+                .as_deref()
+                .is_some_and(|mode_name| registry.mode_has_primitive(mode_name, primitive))
+        })
     }
 }

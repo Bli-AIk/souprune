@@ -53,3 +53,51 @@ fn android_private_base_path_can_come_from_environment() {
         std::env::remove_var("SOUPRUNE_PRIVATE_ROOT");
     }
 }
+
+#[test]
+fn mod_game_config_accepts_project_declared_modes() {
+    let parsed: ModConfigFile = toml::from_str(
+        r#"
+        [game]
+        initial_mode = "field"
+
+        [game.modes.field]
+        primitives = ["top_down_map", "top_down_player", "interaction_zones"]
+        entry_sequence = "maps/field.sequence.ron"
+        rules = ["maps/field.fre.ron"]
+
+        [game.modes.encounter]
+        primitives = ["fixed_scene", "sequencer", "danmaku"]
+        entry_sequence = "encounters/start.sequence.ron"
+        fixed_camera_zoom = 1.5
+        "#,
+    )
+    .expect("mode config should parse");
+
+    let modes = parsed
+        .game
+        .expect("game config")
+        .modes
+        .expect("mode declarations");
+    assert!(modes["field"].has_primitive(ModePrimitiveConfig::TopDownMap));
+    assert!(modes["encounter"].has_primitive(ModePrimitiveConfig::FixedScene));
+    assert_eq!(modes["encounter"].fixed_camera_zoom(), 1.5);
+}
+
+#[test]
+fn mod_game_config_rejects_removed_mode_specific_fields() {
+    let error = match toml::from_str::<ModConfigFile>(
+        r#"
+        [game]
+        initial_battle_path = "battle/start.sequence.ron"
+        "#,
+    ) {
+        Ok(_) => panic!("removed battle-specific config field should fail parsing"),
+        Err(error) => error,
+    };
+
+    assert!(
+        error.to_string().contains("initial_battle_path"),
+        "error should name the removed field: {error}"
+    );
+}

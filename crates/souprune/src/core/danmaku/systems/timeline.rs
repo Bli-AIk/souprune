@@ -537,7 +537,7 @@ fn spawn_resolved_visual(
             .or_else(|_| {
                 SpriteAnimationClip::new(
                     &mut sprite_context,
-                    "overworld",
+                    "top_down",
                     &relative_path,
                     flip_x,
                     flip_y,

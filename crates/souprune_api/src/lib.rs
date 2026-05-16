@@ -32,8 +32,10 @@ pub enum Action {
 /// 高层输入上下文标识，对应 WIT 中的 `input-context-id` 记录。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum InputContextId {
-    Overworld,
-    Battle,
+    /// Project-declared runtime mode name.
+    ///
+    /// 项目声明的运行时 mode 名称。
+    Mode(String),
     Dialogue,
     View,
     Custom(String),

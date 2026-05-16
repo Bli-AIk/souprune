@@ -15,10 +15,10 @@
 pub mod debug_collider {
     use crate::core::basic_components::Facing;
     use crate::core::collision::{HitboxOffset, PhysicsCollider, Rect2DCollider, TriggerCollider};
-    use crate::core::overworld::character::components::PlayerControlled;
-    use crate::core::overworld::tilemap::systems::TilemapCollider;
-    use crate::core::overworld::tilemap::*;
-    use crate::core::overworld::trigger::{FocusedInteractable, Interactable, TriggerZone};
+    use crate::core::top_down::character::components::PlayerControlled;
+    use crate::core::top_down::tilemap::systems::TilemapCollider;
+    use crate::core::top_down::tilemap::*;
+    use crate::core::top_down::trigger::{FocusedInteractable, Interactable, TriggerZone};
     use bevy::color::palettes::css;
     use bevy::math::Isometry2d;
     use bevy::prelude::*;
@@ -152,7 +152,7 @@ pub mod debug_collider {
             &GlobalTransform,
             &TriggerCollider,
             Option<&HitboxOffset>,
-            Option<&crate::core::overworld::chase::ChasePlayerHitbox>,
+            Option<&crate::core::top_down::chase::ChasePlayerHitbox>,
         )>,
     ) {
         // Physics colliders (green)

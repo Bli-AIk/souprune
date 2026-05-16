@@ -100,13 +100,13 @@ mod tests {
         view_root.set_local_value("info_box_y_offset", 0);
 
         let mut layered_db = LayeredFactDatabase::new();
-        layered_db.set_global("overworld:player_screen_y", FactValue::Float(130.1));
+        layered_db.set_global("top_down:player_screen_y", FactValue::Float(130.1));
 
         let rule_defs = vec![GameRuleDef {
             id: "move_info_box_down_when_player_is_low".into(),
-            event: RuleEventDef::Event("overworld:screen_facts_updated".into()),
+            event: RuleEventDef::Event("top_down:screen_facts_updated".into()),
             conditions: vec![
-                "$overworld:player_screen_y > 130".into(),
+                "$top_down:player_screen_y > 130".into(),
                 "$info_box_y_offset != 135".into(),
             ],
             actions: vec![GameActionDef::SetLocalFact(
@@ -123,7 +123,7 @@ mod tests {
         apply_pre_spawn_events(
             &mut view_root,
             &rule_defs,
-            &["overworld:screen_facts_updated".into()],
+            &["top_down:screen_facts_updated".into()],
             &layered_db,
             &bevy_fact_rule_event::EnumRegistry::default(),
         );

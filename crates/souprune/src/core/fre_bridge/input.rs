@@ -70,7 +70,7 @@ mod tests {
 
         app.world_mut()
             .write_message(InputEnvelopeEvent::new(InputEnvelope::new(
-                InputContextId::Battle,
+                InputContextId::Mode("battle".to_string()),
                 InputTarget::FreScope,
                 InputCommand::Confirm,
                 "KeyboardX",
@@ -91,7 +91,7 @@ mod tests {
 
         app.world_mut()
             .write_message(InputEnvelopeEvent::new(InputEnvelope::new(
-                InputContextId::Overworld,
+                InputContextId::Mode("field".to_string()),
                 InputTarget::FreScope,
                 InputCommand::Navigate(Direction::Down),
                 "KeyboardArrowDown",

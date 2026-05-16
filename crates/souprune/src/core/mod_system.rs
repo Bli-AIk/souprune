@@ -65,7 +65,7 @@ impl Plugin for ModPlugin {
                     behaviors::update_behaviors_system,
                 )
                     .chain()
-                    .in_set(crate::core::battle_runtime::BattleMovementSet),
+                    .in_set(crate::core::fixed_scene::FixedSceneMovementSet),
             )
             .add_systems(
                 schedule,

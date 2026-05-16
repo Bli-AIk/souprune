@@ -1,6 +1,6 @@
-//! Overworld UI components used by the overworld app state.
+//! Overworld UI components used by the top_down app state.
 //!
-//! 用于 overworld 应用状态的 UI 组件。
+//! 用于 top_down 应用状态的 UI 组件。
 //!
 //! This module has been refactored into submodules for better organization.
 //!

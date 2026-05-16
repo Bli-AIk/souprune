@@ -84,6 +84,33 @@ fn framework_no_longer_has_preset_layer_entrypoints() {
 }
 
 #[test]
+fn framework_core_does_not_register_battle_or_overworld_as_first_class_modes() {
+    let workspace = workspace_root();
+    let roots = [workspace.join("crates/souprune/src/core")];
+    let forbidden = [
+        "pub mod battle_runtime",
+        "pub mod overworld",
+        "BattlePlugin",
+        "OverworldPlugin",
+        ".register(\"battle\")",
+        ".register(\"overworld\")",
+        ".register(\"top_down\")",
+        "is_mode(\"battle\")",
+        "is_mode(\"overworld\")",
+        "is_mode(\"top_down\")",
+        "InputContextId::Battle",
+        "InputContextId::Overworld",
+    ];
+    let hits = forbidden_rust_source_hits(&roots, &workspace, &forbidden);
+
+    assert!(
+        hits.is_empty(),
+        "core must provide primitives instead of first-class battle/overworld modes:\n{}",
+        hits.join("\n")
+    );
+}
+
+#[test]
 fn preset_no_longer_defines_temporary_battle_box_runtime_types() {
     let workspace = workspace_root();
     let roots = [workspace.join("crates/souprune/src")];
@@ -105,7 +132,7 @@ fn preset_no_longer_defines_temporary_battle_box_runtime_types() {
 #[test]
 fn preset_no_longer_owns_battle_player_spawn_runtime() {
     let workspace = workspace_root();
-    let roots = [workspace.join("crates/souprune/src/core/battle_runtime")];
+    let roots = [workspace.join("crates/souprune/src/core/fixed_scene")];
     let forbidden = [
         ".battle_player.ron",
         "BattlePlayerConfig",

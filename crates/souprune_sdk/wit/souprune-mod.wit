@@ -230,16 +230,17 @@ interface behavior {
     ///
     /// 高层输入上下文类别。
     enum input-context-kind {
-        overworld,
-        battle,
+        mode,
         dialogue,
         view,
         custom,
     }
 
-    /// High-level input context identifier.
+    /// High-level input context identifier. When kind is `mode`,
+    /// `custom-name` stores the project-declared mode name.
     ///
-    /// 高层输入上下文标识。
+    /// 高层输入上下文标识。当 kind 为 `mode` 时，
+    /// `custom-name` 存储项目声明的 mode 名称。
     record input-context-id {
         kind: input-context-kind,
         custom-name: option<string>,
@@ -402,7 +403,7 @@ interface custom-action-handler {
 /// 模式生命周期接口 — 模组导出，响应模式切换。
 /// 当 SequenceMode 或 SequenceSubState 变化时，引擎调用这些回调。
 interface mode-lifecycle {
-    /// Called when the engine enters a new mode (e.g., "battle", "overworld").
+    /// Called when the engine enters a project-declared mode.
     on-mode-enter: func(mode: string);
 
     /// Called when the engine exits the current mode.

@@ -1,4 +1,4 @@
-//! Player behavior RON tests for overworld startup.
+//! Player behavior RON tests for top_down startup.
 //!
 //! Overworld 玩家行为 RON 测试。
 

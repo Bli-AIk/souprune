@@ -10,8 +10,10 @@ use crate::{Action, exports};
 /// 高层输入上下文标识。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum InputContextId {
-    Overworld,
-    Battle,
+    /// Project-declared runtime mode name.
+    ///
+    /// 项目声明的运行时 mode 名称。
+    Mode(String),
     Dialogue,
     View,
     Custom(String),
@@ -67,8 +69,9 @@ impl InputContextId {
     pub fn from_wit(context: &exports::souprune::plugin::behavior::InputContextId) -> Self {
         use exports::souprune::plugin::behavior::InputContextKind as WitInputContextKind;
         match context.kind {
-            WitInputContextKind::Overworld => Self::Overworld,
-            WitInputContextKind::Battle => Self::Battle,
+            WitInputContextKind::Mode => {
+                Self::Mode(context.custom_name.clone().unwrap_or_default())
+            }
             WitInputContextKind::Dialogue => Self::Dialogue,
             WitInputContextKind::View => Self::View,
             WitInputContextKind::Custom => {

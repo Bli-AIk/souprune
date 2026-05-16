@@ -148,7 +148,7 @@ pub struct EnemyDef {
 ```
 crates/souprune/src/
 ├── core/           # Engine-level systems (input, view, camera, collision, ...)
-├── app_state/      # Game state modules (menu, overworld, battle)
+├── app_state/      # Game state modules (menu, top_down, battle)
 ├── extra/          # Optional utilities (debug tools, format loaders)
 └── lib.rs          # Plugin registration, app builder
 ```
@@ -203,7 +203,7 @@ This rule is enforced by `tokei_check.sh`.
 
 Directory structure is not enough; dependency direction must also match the architecture.
 
-- The directory name alone does not make something `core/`. If a module needs to know about battle, overworld, or the
+- The directory name alone does not make something `core/`. If a module needs to know about battle, top_down, or the
   editor, it probably does not belong in `core/`
 - A simple rule: `app_state/` may depend on `core/`, but `core/` should not reach back up into `app_state/`
 - Editor crates should talk to **public framework APIs** or **schema crates**, not reach through deep internal paths

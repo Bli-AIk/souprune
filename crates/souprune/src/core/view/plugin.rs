@@ -40,7 +40,8 @@ use super::visible_when::evaluate_visible_when_system;
 #[cfg(feature = "debug")]
 use super::{ElementState, ViewBox, ViewElementHistory, ViewRoot};
 use super::{PixelOutlineMaterial, SdfStructureAsset, ViewUpdate};
-use crate::core::mode::is_mode;
+use crate::config::ModePrimitiveConfig;
+use crate::core::mode::current_mode_has_primitive;
 use crate::core::ron_loader::RonAssetLoader;
 
 /// Asset loader for ViewLayoutAsset that applies coordinate system preprocessing.
@@ -119,7 +120,7 @@ impl Plugin for CoreViewPlugin {
                     state_transition_sound_system,
                 )
                     .in_set(StateViewTransitionSet)
-                    .run_if(is_mode("overworld")),
+                    .run_if(current_mode_has_primitive(ModePrimitiveConfig::ViewRuntime)),
             )
             .add_systems(
                 PostUpdate,

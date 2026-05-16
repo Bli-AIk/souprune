@@ -22,7 +22,8 @@ SoupRune 是构建在 Bevy 之上的框架。本体已经不再存在编译进�
 │  框架层                                      │
 │  crates/souprune/src/core/                   │
 │  View、FRE bridge、Mortar 集成、弹幕、碰撞、  │
-│  输入、模式运行时、schema-backed 内容加载     │
+│  输入、mode registry、host primitive、        │
+│  schema-backed 内容加载                       │
 ├──────────────────────────────────────────────┤
 │  Schema 与 SDK 层                            │
 │  crates/souprune_schema、souprune_api、       │
@@ -50,16 +51,21 @@ SoupRune 是构建在 Bevy 之上的框架。本体已经不再存在编译进�
 - `collision/`：暴露给项目 runtime 的宿主碰撞 primitive。
 - `mod_system/`：WASM 加载、行为分发、自定义 action 分发、host entity
   primitive 与音频副作用。
-- `battle_runtime/`：通用 battle 模式调度、相机/输入初始化、sequencer/FRE 接线、
-  弹幕集成与战斗对白表现。
-- `overworld/`：通用俯视角模式运行时，包括地图、玩家移动、交互区和地图作用域
-  FRE 集成。
+- `fixed_scene/`：固定相机场景 primitive bundle，提供相机/输入初始化、
+  sequencer/FRE 接线与弹幕接入。它不是名为 `battle` 的内置模式。
+- `top_down/`：俯视角地图 primitive bundle，提供 tilemap、玩家移动、交互区、
+  chase 与地图作用域 FRE 接入。tilemap 等高频基础能力可以属于 core，但具体
+  mode 名称与玩法语义由项目声明。
 - `content/`：当前项目格式需要的 schema-backed 资源加载与 fact 投影。
 
-有些模块仍会出现 item、enemy、battle、overworld 等 RPG 词汇，因为这些是当前框架
-支持的 schema 表面与运行时模式。边界不由词汇本身决定，而由职责归属决定：框架可以
-加载类型化数据、投影 facts、提供通用模式胶水；物品使用效果、敌人回合选择、
-BattleBox、玩家生成语义等项目玩法规则必须位于项目内容或项目 WASM runtime。
+项目通过 `mod.toml` 的 `game.modes.<id>` 声明 mode 名称、启用的 primitive、
+入口 sequence、FRE 规则与固定相机参数。`battle`、`overworld`、`field`、`puzzle`
+等名称都是项目配置数据；core 不默认注册这些名称，也不根据这些名称切换系统。
+
+有些模块仍会出现 item、enemy、battle 等当前项目格式词汇。边界不由词汇本身决定，
+而由职责归属决定：框架可以加载类型化数据、投影 facts、提供可复用 primitive；
+物品使用效果、敌人回合选择、BattleBox、玩家生成语义等项目玩法规则必须位于项目
+内容或项目 WASM runtime。
 
 ---
 
@@ -87,7 +93,8 @@ BattleBox、玩家生成语义等项目玩法规则必须位于项目内容或�
 - `core::collision::region::CollisionRegion` 与移动约束。
 - `core::mod_system` 中从 WASM 生成 sprite 或 view box 的 host entity primitive。
 - `core::sequencer::Chapter::Custom` 与自定义 action 分发。
-- `core::battle_runtime::BattleUpdate` 以及 battle 相机/输入初始化。
+- tilemap、固定相机场景、俯视角移动、交互区等通用 primitive。
+- `ModeRegistry` 根据项目配置判断当前 mode 启用了哪些 primitive。
 - `core::content::enemy::EnemyDef` 加载与 fact 投影。
 
 项目 runtime 拥有：
@@ -119,7 +126,8 @@ View 布局由 RON 声明。View 拥有自己的 `LocalState`；外部系统通�
 ### 输入
 
 输入以统一输入事务进入框架。View、FRE 与 WASM behavior 消费同一种事务模型，
-但各自桥接层可以把它翻译为自己的本地命令。直接读取原始按键不再作为长期扩展点。
+但各自桥接层可以把它翻译为自己的本地命令。输入事务携带当前项目声明的 mode 名，
+而不是框架内置的 `battle` / `overworld` 上下文。直接读取原始按键不再作为长期扩展点。
 
 ### WASM Runtime
 

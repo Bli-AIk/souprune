@@ -27,7 +27,7 @@ pub use crate::core::character_asset::{
 pub use crate::core::content::enemy::{ActionOption, EnemyDef, EnemyRegistry};
 pub use crate::core::content::item::{Item, ItemEffect, ItemListAsset, ItemRegistry, ItemType};
 pub use crate::core::input::actions::Action;
-pub use crate::core::overworld::player::config::PlayerBehavior;
+pub use crate::core::top_down::player::config::PlayerBehavior;
 pub use crate::core::view::layout::{
     FloatOrExpr, SerializableVec3, ViewBoxLogicDef, ViewLayoutAsset, ViewNodeDef,
 };

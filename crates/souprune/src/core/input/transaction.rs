@@ -29,8 +29,10 @@ pub struct InputTransactionSet;
 /// 高层输入上下文标识。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum InputContextId {
-    Overworld,
-    Battle,
+    /// Project-declared runtime mode name.
+    ///
+    /// 项目声明的运行时 mode 名称。
+    Mode(String),
     Dialogue,
     View,
     Custom(String),
@@ -246,12 +248,8 @@ fn configured_input_commands(config: &InputBehaviorConfig) -> Vec<(&str, InputCo
 }
 
 fn context_from_mode(mode: Option<&SequenceMode>) -> InputContextId {
-    match mode.and_then(|mode| mode.0.as_deref()) {
-        Some("overworld") => InputContextId::Overworld,
-        Some("battle") => InputContextId::Battle,
-        Some("dialogue") => InputContextId::Dialogue,
-        Some("view") => InputContextId::View,
-        Some(other) => InputContextId::Custom(other.to_string()),
+    match mode.and_then(|mode| mode.0.as_ref()) {
+        Some(mode_name) => InputContextId::Mode(mode_name.clone()),
         None => InputContextId::Custom("unknown".to_string()),
     }
 }
@@ -370,13 +368,13 @@ mod tests {
     #[test]
     fn envelope_keeps_source_action_and_route() {
         let envelope = InputEnvelope::new(
-            InputContextId::Battle,
+            InputContextId::Mode("battle".to_string()),
             InputTarget::ActiveView,
             InputCommand::Confirm,
             "Confirm",
         );
 
-        assert!(matches!(envelope.context, InputContextId::Battle));
+        assert_eq!(envelope.context, InputContextId::Mode("battle".to_string()));
         assert!(matches!(envelope.target, InputTarget::ActiveView));
         assert!(matches!(envelope.command, InputCommand::Confirm));
         assert_eq!(envelope.source_action, "Confirm");
@@ -410,7 +408,7 @@ mod tests {
             &action_state,
             &registry,
             &config,
-            InputContextId::Battle,
+            InputContextId::Mode("battle".to_string()),
             InputTarget::FreScope,
         );
 
@@ -435,7 +433,7 @@ mod tests {
             &action_state,
             &registry,
             &config,
-            InputContextId::Battle,
+            InputContextId::Mode("battle".to_string()),
             InputTarget::FreScope,
         );
 
@@ -457,12 +455,22 @@ mod tests {
             &action_state,
             &registry,
             &config,
-            InputContextId::Overworld,
+            InputContextId::Mode("field".to_string()),
             InputTarget::FreScope,
         );
 
         assert!(state.navigation_pressed(Direction::Down));
         assert!(state.source_action_pressed("MoveDown"));
         assert!(envelopes.is_empty());
+    }
+
+    #[test]
+    fn declared_mode_name_becomes_input_context() {
+        let sequence_mode = SequenceMode(Some("battle".to_string()));
+
+        assert_eq!(
+            context_from_mode(Some(&sequence_mode)),
+            InputContextId::Mode("battle".to_string())
+        );
     }
 }

@@ -114,7 +114,7 @@ fn discover_texture_modules() -> Vec<String> {
     // 如果没有发现模块，则回退到默认模块
     warn!("No texture modules discovered, using defaults");
     vec![
-        "overworld".to_string(),
+        "top_down".to_string(),
         "battle".to_string(),
         "common".to_string(),
     ]
@@ -190,18 +190,7 @@ fn check_textures_system(
 
             next_state.set(AppState::Running);
 
-            // Mode is data-driven: prefer initial_sequence_path inference,
-            // fall back to config's initial_mode.
-            let mode = if souprune_config.game.initial_sequence_path.is_none()
-                && !souprune_config.game.initial_battle_path.is_empty()
-            {
-                info!(
-                    "No initial_sequence_path; initial_battle_path found. Using initial_mode from battle path."
-                );
-                "battle".to_string()
-            } else {
-                souprune_config.game.initial_mode.clone()
-            };
+            let mode = souprune_config.game.initial_mode.clone();
             info!("Setting initial SequenceMode: {:?}", mode);
             sequence_mode.0 = Some(mode);
             break;
