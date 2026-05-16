@@ -137,7 +137,7 @@ test_local:
 test-mods:
     @for toml in $(find projects -mindepth 2 -maxdepth 3 -name Cargo.toml | sort); do \
         crate_id=$(echo "$toml" | sed 's#^projects/##; s#/Cargo.toml$##; s#/#-#g'); \
-        cargo nextest run --manifest-path "$toml" --target-dir "{{workspace_root}}/target/mod-tests/$crate_id" || exit $?; \
+        cargo nextest run --manifest-path "$toml" --target-dir "{{workspace_root}}/target/mod-tests/$crate_id" --no-tests pass || exit $?; \
     done
     @echo "Tested all mods"
 
