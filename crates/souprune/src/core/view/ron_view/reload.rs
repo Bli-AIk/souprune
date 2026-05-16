@@ -134,7 +134,7 @@ pub fn incremental_reload_system(
             continue;
         };
 
-        // Get namespace and local facts from ViewRoot
+        // Get namespace and LocalState from ViewRoot.
         let namespace = crate::core::view::components::ViewRoot::namespace_from_path(
             &hot_reload_root.layout_path,
         );

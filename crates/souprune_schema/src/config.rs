@@ -347,12 +347,12 @@ pub struct AlightMotionBattleConfig {
     pub scale: f32,
     pub offset: (f32, f32),
     pub bullet_pattern: String,
-    pub battle_box_pattern: String,
+    pub boundary_pattern: String,
     pub hidden_pattern: String,
     pub bullet_damage: f32,
     pub collision_scale: f32,
-    #[serde(default = "default_battle_box_size")]
-    pub default_battle_box_size: (f32, f32),
+    #[serde(default = "default_boundary_size")]
+    pub default_boundary_size: (f32, f32),
 }
 
 impl Default for AlightMotionBattleConfig {
@@ -361,11 +361,11 @@ impl Default for AlightMotionBattleConfig {
             scale: 1.0,
             offset: (0.0, 0.0),
             bullet_pattern: "^#B".to_string(),
-            battle_box_pattern: "^#C".to_string(),
+            boundary_pattern: "^#C".to_string(),
             hidden_pattern: String::new(),
             bullet_damage: 1.0,
             collision_scale: 0.05,
-            default_battle_box_size: default_battle_box_size(),
+            default_boundary_size: default_boundary_size(),
         }
     }
 }
@@ -398,7 +398,7 @@ fn default_mobile_scale() -> f32 {
     0.75
 }
 
-fn default_battle_box_size() -> (f32, f32) {
+fn default_boundary_size() -> (f32, f32) {
     (566.0, 130.0)
 }
 

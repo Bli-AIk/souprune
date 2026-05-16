@@ -130,13 +130,13 @@ fn process_interface_requirement(
             );
         }
         crate::core::sequencer::chapter_schema::DataBinding::LocalLayer => {
-            // Copy facts from LOCAL layer to view's local_facts.
+            // Copy facts from LOCAL layer to the View's LocalState.
             // Skip dialogue:* facts — they are system-managed and updated
             // every frame in LayeredFactDatabase. Copying them here would
             // create stale snapshots that shadow the live values during
-            // condition evaluation (which checks local_facts first).
+            // condition evaluation (which checks LocalState first).
             //
-            // 从 LOCAL 层复制 facts 到 view 的 local_facts。
+            // 从 LOCAL 层复制 facts 到 View 的 LocalState。
             // 跳过 dialogue:* facts —— 它们由系统管理并每帧更新。
             for (key, value) in layered_db.iter_local() {
                 if key.starts_with("dialogue:") {
@@ -198,7 +198,7 @@ pub fn spawn_ron_view_for_entity(
     // 从布局路径生成命名空间
     let namespace = crate::core::view::components::ViewRoot::namespace_from_path(layout_path);
 
-    // Create ViewRoot with local facts initialized from layout
+    // Create ViewRoot with LocalState initialized from layout.
     // 创建带有从布局初始化的局部事实的 ViewRoot
     let mut view_root = crate::core::view::components::ViewRoot::new(layout_path.to_string());
 
@@ -263,8 +263,8 @@ pub fn spawn_ron_view_for_entity(
         }
     }
 
-    // Initialize local_facts from inline facts in layout
-    // 从布局中的内联 facts 初始化 local_facts
+    // Initialize LocalState from inline facts in layout.
+    // 从布局中的内联 facts 初始化 LocalState。
     if let Some(facts) = &view_layout.facts {
         for (key, value) in facts {
             use crate::core::view::layout::InitialFactValue;

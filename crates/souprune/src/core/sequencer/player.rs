@@ -14,9 +14,9 @@ use bevy::prelude::*;
 
 /// System to process generic player actions (Teleport, Despawn, SetMode, SetActive).
 ///
-/// Game-specific Spawn handling is in preset.
+/// Spawn handling is owned by the active mode runtime or project custom actions.
 ///
-/// 处理通用玩家动作的系统。游戏特定的 Spawn 处理在 preset 中。
+/// 处理通用玩家动作的系统。Spawn 由当前模式运行时或项目自定义 action 处理。
 pub fn process_player_action_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
@@ -27,7 +27,7 @@ pub fn process_player_action_system(
             continue;
         };
         match action {
-            // Spawn is handled by preset-specific systems
+            // Spawn is handled by mode-specific systems.
             PlayerAction::Spawn { .. } => {}
             PlayerAction::Teleport(pos) => {
                 for (_, mut transform) in player_query.iter_mut() {

@@ -32,13 +32,12 @@ pub struct ActiveView;
 
 /// Tags from a `.view_layout.ron` node definition.
 ///
-/// Preset systems can query for entities with specific tags
-/// and add game-specific components accordingly.
+/// Runtime systems can query for entities with specific tags and add
+/// mode-specific components accordingly.
 ///
 /// 来自 `.view_layout.ron` 节点定义的标签。
 ///
-/// Preset 系统可以查询具有特定标签的实体，
-/// 并据此添加游戏特定的组件。
+/// 运行时系统可以查询具有特定标签的实体，并据此添加模式专属组件。
 #[derive(Component, Debug, Clone)]
 pub struct ViewNodeTags(pub Vec<String>);
 
@@ -218,14 +217,14 @@ impl FactReader for LocalState {
 
 /// View Root - marks the root entity of a view layout and defines its namespace.
 ///
-/// `local_facts` is intentionally private; use `local_state()` for reads and
+/// The local state store is intentionally private; use `local_state()` for reads and
 /// owner-only control methods for writes.
 ///
 /// ```compile_fail
 /// use souprune::core::view::ViewRoot;
 ///
 /// let view_root = ViewRoot::new("battle/menu.view.ron".to_string());
-/// let _ = &view_root.local_facts;
+/// // Direct field access is intentionally unavailable.
 /// ```
 ///
 /// ```compile_fail
@@ -238,7 +237,7 @@ impl FactReader for LocalState {
 ///
 /// 视图根 - 标记视图布局的根实体并定义其命名空间。
 ///
-/// `local_facts` 刻意保持私有；读取请使用 `local_state()`，写入只能通过
+/// 局部状态存储刻意保持私有；读取请使用 `local_state()`，写入只能通过
 /// owner 专用控制方法。
 #[derive(Component, Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]

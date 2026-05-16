@@ -57,12 +57,11 @@ pub fn reset_game_state(world: &mut World) {
     }
 
     if let Some(mut h) =
-        world.get_resource_mut::<crate::preset::overworld::tilemap::CurrentBgmHandle>()
+        world.get_resource_mut::<crate::core::overworld::tilemap::CurrentBgmHandle>()
     {
         h.0 = None;
     }
-    if let Some(mut m) =
-        world.get_resource_mut::<crate::preset::overworld::tilemap::CurrentMapBgm>()
+    if let Some(mut m) = world.get_resource_mut::<crate::core::overworld::tilemap::CurrentMapBgm>()
     {
         m.0 = None;
     }
@@ -90,7 +89,7 @@ pub fn reset_game_state(world: &mut World) {
         reg.clear_local();
     }
     if let Some(mut loaded) =
-        world.get_resource_mut::<crate::preset::overworld::trigger::LoadedRuleSets>()
+        world.get_resource_mut::<crate::core::overworld::trigger::LoadedRuleSets>()
     {
         loaded.handles.clear();
         loaded.initialized = false;

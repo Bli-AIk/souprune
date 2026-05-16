@@ -36,9 +36,9 @@ type ConditionResolverFn =
     Box<dyn Fn(&LayeredFactDatabase, Option<&LocalState>) -> bool + Send + Sync>;
 
 /// Registry of computed data path resolvers.
-/// Preset modules register game-specific resolvers here.
+/// Framework or project runtime bridges register resolver functions here.
 ///
-/// 计算数据路径解析器注册表。预设模块在此注册游戏特定的解析器。
+/// 计算数据路径解析器注册表。框架或项目运行时桥接层在此注册解析器函数。
 #[derive(Resource, Default)]
 pub struct DataPathResolvers {
     resolvers: HashMap<String, DataPathResolverFn>,
@@ -74,9 +74,9 @@ impl DataPathResolvers {
 }
 
 /// Registry of view condition resolvers.
-/// Preset modules register game-specific conditions here.
+/// Framework or project runtime bridges register condition functions here.
 ///
-/// 视图条件解析器注册表。预设模块在此注册游戏特定的条件。
+/// 视图条件解析器注册表。框架或项目运行时桥接层在此注册条件函数。
 #[derive(Resource, Default)]
 pub struct ConditionResolvers {
     resolvers: HashMap<String, ConditionResolverFn>,

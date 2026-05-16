@@ -145,14 +145,12 @@ pub fn get_third_plugins() -> (
 
 pub fn get_game_plugins() -> (
     CorePlugin,
-    crate::preset::PresetPlugin,
     app_setup::AppSetupPlugin,
     GlobalPlugin,
     mod_system::ModPlugin,
 ) {
     (
         CorePlugin,
-        crate::preset::PresetPlugin,
         app_setup::AppSetupPlugin,
         GlobalPlugin,
         mod_system::ModPlugin,

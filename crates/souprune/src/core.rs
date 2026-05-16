@@ -38,6 +38,7 @@ pub mod battle_runtime;
 pub mod camera;
 pub(crate) mod character_asset;
 pub(crate) mod collision;
+pub mod content;
 pub mod danmaku;
 pub(crate) mod data;
 pub mod dialogue;
@@ -49,6 +50,7 @@ pub mod input;
 pub mod map_property_schema;
 pub mod mod_system;
 pub mod mode;
+pub mod overworld;
 pub mod render_layers;
 pub mod resource_resolver;
 pub mod ron_loader;
@@ -105,6 +107,7 @@ impl Plugin for CorePlugin {
                 audio::AudioPlugin,
                 camera::CameraPlugin,
                 collision::CollisionPlugin,
+                content::ContentPlugin,
                 danmaku::CoreDanmakuPlugin,
                 data::DataPlugin,
                 dialogue::DialoguePlugin,
@@ -113,7 +116,8 @@ impl Plugin for CorePlugin {
                 input::InputPlugin,
                 sprite::SpritePlugin,
                 state_config::StateConfigPlugin,
-            ));
+            ))
+            .add_plugins((battle_runtime::BattlePlugin, overworld::OverworldPlugin));
     }
 }
 

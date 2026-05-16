@@ -44,16 +44,56 @@ fn forbidden_rust_source_hits(
 }
 
 #[test]
+fn framework_no_longer_has_preset_layer_entrypoints() {
+    let workspace = workspace_root();
+    let removed_paths = [
+        workspace.join("crates/souprune/src/preset"),
+        workspace.join("crates/souprune/src/preset.rs"),
+        workspace.join("crates/souprune/src/host_runtime"),
+        workspace.join("crates/souprune/src/host_runtime.rs"),
+    ];
+    let existing: Vec<String> = removed_paths
+        .iter()
+        .filter(|path| path.exists())
+        .map(|path| path.display().to_string())
+        .collect();
+    assert!(
+        existing.is_empty(),
+        "the framework must not keep compiled preset/host_runtime paths:\n{}",
+        existing.join("\n")
+    );
+
+    let roots = [workspace.join("crates/souprune/src")];
+    let forbidden = [
+        "pub mod preset",
+        "pub mod host_runtime",
+        "PresetPlugin",
+        "HostRuntimePlugin",
+        "crate::preset::",
+        "crate::host_runtime::",
+        "super::preset::",
+        "super::host_runtime::",
+    ];
+    let hits = forbidden_rust_source_hits(&roots, &workspace, &forbidden);
+
+    assert!(
+        hits.is_empty(),
+        "preset layer entrypoints must be removed from framework source:\n{}",
+        hits.join("\n")
+    );
+}
+
+#[test]
 fn preset_no_longer_defines_temporary_battle_box_runtime_types() {
-    let preset_root = workspace_root().join("crates/souprune/src/preset");
+    let workspace = workspace_root();
+    let roots = [workspace.join("crates/souprune/src")];
     let forbidden = [
         "pub struct BattleBox",
         "pub struct BoundToBattleBox",
         "pub struct SplitBattleBox",
         "pub struct MergeBattleBoxes",
     ];
-    let hits =
-        forbidden_rust_source_hits(std::slice::from_ref(&preset_root), &preset_root, &forbidden);
+    let hits = forbidden_rust_source_hits(&roots, &workspace, &forbidden);
 
     assert!(
         hits.is_empty(),
@@ -64,7 +104,8 @@ fn preset_no_longer_defines_temporary_battle_box_runtime_types() {
 
 #[test]
 fn preset_no_longer_owns_battle_player_spawn_runtime() {
-    let preset_root = workspace_root().join("crates/souprune/src/preset");
+    let workspace = workspace_root();
+    let roots = [workspace.join("crates/souprune/src/core/battle_runtime")];
     let forbidden = [
         ".battle_player.ron",
         "BattlePlayerConfig",
@@ -72,8 +113,7 @@ fn preset_no_longer_owns_battle_player_spawn_runtime() {
         "process_battle_player_spawn_system",
         "Name::new(\"BattlePlayer\")",
     ];
-    let hits =
-        forbidden_rust_source_hits(std::slice::from_ref(&preset_root), &preset_root, &forbidden);
+    let hits = forbidden_rust_source_hits(&roots, &workspace, &forbidden);
 
     assert!(
         hits.is_empty(),
@@ -106,6 +146,29 @@ fn framework_schema_no_longer_exposes_battle_player_config_files() {
 }
 
 #[test]
+fn framework_alight_motion_config_uses_generic_boundary_terms() {
+    let workspace = workspace_root();
+    let roots = [
+        workspace.join("crates/souprune/src/core"),
+        workspace.join("crates/souprune_schema/src"),
+    ];
+    let forbidden = [
+        "battle_box_pattern",
+        "default_battle_box_size",
+        "AlightMotionBattleBoxMarker",
+        "Battle box",
+        "battle box",
+    ];
+    let hits = forbidden_rust_source_hits(&roots, &workspace, &forbidden);
+
+    assert!(
+        hits.is_empty(),
+        "Alight Motion framework config must expose generic boundary terms, not project BattleBox semantics:\n{}",
+        hits.join("\n")
+    );
+}
+
+#[test]
 fn framework_no_longer_owns_enemy_turn_selection_chapter() {
     let workspace = workspace_root();
     let roots = [
@@ -125,10 +188,7 @@ fn framework_no_longer_owns_enemy_turn_selection_chapter() {
 #[test]
 fn framework_preset_no_longer_owns_item_action_runtime() {
     let workspace = workspace_root();
-    let roots = [
-        workspace.join("crates/souprune/src/preset.rs"),
-        workspace.join("crates/souprune/src/preset"),
-    ];
+    let roots = [workspace.join("crates/souprune/src")];
     let forbidden = [
         "item_actions",
         "UseItem",

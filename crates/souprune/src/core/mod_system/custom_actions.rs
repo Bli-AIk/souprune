@@ -56,7 +56,7 @@ pub fn dispatch_wasm_custom_actions_system(
             {
                 let ctx = loaded.store.data_mut();
                 ctx.call_ctx.fact_snapshot =
-                    build_event_fact_snapshot(&base_fact_snapshot, &event.local_facts);
+                    build_event_fact_snapshot(&base_fact_snapshot, &event.local_state_snapshot);
                 ctx.call_ctx.clear_pending_side_effects();
             }
 
@@ -84,7 +84,9 @@ pub fn dispatch_wasm_custom_actions_system(
                 &mut fact_history,
                 &mut host_entity_effects,
                 &mut audio_effects,
-                event.local_facts_target.then_some(&mut active_view_query),
+                event
+                    .targets_view_local_state
+                    .then_some(&mut active_view_query),
                 frame_count.0 as u64,
                 &format!("wasm:{}", loaded.name),
             );
@@ -106,15 +108,15 @@ pub(super) fn build_fact_snapshot(
 
 fn build_event_fact_snapshot(
     base: &Arc<HashMap<String, FactValue>>,
-    local_facts: &HashMap<String, FactValue>,
+    local_state_snapshot: &HashMap<String, FactValue>,
 ) -> Arc<HashMap<String, FactValue>> {
-    if local_facts.is_empty() {
+    if local_state_snapshot.is_empty() {
         return Arc::clone(base);
     }
 
     let mut merged = (**base).clone();
     merged.extend(
-        local_facts
+        local_state_snapshot
             .iter()
             .map(|(key, value)| (key.clone(), value.clone())),
     );
@@ -128,11 +130,11 @@ pub(super) fn apply_pending_side_effects(
     fact_history: &mut crate::core::trace::FactChangeHistory,
     host_entity_effects: &mut PendingHostEntityEffects,
     audio_effects: &mut PendingAudioEffects,
-    local_facts_target: Option<&mut Query<&mut ViewRoot, With<ActiveView>>>,
+    local_state_target: Option<&mut Query<&mut ViewRoot, With<ActiveView>>>,
     frame_number: u64,
     caused_by: &str,
 ) {
-    if let Some(view_query) = local_facts_target
+    if let Some(view_query) = local_state_target
         && let Ok(mut view_root) = view_query.single_mut()
     {
         apply_fact_mutations(
@@ -199,7 +201,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn event_fact_snapshot_overlays_view_local_facts() {
+    fn event_fact_snapshot_overlays_view_local_state() {
         let mut fact_db = LayeredFactDatabase::new();
         fact_db.set_global("selection", FactValue::Int(0));
         fact_db.set_global("player:hp", FactValue::Int(10));

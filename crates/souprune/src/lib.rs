@@ -15,7 +15,6 @@ mod bootstrap;
 pub mod config;
 pub mod core;
 pub mod extra;
-pub mod preset;
 
 pub use crate::bootstrap::{
     get_file_importer_plugins, get_game_plugins, get_third_plugins, insert_font_resources,
@@ -25,13 +24,13 @@ pub use crate::core::basic_components::Direction;
 pub use crate::core::character_asset::{
     AnimationConfigAsset, CharacterAsset, StateAnimationMapping,
 };
+pub use crate::core::content::enemy::{ActionOption, EnemyDef, EnemyRegistry};
+pub use crate::core::content::item::{Item, ItemEffect, ItemListAsset, ItemRegistry, ItemType};
 pub use crate::core::input::actions::Action;
+pub use crate::core::overworld::player::config::PlayerBehavior;
 pub use crate::core::view::layout::{
     FloatOrExpr, SerializableVec3, ViewBoxLogicDef, ViewLayoutAsset, ViewNodeDef,
 };
-pub use crate::preset::enemy::{ActionOption, EnemyDef, EnemyRegistry};
-pub use crate::preset::item::{Item, ItemEffect, ItemListAsset, ItemRegistry, ItemType};
-pub use crate::preset::overworld::player::config::PlayerBehavior;
 pub use souprune_schema::enemy::{CombatStats, LocaleInfo};
 
 use std::default::Default;

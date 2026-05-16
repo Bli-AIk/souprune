@@ -127,9 +127,9 @@ pub enum Chapter {
         #[serde(default)]
         fade_in: Option<f32>,
     },
-    /// Start a preset battle enemy speech bubble.
+    /// Start a battle enemy speech bubble presentation.
     ///
-    /// 启动预设战斗敌人对话气泡。
+    /// 启动战斗敌人对话气泡表现。
     BattleSpeechBubble(souprune_schema::battle::BattleSpeechBubbleDef),
     Log {
         text: String,

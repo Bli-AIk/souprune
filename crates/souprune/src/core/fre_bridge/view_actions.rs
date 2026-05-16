@@ -71,7 +71,7 @@ fn log_event_rule_matches(event: &FactEvent, rule_groups: &[Vec<&GameRule>]) {
 fn log_condition_not_met(rule: &GameRule, view_root: &ViewRoot) {
     if rule.id.contains("act") || rule.id.contains("depth_2") {
         debug!(
-            "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, menu_context={:?}, act_selection={:?}, act_count={:?}",
+            "FRE Bridge: Conditions not met for rule '{}', local_state: depth={:?}, menu_context={:?}, act_selection={:?}, act_count={:?}",
             rule.id,
             view_root.local_state().get_int("depth"),
             view_root.local_state().get_int("menu_context"),
@@ -80,7 +80,7 @@ fn log_condition_not_met(rule: &GameRule, view_root: &ViewRoot) {
         );
     } else {
         debug!(
-            "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, selection={:?}",
+            "FRE Bridge: Conditions not met for rule '{}', local_state: depth={:?}, selection={:?}",
             rule.id,
             view_root.local_state().get_int("depth"),
             view_root.local_state().get_int("selection")
@@ -273,16 +273,16 @@ fn execute_action(
             action_type,
             params,
         } => {
-            let local_facts_snapshot = view_root
+            let local_state_snapshot = view_root
                 .local_state()
                 .iter()
                 .map(|(key, value)| (key.clone(), value.clone()))
                 .collect();
-            let local_facts = view_root
+            let local_state = view_root
                 .local_state_mut_for_owner()
                 .as_facts_mut_for_owner();
             let mut ctx = ViewActionExecCtx {
-                local_facts,
+                local_state,
                 global_facts,
                 audio,
                 asset_server,
@@ -301,8 +301,8 @@ fn execute_action(
                 custom_action_writer.write(FreCustomActionEvent {
                     action_type: action_type.clone(),
                     params: params.clone(),
-                    local_facts: local_facts_snapshot,
-                    local_facts_target: true,
+                    local_state_snapshot,
+                    targets_view_local_state: true,
                 });
             }
         }

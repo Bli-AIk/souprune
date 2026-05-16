@@ -1,17 +1,27 @@
-//! Battle runtime markers and system sets used by core infrastructure.
+//! Battle mode runtime plugin, markers, and system sets.
 //!
-//! battle 模式的运行时标记和系统集，供 core 基础设施使用。
+//! battle 模式运行时插件、标记和系统集。
 //!
-//! These are lightweight zero-logic marker types that core modules (mod_system,
-//! sequencer) depend on for battle-mode scheduling. They live in core/ rather
-//! than preset/ because moving them would create a circular dependency:
-//! mod_system needs scheduling references, and preset depends on mod_system.
+//! This module owns the generic battle-mode host runtime: camera/input setup,
+//! sequencer wiring, danmaku integration, and FRE bridge scheduling. Project
+//! project-specific battle area commands, player spawning, item use, and
+//! enemy-turn selection live in project WASM runtimes instead.
 //!
-//! 这些是无游戏逻辑的轻量级标记类型。Core 模块（mod_system、sequencer）
-//! 依赖它们进行 battle 模式调度。它们位于 core/ 而非 preset/ 是因为移动
-//! 它们会导致循环依赖：mod_system 需要调度引用，而 preset 依赖 mod_system。
+//! 本模块持有通用 battle 模式宿主运行时：相机/输入初始化、sequencer 接线、
+//! 弹幕集成与 FRE bridge 调度。项目特化的战斗区域命令、战斗玩家生成、物品使用、
+//! 敌人回合选择位于 project WASM runtime 中。
+
+pub mod alight_motion_integration;
+pub mod danmaku;
+pub mod fre;
+pub mod menu_state;
+mod plugin;
+pub mod speech_bubble;
 
 use bevy::prelude::*;
+
+pub use plugin::BattlePlugin;
+pub(crate) use plugin::{battle_scoped, on_entering_battle, on_exiting_battle};
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BattleUpdate;

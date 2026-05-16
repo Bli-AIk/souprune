@@ -133,8 +133,8 @@ fn dispatch_single_custom_action(
                 custom_action_writer.write(FreCustomActionEvent {
                     action_type: action_type.clone(),
                     params: params.clone(),
-                    local_facts: HashMap::new(),
-                    local_facts_target: false,
+                    local_state_snapshot: HashMap::new(),
+                    targets_view_local_state: false,
                 });
             }
         }

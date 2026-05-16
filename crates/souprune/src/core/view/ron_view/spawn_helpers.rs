@@ -449,9 +449,9 @@ pub(super) fn resolve_simple_localization(
     s.to_string()
 }
 
-/// Load facts from a FreAsset into the ViewRoot's local_facts.
+/// Load facts from a FreAsset into the ViewRoot's LocalState.
 ///
-/// 将 FreAsset 中的事实加载到 ViewRoot 的 local_facts 中。
+/// 将 FreAsset 中的事实加载到 ViewRoot 的 LocalState 中。
 pub fn load_fre_into_view_root(
     view_root: &mut crate::core::view::components::ViewRoot,
     fre_asset: &GameFreAsset,

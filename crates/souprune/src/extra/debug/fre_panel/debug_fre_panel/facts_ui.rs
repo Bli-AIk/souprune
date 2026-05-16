@@ -4,7 +4,7 @@
 mod event_history;
 mod layered_facts;
 mod list_editors;
-mod view_facts;
+mod view_state;
 
 use super::{FREPanelState, FactLayerSelection};
 use bevy::prelude::*;
@@ -56,8 +56,8 @@ pub(super) fn render_events_tab(ui: &mut egui::Ui, world: &mut World) {
     event_history::render_events_tab(ui, world);
 }
 
-pub(super) fn render_view_facts_tab(ui: &mut egui::Ui, world: &mut World) {
-    view_facts::render_view_facts_tab(ui, world);
+pub(super) fn render_view_state_tab(ui: &mut egui::Ui, world: &mut World) {
+    view_state::render_view_state_tab(ui, world);
 }
 
 fn render_layered_facts(
