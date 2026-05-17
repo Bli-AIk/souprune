@@ -11,9 +11,9 @@ use std::sync::Arc;
 use super::LoadedMods;
 use super::audio_effects::PendingAudioEffects;
 use super::host_entities::PendingHostEntityEffects;
+use super::wasm_runtime;
 use crate::core::fre_bridge::FreCustomActionEvent;
 use crate::core::view::{ActiveView, ViewRoot};
-use crate::core::wasm_runtime;
 
 pub fn dispatch_wasm_custom_actions_system(
     mut events: MessageReader<FreCustomActionEvent>,

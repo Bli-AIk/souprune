@@ -61,7 +61,6 @@ pub mod top_down;
 pub mod trace;
 pub mod view;
 pub mod visual;
-pub mod wasm_runtime;
 
 use bevy::app::*;
 use bevy::asset::AssetApp;

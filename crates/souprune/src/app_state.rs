@@ -7,8 +7,6 @@
 //!
 //! 模式专属流程由 core 模式运行时插件注册。本模块提供状态切换的共享基础设施。
 
-pub mod app_setup;
-
 pub use crate::core::mode::{
     AppState, ModeChanged, ModeScoped, SequenceMode, SequenceSubState, cleanup_entities_system,
     cleanup_mode_scoped_entities, detect_mode_changes, is_mode,

@@ -82,7 +82,7 @@ pub fn configure_app(
         };
 
     app.insert_resource(ClearColor(Color::srgb(0.08, 0.09, 0.11)))
-        .insert_resource(souprune::app_state::app_setup::ResolutionScale(
+        .insert_resource(souprune::core::camera::ResolutionScale(
             souprune_config.window.resolution_scale,
         ))
         .insert_resource(souprune::extra::mortar::CurrentLocale(

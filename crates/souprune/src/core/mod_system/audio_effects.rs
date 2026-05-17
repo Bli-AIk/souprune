@@ -5,7 +5,8 @@
 use bevy::prelude::*;
 
 use crate::core::audio::{self, AudioSourceCache};
-use crate::core::wasm_runtime::PendingSoundEffect;
+
+use super::wasm_runtime::PendingSoundEffect;
 
 /// Audio effects waiting for Bevy audio playback.
 ///

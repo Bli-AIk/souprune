@@ -9,9 +9,9 @@ use bevy_tween::prelude::*;
 use std::collections::HashMap;
 use std::time::Duration;
 
+use super::wasm_runtime::PendingHostEffect;
 use crate::core::sequencer::tween::ViewBoxSizeInterpolator;
 use crate::core::view::ViewBox;
-use crate::core::wasm_runtime::PendingHostEffect;
 use crate::core::{
     collision::{PhysicsCollider, TriggerCollider},
     danmaku::BulletTarget,

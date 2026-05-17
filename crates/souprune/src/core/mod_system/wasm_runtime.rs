@@ -27,7 +27,7 @@ use self::souprune::plugin::host_api::{
     Action as WitAction, ColliderShape as WitColliderShape, FactValue as WitFact, Rgba as WitRgba,
     SpriteEntityDesc as WitSpriteEntityDesc, Vec2 as WitVec2,
 };
-use super::collision::{
+use crate::core::collision::{
     CollisionBoundary, CollisionRegion, CollisionRegionStore, ConstraintHandle, PhysicsCollider,
     RegionHandle, TriggerCollider,
 };

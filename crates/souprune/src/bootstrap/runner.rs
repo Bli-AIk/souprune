@@ -12,10 +12,10 @@
 //! 准备资源源和热重载监听器、注入启动资源，并最终运行装配好的插件图。
 //! 只在进程构建阶段有意义的逻辑，应当放在这里，而不是混进玩法代码里。
 
-use crate::app_state::app_setup;
 #[cfg(target_os = "android")]
 use crate::bootstrap::logging::android_panic_log_path;
 use crate::bootstrap::logging::setup_logging;
+use crate::bootstrap::plugins::app_setup;
 use crate::bootstrap::plugins::{
     get_bevy_default_plugins, get_file_importer_plugins, get_game_plugins, get_third_plugins,
 };

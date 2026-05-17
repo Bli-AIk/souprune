@@ -14,17 +14,14 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
 
-use super::wasm_runtime::{self, LoadedMod, WasmRuntime};
-
-mod danmaku_runtime;
+use wasm_runtime::{LoadedMod, WasmRuntime};
 
 mod audio_effects;
-
-mod custom_actions;
-
 mod behaviors;
-
+mod custom_actions;
+mod danmaku_runtime;
 mod host_entities;
+mod wasm_runtime;
 
 pub use behaviors::{BehaviorContext, BehaviorParams, BehaviorVelocity};
 pub use danmaku_runtime::{ActiveDanmaku, ActiveDanmakuStack};
