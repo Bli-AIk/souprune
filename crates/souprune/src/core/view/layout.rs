@@ -16,10 +16,14 @@
 
 pub mod coordinate_space;
 pub mod serde_types;
+pub mod slots;
+pub mod taffy;
 pub mod view_schema;
 
 pub use coordinate_space::*;
 pub use serde_types::*;
+pub use slots::*;
+pub use taffy::*;
 pub use view_schema::*;
 
 /// Convert the shared schema view layout into the runtime asset type.
@@ -55,7 +59,27 @@ mod tests {
             roots: vec![souprune_schema::view::ViewNodeDef {
                 name: "HudRoot".to_string(),
                 tags: vec!["hud".to_string()],
-                style: souprune_schema::view::StyleDef::default(),
+                style: souprune_schema::view::StyleDef {
+                    margin: Some(souprune_schema::view::SerializableRect {
+                        left: souprune_schema::view::SerializableVal::Px(1.0),
+                        right: souprune_schema::view::SerializableVal::Px(2.0),
+                        top: souprune_schema::view::SerializableVal::Px(3.0),
+                        bottom: souprune_schema::view::SerializableVal::Px(4.0),
+                    }),
+                    padding: Some(souprune_schema::view::SerializableRect {
+                        left: souprune_schema::view::SerializableVal::Percent(5.0),
+                        right: souprune_schema::view::SerializableVal::Percent(6.0),
+                        top: souprune_schema::view::SerializableVal::Percent(7.0),
+                        bottom: souprune_schema::view::SerializableVal::Percent(8.0),
+                    }),
+                    gap: Some(souprune_schema::view::StyleGap {
+                        row: souprune_schema::view::SerializableVal::Px(9.0),
+                        column: souprune_schema::view::SerializableVal::Px(10.0),
+                    }),
+                    align_self: Some(souprune_schema::view::SerializableAlignSelf::Center),
+                    display: Some(souprune_schema::view::SerializableDisplay::Flex),
+                    ..Default::default()
+                },
                 transform: None,
                 visible_when: Some("$show_hud".to_string()),
                 background_color: Some((
@@ -121,6 +145,21 @@ mod tests {
         let text = &runtime.roots[0].texts[0];
 
         assert!(runtime.world_space);
+        let style = &runtime.roots[0].style;
+        let margin = style.margin.as_ref().expect("margin should convert");
+        assert!(matches!(margin.left, SerializableVal::Px(v) if (v - 1.0).abs() < f32::EPSILON));
+        assert!(matches!(margin.bottom, SerializableVal::Px(v) if (v - 4.0).abs() < f32::EPSILON));
+        let padding = style.padding.as_ref().expect("padding should convert");
+        assert!(
+            matches!(padding.top, SerializableVal::Percent(v) if (v - 7.0).abs() < f32::EPSILON)
+        );
+        let gap = style.gap.as_ref().expect("gap should convert");
+        assert!(matches!(gap.row, SerializableVal::Px(v) if (v - 9.0).abs() < f32::EPSILON));
+        assert!(matches!(
+            style.align_self,
+            Some(SerializableAlignSelf::Center)
+        ));
+        assert!(matches!(style.display, Some(SerializableDisplay::Flex)));
         assert_eq!(text.char_spacing, Some(1.5));
         assert_eq!(text.word_spacing, Some(3.0));
         assert_eq!(text.text_style.as_deref(), Some("battle_narration"));

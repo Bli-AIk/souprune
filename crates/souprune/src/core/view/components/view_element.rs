@@ -225,6 +225,7 @@ impl FactReader for LocalState {
 ///
 /// let view_root = ViewRoot::new("battle/menu.view.ron".to_string());
 /// // Direct field access is intentionally unavailable.
+/// let _ = &view_root.local_state;
 /// ```
 ///
 /// ```compile_fail

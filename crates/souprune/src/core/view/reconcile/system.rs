@@ -11,7 +11,8 @@ use super::delta::{DeltaStats, apply_deltas};
 use super::diff::reconcile;
 use super::tree::CurrentViewTree;
 use crate::core::view::components::{ViewElement, ViewRoot};
-use crate::core::view::layout::ViewLayoutAsset;
+use crate::core::view::layout::{CoordinateExtentDef, CoordinateSpaceDef, ViewLayoutAsset};
+use crate::extra::debug::DebugCamera;
 use bevy::asset::AssetEvent;
 use bevy::ecs::prelude::MessageReader;
 use bevy::prelude::*;
@@ -126,6 +127,14 @@ pub fn view_reconciliation_system(
         Option<&crate::core::view::components::ViewBoxAnchor>,
     )>,
     children_query: Query<&Children>,
+    camera_query: Query<
+        (&Camera, &Projection),
+        (
+            With<Camera2d>,
+            With<crate::core::camera::MainGameCamera>,
+            Without<DebugCamera>,
+        ),
+    >,
     data_resolvers: Option<Res<crate::core::view::ron_view::parsing::DataPathResolvers>>,
     expr_func_resolvers: Option<Res<crate::core::view::ron_view::parsing::ExprFunctionResolvers>>,
 ) {
@@ -152,8 +161,13 @@ pub fn view_reconciliation_system(
 
         // Compute desired state
         let namespace = &view_root.namespace;
+        let visible_size = camera_query
+            .iter()
+            .find(|(camera, _)| camera.is_active)
+            .and_then(|(_, projection)| camera_visible_size(projection));
         let desired = compute_desired_state(
             asset,
+            layout_viewport_size(asset, visible_size),
             &layered_db,
             view_root.local_state(),
             namespace,
@@ -217,6 +231,35 @@ fn build_current_tree_from_query(
     );
 
     build_current_tree_with_components(root_entity, &elements)
+}
+
+fn camera_visible_size(projection: &Projection) -> Option<Vec2> {
+    let Projection::Orthographic(orthographic) = projection else {
+        return None;
+    };
+    let size = Vec2::new(
+        orthographic.area.width().abs(),
+        orthographic.area.height().abs(),
+    );
+    if size.x > 0.0 && size.y > 0.0 {
+        Some(size)
+    } else {
+        None
+    }
+}
+
+fn layout_viewport_size(view_layout: &ViewLayoutAsset, camera_visible_size: Option<Vec2>) -> Vec2 {
+    if let Some(CoordinateSpaceDef {
+        extent: CoordinateExtentDef::Explicit((width, height)),
+        ..
+    }) = view_layout.coordinate_space.as_ref()
+        && *width > 0.0
+        && *height > 0.0
+    {
+        return Vec2::new(*width, *height);
+    }
+
+    camera_visible_size.unwrap_or(Vec2::new(640.0, 480.0))
 }
 
 /// Element data collected from ECS queries.

@@ -15,7 +15,9 @@
 
 use bevy::prelude::*;
 use bevy::ui::Val as BevyVal;
-use bevy::ui::{AlignItems, FlexDirection, JustifyContent, PositionType};
+use bevy::ui::{
+    AlignItems, AlignSelf, Display as BevyDisplay, FlexDirection, JustifyContent, PositionType,
+};
 use bevy_bitmap_text::{TextAlign, TextAnchor};
 use serde::{Deserialize, Serialize};
 
@@ -43,7 +45,7 @@ impl From<UiFlexDirection> for FlexDirection {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
 pub enum SerializableVal {
     Auto,
     Px(f32),
@@ -64,7 +66,45 @@ impl From<SerializableVal> for BevyVal {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+/// Four-sided layout value rectangle.
+///
+/// 四边布局值矩形。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
+pub struct SerializableRect {
+    /// Left side value.
+    ///
+    /// 左侧值。
+    pub left: SerializableVal,
+    /// Right side value.
+    ///
+    /// 右侧值。
+    pub right: SerializableVal,
+    /// Top side value.
+    ///
+    /// 上侧值。
+    pub top: SerializableVal,
+    /// Bottom side value.
+    ///
+    /// 下侧值。
+    pub bottom: SerializableVal,
+}
+
+/// Two-axis layout gap values.
+///
+/// 双轴布局间距值。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
+pub struct StyleGap {
+    /// Row-axis gap value.
+    ///
+    /// 行轴间距值。
+    pub row: SerializableVal,
+    /// Column-axis gap value.
+    ///
+    /// 列轴间距值。
+    pub column: SerializableVal,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
 pub enum SerializablePositionType {
     Relative,
     Absolute,
@@ -79,7 +119,7 @@ impl From<SerializablePositionType> for PositionType {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
 pub enum SerializableJustifyContent {
     Start,
     End,
@@ -102,7 +142,7 @@ impl From<SerializableJustifyContent> for JustifyContent {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
 pub enum SerializableAlignItems {
     Start,
     End,
@@ -119,6 +159,74 @@ impl From<SerializableAlignItems> for AlignItems {
             SerializableAlignItems::Center => AlignItems::Center,
             SerializableAlignItems::Baseline => AlignItems::Baseline,
             SerializableAlignItems::Stretch => AlignItems::Stretch,
+        }
+    }
+}
+
+/// Per-node alignment override inside the parent layout.
+///
+/// 父布局内的单节点对齐覆盖。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+pub enum SerializableAlignSelf {
+    /// Use the parent alignment.
+    ///
+    /// 使用父级对齐方式。
+    Auto,
+    /// Align to the start edge.
+    ///
+    /// 对齐到起始边。
+    Start,
+    /// Align to the end edge.
+    ///
+    /// 对齐到结束边。
+    End,
+    /// Center on the cross axis.
+    ///
+    /// 在交叉轴居中。
+    Center,
+    /// Align text baselines.
+    ///
+    /// 对齐文本基线。
+    Baseline,
+    /// Stretch to fill the available cross-axis space.
+    ///
+    /// 拉伸以填充可用交叉轴空间。
+    Stretch,
+}
+
+impl From<SerializableAlignSelf> for AlignSelf {
+    fn from(val: SerializableAlignSelf) -> Self {
+        match val {
+            SerializableAlignSelf::Auto => AlignSelf::Auto,
+            SerializableAlignSelf::Start => AlignSelf::Start,
+            SerializableAlignSelf::End => AlignSelf::End,
+            SerializableAlignSelf::Center => AlignSelf::Center,
+            SerializableAlignSelf::Baseline => AlignSelf::Baseline,
+            SerializableAlignSelf::Stretch => AlignSelf::Stretch,
+        }
+    }
+}
+
+/// Layout display mode.
+///
+/// 布局显示模式。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+pub enum SerializableDisplay {
+    /// Participate in flex layout.
+    ///
+    /// 参与 Flex 布局。
+    Flex,
+    /// Do not display this node.
+    ///
+    /// 不显示此节点。
+    None,
+}
+
+impl From<SerializableDisplay> for BevyDisplay {
+    fn from(val: SerializableDisplay) -> Self {
+        match val {
+            SerializableDisplay::Flex => BevyDisplay::Flex,
+            SerializableDisplay::None => BevyDisplay::None,
         }
     }
 }

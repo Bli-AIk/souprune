@@ -8,14 +8,18 @@
 
 use super::resolve::{
     process_visible_when_for_repeat, resolve_material, resolve_node_transform, resolve_sprite,
-    resolve_texts, resolve_viewbox_transform, resolve_visibility,
+    resolve_texts, resolve_transform, resolve_viewbox_transform, resolve_visibility,
 };
 use super::tree::{DesiredElement, DesiredViewTree, ViewElementKey};
 use crate::core::view::LocalState;
-use crate::core::view::layout::{ViewLayoutAsset, ViewNodeDef};
+use crate::core::view::layout::{
+    SerializableDisplay, ViewLayoutAsset, ViewLayoutSlot, ViewLayoutSlots, ViewNodeDef,
+    compute_taffy_layout, layout_child_path, layout_root_path,
+};
 use crate::core::view::ron_view::parsing::{
     DataPathResolvers, ExprFunctionResolvers, PlayerDataView, RepeatContext,
 };
+use bevy::prelude::{Transform, Vec2, Vec3};
 use bevy_fact_rule_event::LayeredFactDatabase;
 
 /// Context for resolving expressions during desired state computation.
@@ -86,6 +90,7 @@ impl<'a> ResolveContext<'a> {
 /// The desired view tree representing what the view should look like.
 pub fn compute_desired_state(
     asset: &ViewLayoutAsset,
+    layout_viewport_size: Vec2,
     global_facts: &LayeredFactDatabase,
     local_state: &LocalState,
     namespace: &str,
@@ -95,11 +100,16 @@ pub fn compute_desired_state(
     let ctx = ResolveContext::with_local_state(global_facts, local_state, namespace)
         .with_data_resolvers(data_resolvers)
         .with_expr_functions(expr_func_resolvers);
+    let layout_slots = compute_taffy_layout(asset, layout_viewport_size).ok();
 
     let roots = asset
         .roots
         .iter()
-        .flat_map(|node_def| compute_element(&ctx, node_def, None))
+        .enumerate()
+        .flat_map(|(root_idx, node_def)| {
+            let node_path = layout_root_path(root_idx, node_def);
+            compute_element(&ctx, node_def, None, layout_slots.as_ref(), &node_path)
+        })
         .collect();
 
     DesiredViewTree { roots }
@@ -114,23 +124,26 @@ fn compute_element(
     ctx: &ResolveContext,
     node_def: &ViewNodeDef,
     repeat_ctx: Option<&RepeatContext>,
+    layout_slots: Option<&ViewLayoutSlots>,
+    node_path: &str,
 ) -> Vec<DesiredElement> {
+    if node_display_is_none(node_def) {
+        return Vec::new();
+    }
+
     // Handle repeat expansion
     if let Some(repeat_spec) = &node_def.repeat {
-        return expand_repeat(ctx, node_def, repeat_spec);
+        return expand_repeat(ctx, node_def, repeat_spec, layout_slots, node_path);
     }
 
     // Build element key
     let key = build_element_key(ctx, node_def, repeat_ctx);
 
-    // Resolve transform: node transform wins, ViewBox uses offset, sprites use sprite.transform.
-    let transform = if node_def.transform.is_some() {
-        resolve_node_transform(&ctx.player_data, node_def, repeat_ctx)
-    } else if let Some(ref vb) = node_def.view_box {
-        resolve_viewbox_transform(vb, &ctx.player_data)
-    } else {
-        resolve_node_transform(&ctx.player_data, node_def, repeat_ctx)
-    };
+    let layout_slot = layout_slots.and_then(|slots| slots.get(node_path));
+    let transform = combine_layout_transform(
+        layout_slot,
+        resolve_element_transform(&ctx.player_data, node_def, repeat_ctx),
+    );
 
     let visibility = resolve_visibility(
         &ctx.player_data,
@@ -152,7 +165,11 @@ fn compute_element(
     let children = node_def
         .children
         .iter()
-        .flat_map(|child| compute_element(ctx, child, repeat_ctx))
+        .enumerate()
+        .flat_map(|(child_idx, child)| {
+            let child_path = layout_child_path(node_path, child_idx, child);
+            compute_element(ctx, child, repeat_ctx, layout_slots, &child_path)
+        })
         .collect();
 
     let mut element = DesiredElement::new(key, &node_def.name);
@@ -174,6 +191,8 @@ fn expand_repeat(
     ctx: &ResolveContext,
     node_def: &ViewNodeDef,
     repeat_spec: &crate::core::view::layout::RepeatDef,
+    layout_slots: Option<&ViewLayoutSlots>,
+    node_path: &str,
 ) -> Vec<DesiredElement> {
     // Get the source array length
     let count = ctx
@@ -199,14 +218,11 @@ fn expand_repeat(
         let full_name = format!("{}::{}_{}", ctx.namespace, node_def.name, i);
         let key = ViewElementKey::with_repeat_index(full_name, i);
 
-        // Resolve transform: node transform wins, ViewBox uses offset, sprites use sprite.transform.
-        let transform = if node_def.transform.is_some() {
-            resolve_node_transform(&ctx.player_data, node_def, Some(&repeat_ctx))
-        } else if let Some(ref vb) = node_def.view_box {
-            resolve_viewbox_transform(vb, &ctx.player_data)
-        } else {
-            resolve_node_transform(&ctx.player_data, node_def, Some(&repeat_ctx))
-        };
+        let layout_slot = layout_slots.and_then(|slots| slots.get(node_path));
+        let transform = combine_layout_transform(
+            layout_slot,
+            resolve_element_transform(&ctx.player_data, node_def, Some(&repeat_ctx)),
+        );
 
         let visibility = resolve_visibility(
             &ctx.player_data,
@@ -227,7 +243,11 @@ fn expand_repeat(
         let children = node_def
             .children
             .iter()
-            .flat_map(|child| compute_element(ctx, child, Some(&repeat_ctx)))
+            .enumerate()
+            .flat_map(|(child_idx, child)| {
+                let child_path = layout_child_path(node_path, child_idx, child);
+                compute_element(ctx, child, Some(&repeat_ctx), layout_slots, &child_path)
+            })
             .collect();
 
         let mut element = DesiredElement::new(key, &node_def.name);
@@ -244,6 +264,49 @@ fn expand_repeat(
     }
 
     elements
+}
+
+fn resolve_element_transform(
+    player_data: &PlayerDataView,
+    node_def: &ViewNodeDef,
+    repeat_ctx: Option<&RepeatContext>,
+) -> Transform {
+    let local = if let Some(view_box) = &node_def.view_box {
+        resolve_viewbox_transform(view_box, player_data)
+    } else {
+        resolve_transform(player_data, node_def.sprite.as_ref(), repeat_ctx)
+    };
+
+    if node_def.transform.is_some() {
+        combine_transforms(
+            resolve_node_transform(player_data, node_def, repeat_ctx),
+            local,
+        )
+    } else {
+        local
+    }
+}
+
+fn combine_layout_transform(slot: Option<&ViewLayoutSlot>, transform: Transform) -> Transform {
+    let Some(slot) = slot else {
+        return transform;
+    };
+    combine_transforms(
+        Transform::from_translation(Vec3::new(slot.x, -slot.y, 0.0)),
+        transform,
+    )
+}
+
+fn combine_transforms(parent: Transform, child: Transform) -> Transform {
+    Transform {
+        translation: parent.translation + child.translation,
+        rotation: parent.rotation * child.rotation,
+        scale: parent.scale * child.scale,
+    }
+}
+
+fn node_display_is_none(node_def: &ViewNodeDef) -> bool {
+    matches!(node_def.style.display, Some(SerializableDisplay::None))
 }
 
 /// Build the element key from context and node definition.
@@ -264,5 +327,167 @@ fn build_element_key(
         ViewElementKey::with_repeat_index(name_with_index, rctx.index)
     } else {
         ViewElementKey::new(full_name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::sequencer::chapter_schema::Value;
+    use crate::core::view::layout::{
+        CoordinateSystem, SerializableJustifyContent, SerializableTransform, SerializableVal,
+        StyleDef, UiFlexDirection,
+    };
+    use bevy_fact_rule_event::LayeredFactDatabase;
+
+    fn asset(root: ViewNodeDef) -> ViewLayoutAsset {
+        ViewLayoutAsset {
+            roots: vec![root],
+            requires: Vec::new(),
+            facts: None,
+            world_space: false,
+            coordinate_system: CoordinateSystem::Standard,
+            coordinate_space: None,
+        }
+    }
+
+    fn node(name: &str, style: StyleDef, children: Vec<ViewNodeDef>) -> ViewNodeDef {
+        ViewNodeDef {
+            name: name.to_string(),
+            tags: Vec::new(),
+            style,
+            transform: None,
+            visible_when: None,
+            background_color: None,
+            border_color: None,
+            image: None,
+            sprite: None,
+            state_sprite: None,
+            texts: Vec::new(),
+            view_box: None,
+            children,
+            repeat: None,
+        }
+    }
+
+    #[test]
+    fn desired_state_keeps_taffy_layout_offset() {
+        let child = node(
+            "Child",
+            StyleDef {
+                width: Some(SerializableVal::Px(100.0)),
+                height: Some(SerializableVal::Px(40.0)),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        let root = node(
+            "Root",
+            StyleDef {
+                width: Some(SerializableVal::Px(640.0)),
+                height: Some(SerializableVal::Px(480.0)),
+                flex_direction: Some(UiFlexDirection::Row),
+                justify_content: Some(SerializableJustifyContent::Center),
+                ..Default::default()
+            },
+            vec![child],
+        );
+        let db = LayeredFactDatabase::new();
+        let local = LocalState::new();
+
+        let desired = compute_desired_state(
+            &asset(root),
+            Vec2::new(640.0, 480.0),
+            &db,
+            &local,
+            "",
+            None,
+            None,
+        );
+
+        assert_eq!(desired.roots[0].children[0].transform.translation.x, 270.0);
+    }
+
+    #[test]
+    fn desired_state_skips_display_none_nodes() {
+        let hidden = node(
+            "Hidden",
+            StyleDef {
+                width: Some(SerializableVal::Px(100.0)),
+                height: Some(SerializableVal::Px(40.0)),
+                display: Some(SerializableDisplay::None),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        let root = node(
+            "Root",
+            StyleDef {
+                width: Some(SerializableVal::Px(640.0)),
+                height: Some(SerializableVal::Px(480.0)),
+                ..Default::default()
+            },
+            vec![hidden],
+        );
+        let db = LayeredFactDatabase::new();
+        let local = LocalState::new();
+
+        let desired = compute_desired_state(
+            &asset(root),
+            Vec2::new(640.0, 480.0),
+            &db,
+            &local,
+            "",
+            None,
+            None,
+        );
+
+        assert!(desired.roots[0].children.is_empty());
+    }
+
+    #[test]
+    fn desired_state_combines_layout_and_explicit_transform() {
+        let mut child = node(
+            "Child",
+            StyleDef {
+                width: Some(SerializableVal::Px(100.0)),
+                height: Some(SerializableVal::Px(40.0)),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        child.transform = Some(SerializableTransform {
+            translation: Some((Value::Static(5.0), Value::Static(-6.0), Value::Static(7.0))),
+            rotation: None,
+            scale: None,
+        });
+        let root = node(
+            "Root",
+            StyleDef {
+                width: Some(SerializableVal::Px(640.0)),
+                height: Some(SerializableVal::Px(480.0)),
+                flex_direction: Some(UiFlexDirection::Row),
+                justify_content: Some(SerializableJustifyContent::Center),
+                ..Default::default()
+            },
+            vec![child],
+        );
+        let db = LayeredFactDatabase::new();
+        let local = LocalState::new();
+
+        let desired = compute_desired_state(
+            &asset(root),
+            Vec2::new(640.0, 480.0),
+            &db,
+            &local,
+            "",
+            None,
+            None,
+        );
+
+        assert_eq!(
+            desired.roots[0].children[0].transform.translation,
+            Vec3::new(275.0, -6.0, 7.0)
+        );
     }
 }

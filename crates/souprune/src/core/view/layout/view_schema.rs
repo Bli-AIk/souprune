@@ -268,6 +268,16 @@ pub struct StyleDef {
     pub justify_content: Option<SerializableJustifyContent>,
     #[serde(default)]
     pub align_items: Option<SerializableAlignItems>,
+    #[serde(default)]
+    pub align_self: Option<SerializableAlignSelf>,
+    #[serde(default)]
+    pub margin: Option<SerializableRect>,
+    #[serde(default)]
+    pub padding: Option<SerializableRect>,
+    #[serde(default)]
+    pub gap: Option<StyleGap>,
+    #[serde(default)]
+    pub display: Option<SerializableDisplay>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

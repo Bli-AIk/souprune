@@ -193,6 +193,7 @@ pub fn spawn_ron_view_for_entity(
     layered_db: &LayeredFactDatabase,
     rule_registry: &mut GameRuleRegistry,
     enum_registry: &mut bevy_fact_rule_event::EnumRegistry,
+    layout_viewport_size: Vec2,
 ) {
     // Generate namespace from layout path
     // 从布局路径生成命名空间
@@ -309,8 +310,19 @@ pub fn spawn_ron_view_for_entity(
         // 使用 LocalState 创建 player_data 以生成子节点。
         let player_data_with_locals =
             PlayerDataView::with_local_state(player_data.db(), view_root.local_state());
+        let layout_slots = match compute_taffy_layout(view_layout, layout_viewport_size) {
+            Ok(slots) => Some(slots),
+            Err(error) => {
+                warn!(
+                    "[ViewRoot] Failed to compute Taffy layout for '{}': {}",
+                    layout_path, error
+                );
+                None
+            }
+        };
 
-        for root in &view_layout.roots {
+        for (root_idx, root) in view_layout.roots.iter().enumerate() {
+            let root_path = layout_root_path(root_idx, root);
             spawn_view_node(
                 commands,
                 asset_server,
@@ -321,6 +333,8 @@ pub fn spawn_ron_view_for_entity(
                 mortar_strings,
                 &player_data_with_locals,
                 &namespace,
+                layout_slots.as_ref(),
+                &root_path,
             );
         }
     }
@@ -389,6 +403,20 @@ fn camera_visible_size(projection: &Projection) -> Option<Vec2> {
     } else {
         None
     }
+}
+
+fn layout_viewport_size(view_layout: &ViewLayoutAsset, camera_visible_size: Option<Vec2>) -> Vec2 {
+    if let Some(CoordinateSpaceDef {
+        extent: CoordinateExtentDef::Explicit((width, height)),
+        ..
+    }) = view_layout.coordinate_space.as_ref()
+        && *width > 0.0
+        && *height > 0.0
+    {
+        return Vec2::new(*width, *height);
+    }
+
+    camera_visible_size.unwrap_or(Vec2::new(640.0, 480.0))
 }
 
 fn camera_relative_view_offset(
@@ -531,6 +559,7 @@ pub fn spawn_dynamic_view_system(
 
         // Get bindings from PendingViewData if present
         let bindings = pending_view_data.map(|pvd| &pvd.bindings);
+        let visible_size = camera_visible_size(projection);
 
         spawn_ron_view_for_entity(
             &mut commands,
@@ -548,6 +577,7 @@ pub fn spawn_dynamic_view_system(
             &layered_db,
             &mut fre_params.rule_registry,
             &mut fre_params.enum_registry,
+            layout_viewport_size(view_layout, visible_size),
         );
 
         // Camera-relative views: parent the view entity to the camera so child
@@ -556,8 +586,7 @@ pub fn spawn_dynamic_view_system(
         if !view_layout.world_space {
             commands.entity(view_entity).insert((
                 Transform::from_translation(
-                    camera_relative_view_offset(view_layout, camera_visible_size(projection))
-                        .extend(0.0),
+                    camera_relative_view_offset(view_layout, visible_size).extend(0.0),
                 ),
                 ChildOf(camera_entity),
             ));
@@ -623,5 +652,14 @@ mod tests {
         let offset = camera_relative_view_offset(&layout, Some(Vec2::new(320.0, 240.0)));
 
         assert_eq!(offset, Vec2::ZERO);
+    }
+
+    #[test]
+    fn layout_viewport_prefers_explicit_coordinate_space() {
+        let layout = explicit_screen_layout(false);
+
+        let viewport = layout_viewport_size(&layout, Some(Vec2::new(320.0, 240.0)));
+
+        assert_eq!(viewport, Vec2::new(640.0, 480.0));
     }
 }

@@ -43,7 +43,13 @@ pub fn spawn_view_node(
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
     namespace: &str,
+    layout_slots: Option<&ViewLayoutSlots>,
+    node_path: &str,
 ) {
+    if node_display_is_none(node_def) {
+        return;
+    }
+
     if let Some(repeat) = &node_def.repeat {
         let array_len = if let Some(list) = player_data.get_fact_string_list(&repeat.source) {
             list.len()
@@ -85,6 +91,8 @@ pub fn spawn_view_node(
                 player_data,
                 namespace,
                 Some(&ctx),
+                layout_slots,
+                node_path,
             );
         }
         return;
@@ -101,6 +109,8 @@ pub fn spawn_view_node(
         player_data,
         namespace,
         None,
+        layout_slots,
+        node_path,
     );
 }
 
@@ -115,6 +125,8 @@ fn spawn_view_node_with_repeat_context(
     player_data: &PlayerDataView<'_>,
     namespace: &str,
     repeat_ctx: Option<&super::parsing::RepeatContext>,
+    layout_slots: Option<&ViewLayoutSlots>,
+    node_path: &str,
 ) {
     let has_ui_box = node_def.view_box.is_some();
     let is_standalone_sprite = !has_ui_box && node_def.sprite.is_some();
@@ -145,6 +157,7 @@ fn spawn_view_node_with_repeat_context(
     };
 
     let mut spawned_entity_id: Option<Entity> = None;
+    let layout_slot = layout_slots.and_then(|slots| slots.get(node_path));
 
     commands.entity(parent_entity).with_children(|parent| {
         if is_state_sprite {
@@ -158,6 +171,7 @@ fn spawn_view_node_with_repeat_context(
                 player_data,
                 repeat_ctx,
             );
+            let transform = combine_layout_transform(layout_slot, transform);
 
             info!(
                 "[State Sprite] Spawning state sprite '{}' at position: {:?}",
@@ -207,6 +221,7 @@ fn spawn_view_node_with_repeat_context(
                 player_data,
                 repeat_ctx,
             );
+            let transform = combine_layout_transform(layout_slot, transform);
 
             info!(
                 "[UI Sprite] Spawning standalone sprite '{}' at position: {:?}, scale: {:?}",
@@ -259,6 +274,7 @@ fn spawn_view_node_with_repeat_context(
                     )
                 })
                 .unwrap_or_else(|| Transform::from_translation(offset));
+            let transform = combine_layout_transform(layout_slot, transform);
             let is_dynamic_node_transform = node_def
                 .transform
                 .as_ref()
@@ -358,11 +374,14 @@ fn spawn_view_node_with_repeat_context(
 
             let mut container_entity = parent.spawn((
                 ViewContainer,
-                node_def
-                    .transform
-                    .as_ref()
-                    .map(|transform| build_transform(transform, player_data, repeat_ctx))
-                    .unwrap_or_default(),
+                combine_layout_transform(
+                    layout_slot,
+                    node_def
+                        .transform
+                        .as_ref()
+                        .map(|transform| build_transform(transform, player_data, repeat_ctx))
+                        .unwrap_or_default(),
+                ),
                 GlobalTransform::default(),
                 Visibility::default(),
                 InheritedVisibility::default(),
@@ -406,7 +425,8 @@ fn spawn_view_node_with_repeat_context(
         apply_dynamic_element(commands, entity_id, node_def, repeat_ctx);
     }
 
-    for child_def in &node_def.children {
+    for (child_idx, child_def) in node_def.children.iter().enumerate() {
+        let child_path = layout_child_path(node_path, child_idx, child_def);
         spawn_view_node(
             commands,
             asset_server,
@@ -417,6 +437,8 @@ fn spawn_view_node_with_repeat_context(
             mortar_strings,
             player_data,
             namespace,
+            layout_slots,
+            &child_path,
         );
     }
 }
@@ -447,6 +469,20 @@ fn combine_transforms(parent: Transform, child: Transform) -> Transform {
     }
 }
 
+fn combine_layout_transform(slot: Option<&ViewLayoutSlot>, transform: Transform) -> Transform {
+    let Some(slot) = slot else {
+        return transform;
+    };
+    combine_transforms(
+        Transform::from_translation(Vec3::new(slot.x, -slot.y, 0.0)),
+        transform,
+    )
+}
+
+fn node_display_is_none(node_def: &ViewNodeDef) -> bool {
+    matches!(node_def.style.display, Some(SerializableDisplay::None))
+}
+
 fn is_dynamic_transform(transform: &SerializableTransform) -> bool {
     transform.translation.as_ref().is_some_and(is_dynamic_vec3)
         || transform.scale.as_ref().is_some_and(is_dynamic_vec3)
@@ -469,4 +505,52 @@ fn transform_depends_on_time(transform: &SerializableTransform) -> bool {
             .rotation
             .as_ref()
             .is_some_and(super::parsing::expression_depends_on_time)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::view::layout::ViewLayoutSlot;
+
+    #[test]
+    fn layout_slot_offsets_existing_transform_in_view_coordinates() {
+        let slot = ViewLayoutSlot {
+            path: "Root/Child".to_string(),
+            name: "Child".to_string(),
+            x: 210.0,
+            y: 120.0,
+            width: 100.0,
+            height: 40.0,
+        };
+        let explicit = Transform::from_translation(Vec3::new(5.0, -6.0, 7.0));
+
+        let combined = combine_layout_transform(Some(&slot), explicit);
+
+        assert_eq!(combined.translation, Vec3::new(215.0, -126.0, 7.0));
+    }
+
+    #[test]
+    fn display_none_node_is_not_spawned() {
+        let node = ViewNodeDef {
+            name: "Hidden".to_string(),
+            tags: Vec::new(),
+            style: StyleDef {
+                display: Some(SerializableDisplay::None),
+                ..Default::default()
+            },
+            transform: None,
+            visible_when: None,
+            background_color: None,
+            border_color: None,
+            image: None,
+            sprite: None,
+            state_sprite: None,
+            texts: Vec::new(),
+            view_box: None,
+            children: Vec::new(),
+            repeat: None,
+        };
+
+        assert!(node_display_is_none(&node));
+    }
 }
