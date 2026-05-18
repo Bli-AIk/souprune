@@ -44,6 +44,7 @@ mod fre_panel;
 mod freeze;
 #[cfg(feature = "debug")]
 mod image_overlay;
+#[cfg(feature = "debug")]
 mod inspector;
 #[cfg(feature = "debug")]
 mod restart;
@@ -121,8 +122,7 @@ impl Plugin for DebugPlugin {
             setup_collider_debug(app);
             setup_freeze_debug(app);
 
-            use inspector::debug_inspector;
-            debug_inspector::setup_debug_features(app);
+            inspector::setup_debug_features(app);
 
             fre_panel::debug_fre_panel::setup_fre_panel_debug(app);
 
