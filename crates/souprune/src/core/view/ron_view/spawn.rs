@@ -15,7 +15,9 @@ mod pre_spawn_events;
 
 use super::super::components::*;
 use super::super::layout::*;
-use super::parsing::{DataPathResolvers, ExprFunctionResolvers, PlayerDataView};
+use super::parsing::{
+    DataPathResolvers, ExprFunctionResolvers, PlayerDataView, resolve_text_content,
+};
 use super::resources::{HotReloadableViewRoot, RonDrivenView, ViewGenerated};
 use super::spawn_helpers::resolve_simple_localization;
 use crate::core::sprite::params::SpriteParams;
@@ -310,7 +312,28 @@ pub fn spawn_ron_view_for_entity(
         // 使用 LocalState 创建 player_data 以生成子节点。
         let player_data_with_locals =
             PlayerDataView::with_local_state(player_data.db(), view_root.local_state());
-        let layout_slots = match compute_taffy_layout(view_layout, layout_viewport_size) {
+        let repeat_count = |repeat: &RepeatDef| {
+            Some(resolve_layout_repeat_count(
+                &player_data_with_locals,
+                repeat,
+            ))
+        };
+        let repeat_item = |repeat: &RepeatDef, index: usize| {
+            resolve_layout_repeat_item(&player_data_with_locals, &repeat.source, index)
+        };
+        let text_content = |content: &str, repeat_ctx: Option<&ViewLayoutRepeatContext>| {
+            let content = apply_layout_repeat_context_to_text(content, repeat_ctx);
+            resolve_text_content(&content, mortar_strings, &player_data_with_locals)
+        };
+        let layout_slots = match compute_taffy_layout_with_context(
+            view_layout,
+            layout_viewport_size,
+            ViewLayoutContext {
+                repeat_count: &repeat_count,
+                repeat_item: &repeat_item,
+                text_content: &text_content,
+            },
+        ) {
             Ok(slots) => Some(slots),
             Err(error) => {
                 warn!(
@@ -354,6 +377,32 @@ pub fn spawn_ron_view_for_entity(
         commands.entity(view_entity).insert(PendingViewRules {
             pending_handles: pending_fre_handles,
         });
+    }
+}
+
+fn resolve_layout_repeat_count(player_data: &PlayerDataView, repeat: &RepeatDef) -> usize {
+    let array_len = if let Some(list) = player_data.get_fact_string_list(&repeat.source) {
+        list.len()
+    } else if let Some(list) = player_data.get_fact_int_list(&repeat.source) {
+        list.len()
+    } else {
+        0
+    };
+
+    array_len.min(repeat.limit.unwrap_or(usize::MAX))
+}
+
+fn resolve_layout_repeat_item(
+    player_data: &PlayerDataView,
+    source: &str,
+    index: usize,
+) -> Option<String> {
+    if let Some(list) = player_data.get_fact_string_list(source) {
+        list.into_iter().nth(index)
+    } else if let Some(list) = player_data.get_fact_int_list(source) {
+        list.into_iter().nth(index).map(|value| value.to_string())
+    } else {
+        None
     }
 }
 

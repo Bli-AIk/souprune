@@ -4,6 +4,8 @@
 
 use std::collections::HashMap;
 
+use bevy::prelude::Component;
+
 use super::ViewNodeDef;
 
 /// A computed layout rectangle for one stable view node path.
@@ -35,6 +37,40 @@ pub struct ViewLayoutSlot {
     ///
     /// 计算得到的像素高度。
     pub height: f32,
+}
+
+/// Runtime layout rectangle stored on a spawned View element.
+///
+/// 存储在已生成 View 元素上的运行时布局矩形。
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct ViewLayoutRect {
+    /// Computed left coordinate in pixels.
+    ///
+    /// 计算得到的左侧像素坐标。
+    pub x: f32,
+    /// Computed top coordinate in pixels.
+    ///
+    /// 计算得到的顶部像素坐标。
+    pub y: f32,
+    /// Computed width in pixels.
+    ///
+    /// 计算得到的像素宽度。
+    pub width: f32,
+    /// Computed height in pixels.
+    ///
+    /// 计算得到的像素高度。
+    pub height: f32,
+}
+
+impl From<&ViewLayoutSlot> for ViewLayoutRect {
+    fn from(slot: &ViewLayoutSlot) -> Self {
+        Self {
+            x: slot.x,
+            y: slot.y,
+            width: slot.width,
+            height: slot.height,
+        }
+    }
 }
 
 /// Computed layout slots indexed by stable node path.
@@ -89,6 +125,13 @@ pub fn layout_root_path(index: usize, node: &ViewNodeDef) -> String {
 /// 为布局槽位索引构建稳定的子路径。
 pub fn layout_child_path(parent_path: &str, index: usize, node: &ViewNodeDef) -> String {
     format!("{parent_path}/{}", layout_path_segment(index, node, "node"))
+}
+
+/// Build a stable path for one repeat instance in layout slot indexing.
+///
+/// 为布局槽位索引构建一个 repeat 实例的稳定路径。
+pub fn layout_repeat_path(node_path: &str, index: usize) -> String {
+    format!("{node_path}#{index}")
 }
 
 fn layout_path_segment(index: usize, node: &ViewNodeDef, fallback_name: &str) -> String {

@@ -73,10 +73,15 @@ pub fn spawn_view_node(
 
         for i in 0..count {
             let mut ctx = super::parsing::RepeatContext::new(i);
-
-            if let Some(item_var) = &repeat.item_var
-                && let Some(value) = resolve_repeat_item(player_data, &repeat.source, i)
+            let repeat_node_path = layout_repeat_path(node_path, i);
+            if let Some(index_var) = repeat.index_var.as_deref()
+                && !matches!(index_var, "i" | "index")
             {
+                ctx = ctx.with_item(index_var, i.to_string());
+            }
+
+            if let Some(value) = resolve_repeat_item(player_data, &repeat.source, i) {
+                let item_var = repeat.item_var.as_deref().unwrap_or("item");
                 ctx = ctx.with_item(item_var, value);
             }
 
@@ -92,7 +97,7 @@ pub fn spawn_view_node(
                 namespace,
                 Some(&ctx),
                 layout_slots,
-                node_path,
+                &repeat_node_path,
             );
         }
         return;
@@ -409,6 +414,12 @@ fn spawn_view_node_with_repeat_context(
     let Some(entity_id) = spawned_entity_id else {
         return;
     };
+
+    if let Some(slot) = layout_slot {
+        commands
+            .entity(entity_id)
+            .try_insert(ViewLayoutRect::from(slot));
+    }
 
     if let Some(visible_when_expr) = &node_def.visible_when {
         apply_visible_when(

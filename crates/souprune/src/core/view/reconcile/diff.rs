@@ -101,6 +101,15 @@ fn reconcile_properties(
         });
     }
 
+    if !layout_rects_approximately_equal(&current.layout_rect, &desired.layout_rect)
+        && let Some(new_value) = desired.layout_rect
+    {
+        deltas.push(ViewDelta::UpdateLayout {
+            entity: current.entity,
+            new_value,
+        });
+    }
+
     // Visibility comparison
     if current.visibility != desired.visibility {
         deltas.push(ViewDelta::UpdateVisibility {
@@ -177,6 +186,24 @@ fn vec3_approximately_equal(a: &Vec3, b: &Vec3) -> bool {
     (a.x - b.x).abs() < EPSILON && (a.y - b.y).abs() < EPSILON && (a.z - b.z).abs() < EPSILON
 }
 
+fn layout_rects_approximately_equal(
+    a: &Option<crate::core::view::layout::ViewLayoutRect>,
+    b: &Option<crate::core::view::layout::ViewLayoutRect>,
+) -> bool {
+    const EPSILON: f32 = 0.001;
+
+    match (a, b) {
+        (Some(a), Some(b)) => {
+            (a.x - b.x).abs() < EPSILON
+                && (a.y - b.y).abs() < EPSILON
+                && (a.width - b.width).abs() < EPSILON
+                && (a.height - b.height).abs() < EPSILON
+        }
+        (None, None) => true,
+        _ => false,
+    }
+}
+
 /// Check if two transforms are approximately equal.
 /// Uses epsilon comparison for floating point values.
 ///
@@ -208,11 +235,18 @@ fn transforms_approximately_equal(a: &Transform, b: &Transform) -> bool {
 /// 这是从 ECS 世界到协调抽象的桥梁。
 pub fn build_current_tree(
     _root_entity: Entity,
-    view_elements: &[(Entity, String, Transform, Visibility, Option<Entity>)],
+    view_elements: &[(
+        Entity,
+        String,
+        Transform,
+        Option<crate::core::view::layout::ViewLayoutRect>,
+        Visibility,
+        Option<Entity>,
+    )],
 ) -> CurrentViewTree {
     let mut tree = CurrentViewTree::new();
 
-    for (entity, full_name, transform, visibility, parent) in view_elements {
+    for (entity, full_name, transform, layout_rect, visibility, parent) in view_elements {
         // Extract repeat index from name if present (e.g., "EnemyHpBar_0" -> Some(0))
         let repeat_index = extract_repeat_index(full_name);
 
@@ -226,6 +260,7 @@ pub fn build_current_tree(
             entity: *entity,
             key,
             transform: *transform,
+            layout_rect: *layout_rect,
             visibility: *visibility,
             parent: *parent,
             sprite: None,
@@ -298,6 +333,7 @@ mod tests {
             entity: test_entity,
             key: ViewElementKey::new("test::ToDelete"),
             transform: Transform::IDENTITY,
+            layout_rect: None,
             visibility: Visibility::Inherited,
             parent: None,
             sprite: None,
@@ -311,5 +347,78 @@ mod tests {
 
         assert_eq!(deltas.len(), 1);
         assert!(matches!(deltas[0], ViewDelta::Despawn { .. }));
+    }
+
+    #[test]
+    fn reconcile_detects_layout_rect_changes() {
+        let entity = Entity::from_raw_u32(2).expect("Entity row 2 should be valid");
+        let key = ViewElementKey::new("test::Element");
+        let mut current = CurrentViewTree::new();
+        current.insert(CurrentElement {
+            entity,
+            key: key.clone(),
+            transform: Transform::IDENTITY,
+            visibility: Visibility::Inherited,
+            parent: None,
+            sprite: None,
+            visible_when_expr: None,
+            has_shader_material: false,
+            layout_rect: Some(crate::core::view::layout::ViewLayoutRect {
+                x: 0.0,
+                y: 0.0,
+                width: 100.0,
+                height: 40.0,
+            }),
+        });
+        let mut desired = DesiredViewTree::new();
+        let mut element = DesiredElement::new(key, "Element");
+        element.layout_rect = Some(crate::core::view::layout::ViewLayoutRect {
+            x: 20.0,
+            y: 5.0,
+            width: 120.0,
+            height: 40.0,
+        });
+        desired.roots.push(element);
+
+        let deltas = reconcile(&current, &desired);
+
+        assert!(deltas.iter().any(|delta| {
+            matches!(
+                delta,
+                ViewDelta::UpdateLayout {
+                    entity: actual_entity,
+                    new_value
+                } if *actual_entity == entity && (new_value.x - 20.0).abs() < f32::EPSILON
+            )
+        }));
+    }
+
+    #[test]
+    fn build_current_tree_preserves_layout_rects() {
+        let root = Entity::from_raw_u32(1).expect("Entity row 1 should be valid");
+        let child = Entity::from_raw_u32(2).expect("Entity row 2 should be valid");
+        let rect = crate::core::view::layout::ViewLayoutRect {
+            x: 4.0,
+            y: 8.0,
+            width: 16.0,
+            height: 32.0,
+        };
+
+        let current = build_current_tree(
+            root,
+            &[(
+                child,
+                "test::Child".to_string(),
+                Transform::IDENTITY,
+                Some(rect),
+                Visibility::Inherited,
+                Some(root),
+            )],
+        );
+
+        let element = current
+            .get(&ViewElementKey::new("test::Child"))
+            .expect("child should be present");
+        assert_eq!(element.layout_rect, Some(rect));
     }
 }

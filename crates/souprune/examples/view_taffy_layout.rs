@@ -14,14 +14,17 @@
 //! cargo run -p souprune --example view_taffy_layout
 //! ```
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use bevy::asset::UnapprovedPathMode;
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
-use bevy_fact_rule_event::FREPlugin;
+use bevy_fact_rule_event::{FREPlugin, FactValue};
 use souprune::core::camera::MainGameCamera;
 use souprune::core::game_action::GameActionDef;
+use souprune::core::sequencer::chapter_schema::DataBinding;
+use souprune::core::view::ViewRoot;
 use souprune::core::view::{CoreViewPlugin, SpawnViewRequest};
 
 const VIEW_PATH: &str = "view/taffy_minimal.view.ron";
@@ -62,6 +65,7 @@ fn main() {
 
     app.insert_resource(ClearColor(Color::BLACK));
     app.add_systems(Startup, setup);
+    app.add_systems(Update, drive_dynamic_acceptance);
     app.run();
 }
 
@@ -90,6 +94,49 @@ fn setup(
         path: VIEW_PATH.to_string(),
         mode_scope: None,
         pre_spawn_events: Vec::new(),
-        bindings: None,
+        bindings: Some(HashMap::from([(
+            "demo".to_string(),
+            DataBinding::LocalLayer,
+        )])),
     });
+}
+
+fn drive_dynamic_acceptance(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut compact: Local<bool>,
+    mut roots: Query<&mut ViewRoot>,
+) {
+    if !keys.just_pressed(KeyCode::Space) {
+        return;
+    }
+
+    *compact = !*compact;
+    for mut root in roots
+        .iter_mut()
+        .filter(|root| root.layout_path == VIEW_PATH)
+    {
+        if *compact {
+            root.override_local_value_for_debug(
+                "dynamic_label",
+                FactValue::String("dynamic label expanded".to_string()),
+            );
+            root.override_local_value_for_debug(
+                "demo_items",
+                FactValue::StringList(vec!["one".to_string()]),
+            );
+        } else {
+            root.override_local_value_for_debug(
+                "dynamic_label",
+                FactValue::String("short".to_string()),
+            );
+            root.override_local_value_for_debug(
+                "demo_items",
+                FactValue::StringList(vec![
+                    "one".to_string(),
+                    "two".to_string(),
+                    "three".to_string(),
+                ]),
+            );
+        }
+    }
 }

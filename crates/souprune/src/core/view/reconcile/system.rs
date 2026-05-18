@@ -11,7 +11,9 @@ use super::delta::{DeltaStats, apply_deltas};
 use super::diff::reconcile;
 use super::tree::CurrentViewTree;
 use crate::core::view::components::{ViewElement, ViewRoot};
-use crate::core::view::layout::{CoordinateExtentDef, CoordinateSpaceDef, ViewLayoutAsset};
+use crate::core::view::layout::{
+    CoordinateExtentDef, CoordinateSpaceDef, ViewLayoutAsset, ViewLayoutRect,
+};
 use crate::extra::debug::DebugCamera;
 use bevy::asset::AssetEvent;
 use bevy::ecs::prelude::MessageReader;
@@ -69,31 +71,72 @@ pub fn detect_asset_changes_system(
 }
 
 /// System to detect fact changes and mark views for reconciliation.
-/// Only marks views with `ActiveView` — non-interactive views (e.g., pure animation)
-/// don't reference facts and shouldn't be re-evaluated on fact changes.
+/// Marks generated RON-driven views because facts can drive layout measurement,
+/// repeat expansion, visibility, and authored transforms.
 ///
 /// 检测事实变化并标记视图需要协调的系统。
-/// 仅标记有 `ActiveView` 的视图——纯动画等非交互视图不引用事实，
-/// 不应在事实变化时被重新求值。
+/// 标记已生成的 RON 驱动 View，因为事实可能驱动布局测量、repeat 展开、
+/// 可见性和作者定义的变换。
 pub fn detect_fact_changes_system(
     layered_db: Res<LayeredFactDatabase>,
     mut pending: ResMut<PendingReconciliations>,
-    active_views: Query<
+    view_roots: Query<
         &crate::core::view::ron_view::HotReloadableViewRoot,
-        (
-            With<ReconciliationEnabled>,
-            With<crate::core::view::components::ActiveView>,
-        ),
+        With<ReconciliationEnabled>,
     >,
 ) {
     if layered_db.is_changed() {
-        for hot_reload_root in active_views.iter() {
+        for hot_reload_root in view_roots.iter() {
             pending.mark_asset(hot_reload_root.layout_handle.id());
         }
         debug!(
-            "[Reconciliation] LayeredFactDatabase changed, marking {} active views for reconciliation",
-            active_views.iter().count()
+            "[Reconciliation] LayeredFactDatabase changed, marking {} views for reconciliation",
+            view_roots.iter().count()
         );
+    }
+}
+
+/// System to detect local ViewRoot state changes and mark their layout assets for reconciliation.
+///
+/// 检测 ViewRoot 局部状态变化并标记其布局资源需要协调的系统。
+pub fn detect_view_root_local_state_changes_system(
+    mut pending: ResMut<PendingReconciliations>,
+    changed_view_roots: Query<
+        &crate::core::view::ron_view::HotReloadableViewRoot,
+        (With<ReconciliationEnabled>, Changed<ViewRoot>),
+    >,
+) {
+    for hot_reload_root in changed_view_roots.iter() {
+        pending.mark_asset(hot_reload_root.layout_handle.id());
+    }
+}
+
+/// System to detect main 2D camera changes and force all reconciliation.
+///
+/// 检测主 2D 摄像机变化并强制所有协调的系统。
+pub fn detect_main_camera_view_changes_system(
+    changed_cameras: Query<
+        (),
+        (
+            With<Camera2d>,
+            With<crate::core::camera::MainGameCamera>,
+            Without<DebugCamera>,
+            Changed<Camera>,
+        ),
+    >,
+    changed_projections: Query<
+        (),
+        (
+            With<Camera2d>,
+            With<crate::core::camera::MainGameCamera>,
+            Without<DebugCamera>,
+            Changed<Projection>,
+        ),
+    >,
+    mut pending: ResMut<PendingReconciliations>,
+) {
+    if !changed_cameras.is_empty() || !changed_projections.is_empty() {
+        pending.force_reconcile_all();
     }
 }
 
@@ -119,6 +162,7 @@ pub fn view_reconciliation_system(
         Entity,
         &ViewElement,
         &Transform,
+        Option<&ViewLayoutRect>,
         &Visibility,
         Option<&ChildOf>,
         Option<&Sprite>,
@@ -211,6 +255,7 @@ fn build_current_tree_from_query(
         Entity,
         &ViewElement,
         &Transform,
+        Option<&ViewLayoutRect>,
         &Visibility,
         Option<&ChildOf>,
         Option<&Sprite>,
@@ -268,6 +313,7 @@ struct CollectedElement {
     entity: Entity,
     full_name: String,
     transform: Transform,
+    layout_rect: Option<ViewLayoutRect>,
     visibility: Visibility,
     parent: Option<Entity>,
     sprite: Option<super::tree::CurrentSprite>,
@@ -283,6 +329,7 @@ fn collect_descendants(
         Entity,
         &ViewElement,
         &Transform,
+        Option<&ViewLayoutRect>,
         &Visibility,
         Option<&ChildOf>,
         Option<&Sprite>,
@@ -298,6 +345,7 @@ fn collect_descendants(
         e,
         view_element,
         transform,
+        layout_rect,
         visibility,
         child_of,
         sprite_opt,
@@ -334,6 +382,7 @@ fn collect_descendants(
             entity: e,
             full_name: view_element.full_name.clone(),
             transform: logical_transform,
+            layout_rect: layout_rect.copied(),
             visibility: *visibility,
             parent,
             sprite,
@@ -375,6 +424,7 @@ fn build_current_tree_with_components(
             entity: elem.entity,
             key,
             transform: elem.transform,
+            layout_rect: elem.layout_rect,
             visibility: elem.visibility,
             parent: elem.parent,
             sprite: elem.sprite.clone(),
@@ -411,9 +461,192 @@ impl Plugin for ViewReconciliationPlugin {
             (
                 detect_asset_changes_system,
                 detect_fact_changes_system,
+                detect_view_root_local_state_changes_system,
+                detect_main_camera_view_changes_system,
                 view_reconciliation_system,
             )
                 .chain(),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::camera::MainGameCamera;
+    use crate::core::view::components::ActiveView;
+    use crate::core::view::layout::CoordinateSystem;
+    use crate::core::view::ron_view::HotReloadableViewRoot;
+    use bevy_fact_rule_event::FactValue;
+
+    fn empty_layout_asset() -> ViewLayoutAsset {
+        ViewLayoutAsset {
+            roots: Vec::new(),
+            requires: Vec::new(),
+            facts: None,
+            world_space: false,
+            coordinate_system: CoordinateSystem::Standard,
+            coordinate_space: None,
+        }
+    }
+
+    #[test]
+    fn changed_active_view_root_local_state_marks_its_layout_asset() {
+        let mut app = App::new();
+        app.init_resource::<PendingReconciliations>()
+            .insert_resource(Assets::<ViewLayoutAsset>::default())
+            .add_systems(Update, detect_view_root_local_state_changes_system);
+
+        let handle = app
+            .world_mut()
+            .resource_mut::<Assets<ViewLayoutAsset>>()
+            .add(empty_layout_asset());
+        let asset_id = handle.id();
+        let root_entity = app
+            .world_mut()
+            .spawn((
+                ViewRoot::new("tests/menu.view.ron".to_string()),
+                HotReloadableViewRoot {
+                    layout_path: "tests/menu.view.ron".to_string(),
+                    layout_handle: handle,
+                    pre_spawn_events: Vec::new(),
+                    pre_spawn_fre_handles: Vec::new(),
+                },
+                ReconciliationEnabled,
+                ActiveView,
+            ))
+            .id();
+
+        app.update();
+        app.world_mut()
+            .resource_mut::<PendingReconciliations>()
+            .clear();
+
+        app.world_mut()
+            .entity_mut(root_entity)
+            .get_mut::<ViewRoot>()
+            .expect("root should have ViewRoot")
+            .override_local_value_for_debug("selection", FactValue::Int(1));
+
+        app.update();
+
+        let pending = app.world().resource::<PendingReconciliations>();
+        assert!(pending.asset_ids.contains(&asset_id));
+    }
+
+    #[test]
+    fn changed_view_root_local_state_marks_layout_asset_without_active_view() {
+        let mut app = App::new();
+        app.init_resource::<PendingReconciliations>()
+            .insert_resource(Assets::<ViewLayoutAsset>::default())
+            .add_systems(Update, detect_view_root_local_state_changes_system);
+
+        let handle = app
+            .world_mut()
+            .resource_mut::<Assets<ViewLayoutAsset>>()
+            .add(empty_layout_asset());
+        let asset_id = handle.id();
+        let root_entity = app
+            .world_mut()
+            .spawn((
+                ViewRoot::new("tests/local-only.view.ron".to_string()),
+                HotReloadableViewRoot {
+                    layout_path: "tests/local-only.view.ron".to_string(),
+                    layout_handle: handle,
+                    pre_spawn_events: Vec::new(),
+                    pre_spawn_fre_handles: Vec::new(),
+                },
+                ReconciliationEnabled,
+            ))
+            .id();
+
+        app.update();
+        app.world_mut()
+            .resource_mut::<PendingReconciliations>()
+            .clear();
+
+        app.world_mut()
+            .entity_mut(root_entity)
+            .get_mut::<ViewRoot>()
+            .expect("root should have ViewRoot")
+            .override_local_value_for_debug("items", FactValue::StringList(vec!["A".into()]));
+
+        app.update();
+
+        let pending = app.world().resource::<PendingReconciliations>();
+        assert!(pending.asset_ids.contains(&asset_id));
+    }
+
+    #[test]
+    fn changed_global_facts_mark_layout_asset_without_active_view() {
+        let mut app = App::new();
+        app.init_resource::<PendingReconciliations>()
+            .insert_resource(Assets::<ViewLayoutAsset>::default())
+            .insert_resource(LayeredFactDatabase::new())
+            .add_systems(Update, detect_fact_changes_system);
+
+        let handle = app
+            .world_mut()
+            .resource_mut::<Assets<ViewLayoutAsset>>()
+            .add(empty_layout_asset());
+        let asset_id = handle.id();
+        app.world_mut().spawn((
+            HotReloadableViewRoot {
+                layout_path: "tests/fact-only.view.ron".to_string(),
+                layout_handle: handle,
+                pre_spawn_events: Vec::new(),
+                pre_spawn_fre_handles: Vec::new(),
+            },
+            ReconciliationEnabled,
+        ));
+
+        app.update();
+        app.world_mut()
+            .resource_mut::<PendingReconciliations>()
+            .clear();
+
+        app.world_mut()
+            .resource_mut::<LayeredFactDatabase>()
+            .set_global("label", FactValue::String("changed".to_string()));
+
+        app.update();
+
+        let pending = app.world().resource::<PendingReconciliations>();
+        assert!(pending.asset_ids.contains(&asset_id));
+    }
+
+    #[test]
+    fn changed_active_main_2d_camera_projection_forces_all_reconciliation() {
+        let mut app = App::new();
+        app.init_resource::<PendingReconciliations>()
+            .add_systems(Update, detect_main_camera_view_changes_system);
+
+        let camera_entity = app
+            .world_mut()
+            .spawn((
+                Camera2d,
+                Camera::default(),
+                Projection::Orthographic(OrthographicProjection::default_2d()),
+                MainGameCamera,
+            ))
+            .id();
+
+        app.update();
+        app.world_mut()
+            .resource_mut::<PendingReconciliations>()
+            .clear();
+
+        let mut camera = app.world_mut().entity_mut(camera_entity);
+        let mut projection = camera
+            .get_mut::<Projection>()
+            .expect("camera should have Projection");
+        let Projection::Orthographic(orthographic) = &mut *projection else {
+            panic!("projection should be orthographic");
+        };
+        orthographic.scale = 2.0;
+
+        app.update();
+
+        assert!(app.world().resource::<PendingReconciliations>().force_all);
     }
 }

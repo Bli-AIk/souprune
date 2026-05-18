@@ -13,11 +13,13 @@ use super::resolve::{
 use super::tree::{DesiredElement, DesiredViewTree, ViewElementKey};
 use crate::core::view::LocalState;
 use crate::core::view::layout::{
-    SerializableDisplay, ViewLayoutAsset, ViewLayoutSlot, ViewLayoutSlots, ViewNodeDef,
-    compute_taffy_layout, layout_child_path, layout_root_path,
+    SerializableDisplay, ViewLayoutAsset, ViewLayoutContext, ViewLayoutRect,
+    ViewLayoutRepeatContext, ViewLayoutSlot, ViewLayoutSlots, ViewNodeDef,
+    apply_layout_repeat_context_to_text, compute_taffy_layout_with_context, layout_child_path,
+    layout_repeat_path, layout_root_path,
 };
 use crate::core::view::ron_view::parsing::{
-    DataPathResolvers, ExprFunctionResolvers, PlayerDataView, RepeatContext,
+    DataPathResolvers, ExprFunctionResolvers, PlayerDataView, RepeatContext, resolve_text_content,
 };
 use bevy::prelude::{Transform, Vec2, Vec3};
 use bevy_fact_rule_event::LayeredFactDatabase;
@@ -100,7 +102,27 @@ pub fn compute_desired_state(
     let ctx = ResolveContext::with_local_state(global_facts, local_state, namespace)
         .with_data_resolvers(data_resolvers)
         .with_expr_functions(expr_func_resolvers);
-    let layout_slots = compute_taffy_layout(asset, layout_viewport_size).ok();
+    let mortar_strings = crate::extra::mortar::MortarStringTable::default();
+    let repeat_count = |repeat: &crate::core::view::layout::RepeatDef| {
+        Some(resolve_repeat_count(&ctx.player_data, repeat))
+    };
+    let repeat_item = |repeat: &crate::core::view::layout::RepeatDef, index: usize| {
+        resolve_repeat_item(&ctx.player_data, &repeat.source, index)
+    };
+    let text_content = |content: &str, repeat_ctx: Option<&ViewLayoutRepeatContext>| {
+        let content = apply_layout_repeat_context_to_text(content, repeat_ctx);
+        resolve_text_content(&content, &mortar_strings, &ctx.player_data)
+    };
+    let layout_slots = compute_taffy_layout_with_context(
+        asset,
+        layout_viewport_size,
+        ViewLayoutContext {
+            repeat_count: &repeat_count,
+            repeat_item: &repeat_item,
+            text_content: &text_content,
+        },
+    )
+    .ok();
 
     let roots = asset
         .roots
@@ -175,6 +197,7 @@ fn compute_element(
     let mut element = DesiredElement::new(key, &node_def.name);
     element.tags = node_def.tags.clone();
     element.transform = transform;
+    element.layout_rect = layout_slot.map(ViewLayoutRect::from);
     element.visibility = visibility;
     element.sprite = sprite;
     element.texts = texts;
@@ -194,11 +217,7 @@ fn expand_repeat(
     layout_slots: Option<&ViewLayoutSlots>,
     node_path: &str,
 ) -> Vec<DesiredElement> {
-    // Get the source array length
-    let count = ctx
-        .player_data
-        .get_array_length(&format!("${}", repeat_spec.source))
-        .unwrap_or(0);
+    let count = resolve_repeat_count(&ctx.player_data, repeat_spec);
 
     if count == 0 {
         return Vec::new();
@@ -212,13 +231,28 @@ fn expand_repeat(
     let mut elements = Vec::with_capacity(count);
 
     for i in 0..count {
-        let repeat_ctx = RepeatContext::new(i);
+        let mut repeat_ctx = RepeatContext::new(i);
+        if let Some(index_var) = repeat_spec.index_var.as_deref()
+            && !matches!(index_var, "i" | "index")
+        {
+            repeat_ctx = repeat_ctx.with_item(index_var, i.to_string());
+        }
+
+        if let Some(value) = resolve_repeat_item(&ctx.player_data, &repeat_spec.source, i) {
+            let item_var = repeat_spec.item_var.as_deref().unwrap_or("item");
+            repeat_ctx = repeat_ctx.with_item(item_var, value);
+        }
 
         // Build key for this repeat instance
-        let full_name = format!("{}::{}_{}", ctx.namespace, node_def.name, i);
+        let full_name = if ctx.namespace.is_empty() {
+            format!("{}_{}", node_def.name, i)
+        } else {
+            format!("{}::{}_{}", ctx.namespace, node_def.name, i)
+        };
         let key = ViewElementKey::with_repeat_index(full_name, i);
 
-        let layout_slot = layout_slots.and_then(|slots| slots.get(node_path));
+        let repeat_node_path = layout_repeat_path(node_path, i);
+        let layout_slot = layout_slots.and_then(|slots| slots.get(&repeat_node_path));
         let transform = combine_layout_transform(
             layout_slot,
             resolve_element_transform(&ctx.player_data, node_def, Some(&repeat_ctx)),
@@ -245,7 +279,7 @@ fn expand_repeat(
             .iter()
             .enumerate()
             .flat_map(|(child_idx, child)| {
-                let child_path = layout_child_path(node_path, child_idx, child);
+                let child_path = layout_child_path(&repeat_node_path, child_idx, child);
                 compute_element(ctx, child, Some(&repeat_ctx), layout_slots, &child_path)
             })
             .collect();
@@ -253,6 +287,7 @@ fn expand_repeat(
         let mut element = DesiredElement::new(key, &node_def.name);
         element.tags = node_def.tags.clone();
         element.transform = transform;
+        element.layout_rect = layout_slot.map(ViewLayoutRect::from);
         element.visibility = visibility;
         element.sprite = sprite;
         element.texts = texts;
@@ -264,6 +299,31 @@ fn expand_repeat(
     }
 
     elements
+}
+
+fn resolve_repeat_count(
+    player_data: &PlayerDataView,
+    repeat_spec: &crate::core::view::layout::RepeatDef,
+) -> usize {
+    let array_len = if let Some(list) = player_data.get_fact_string_list(&repeat_spec.source) {
+        list.len()
+    } else if let Some(list) = player_data.get_fact_int_list(&repeat_spec.source) {
+        list.len()
+    } else {
+        0
+    };
+
+    array_len.min(repeat_spec.limit.unwrap_or(usize::MAX))
+}
+
+fn resolve_repeat_item(player_data: &PlayerDataView, source: &str, index: usize) -> Option<String> {
+    if let Some(list) = player_data.get_fact_string_list(source) {
+        list.into_iter().nth(index)
+    } else if let Some(list) = player_data.get_fact_int_list(source) {
+        list.into_iter().nth(index).map(|value| value.to_string())
+    } else {
+        None
+    }
 }
 
 fn resolve_element_transform(
@@ -335,10 +395,10 @@ mod tests {
     use super::*;
     use crate::core::sequencer::chapter_schema::Value;
     use crate::core::view::layout::{
-        CoordinateSystem, SerializableJustifyContent, SerializableTransform, SerializableVal,
-        StyleDef, UiFlexDirection,
+        CoordinateSystem, RepeatDef, SerializableJustifyContent, SerializableTransform,
+        SerializableVal, StyleDef, UiFlexDirection,
     };
-    use bevy_fact_rule_event::LayeredFactDatabase;
+    use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 
     fn asset(root: ViewNodeDef) -> ViewLayoutAsset {
         ViewLayoutAsset {
@@ -406,6 +466,13 @@ mod tests {
         );
 
         assert_eq!(desired.roots[0].children[0].transform.translation.x, 270.0);
+        let rect = desired.roots[0].children[0]
+            .layout_rect
+            .expect("layout rect should be stored");
+        assert_eq!(rect.x, 270.0);
+        assert_eq!(rect.y, 0.0);
+        assert_eq!(rect.width, 100.0);
+        assert_eq!(rect.height, 40.0);
     }
 
     #[test]
@@ -489,5 +556,376 @@ mod tests {
             desired.roots[0].children[0].transform.translation,
             Vec3::new(275.0, -6.0, 7.0)
         );
+    }
+
+    #[test]
+    fn desired_state_repeat_respects_limit_for_local_string_list() {
+        let mut root = node("Item", StyleDef::default(), Vec::new());
+        root.repeat = Some(RepeatDef {
+            source: "names".to_string(),
+            limit: Some(2),
+            index_var: None,
+            item_var: None,
+        });
+        let db = LayeredFactDatabase::new();
+        let mut local = LocalState::new();
+        local.set(
+            "names",
+            FactValue::StringList(vec![
+                "one".to_string(),
+                "two".to_string(),
+                "three".to_string(),
+            ]),
+        );
+
+        let desired = compute_desired_state(
+            &asset(root),
+            Vec2::new(640.0, 480.0),
+            &db,
+            &local,
+            "",
+            None,
+            None,
+        );
+
+        assert_eq!(desired.roots.len(), 2);
+        assert_eq!(desired.roots[0].key.full_name, "Item_0");
+        assert_eq!(desired.roots[1].key.full_name, "Item_1");
+    }
+
+    #[test]
+    fn desired_state_repeat_binds_int_item_var_for_transform() {
+        let mut root = node("Value", StyleDef::default(), Vec::new());
+        root.repeat = Some(RepeatDef {
+            source: "values".to_string(),
+            limit: None,
+            index_var: None,
+            item_var: Some("value".to_string()),
+        });
+        root.transform = Some(SerializableTransform {
+            translation: Some((
+                Value::Expr("@value".to_string()),
+                Value::Static(0.0),
+                Value::Static(0.0),
+            )),
+            rotation: None,
+            scale: None,
+        });
+        let db = LayeredFactDatabase::new();
+        let mut local = LocalState::new();
+        local.set("values", FactValue::IntList(vec![4, 8]));
+
+        let desired = compute_desired_state(
+            &asset(root),
+            Vec2::new(640.0, 480.0),
+            &db,
+            &local,
+            "",
+            None,
+            None,
+        );
+
+        let xs: Vec<f32> = desired
+            .roots
+            .iter()
+            .map(|root| root.transform.translation.x)
+            .collect();
+        assert_eq!(xs, vec![4.0, 8.0]);
+    }
+
+    #[test]
+    fn desired_state_repeat_count_updates_sibling_layout_rect() {
+        let mut repeated = node(
+            "Item",
+            StyleDef {
+                width: Some(SerializableVal::Px(50.0)),
+                height: Some(SerializableVal::Px(20.0)),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        repeated.repeat = Some(RepeatDef {
+            source: "items".to_string(),
+            limit: None,
+            index_var: None,
+            item_var: None,
+        });
+        let sibling = node(
+            "Tail",
+            StyleDef {
+                width: Some(SerializableVal::Px(50.0)),
+                height: Some(SerializableVal::Px(20.0)),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        let root = node(
+            "Root",
+            StyleDef {
+                width: Some(SerializableVal::Px(300.0)),
+                height: Some(SerializableVal::Px(100.0)),
+                flex_direction: Some(UiFlexDirection::Row),
+                justify_content: Some(SerializableJustifyContent::Center),
+                ..Default::default()
+            },
+            vec![repeated, sibling],
+        );
+        let db = LayeredFactDatabase::new();
+        let mut local = LocalState::new();
+        local.set("items", FactValue::StringList(vec!["one".to_string()]));
+        let one_item = compute_desired_state(
+            &asset(root.clone()),
+            Vec2::new(300.0, 100.0),
+            &db,
+            &local,
+            "",
+            None,
+            None,
+        );
+
+        local.set(
+            "items",
+            FactValue::StringList(vec![
+                "one".to_string(),
+                "two".to_string(),
+                "three".to_string(),
+            ]),
+        );
+        let three_items = compute_desired_state(
+            &asset(root),
+            Vec2::new(300.0, 100.0),
+            &db,
+            &local,
+            "",
+            None,
+            None,
+        );
+
+        let one_tail = one_item.roots[0].children.last().expect("tail child");
+        let three_tail = three_items.roots[0].children.last().expect("tail child");
+        assert_eq!(one_tail.name, "Tail");
+        assert_eq!(three_tail.name, "Tail");
+        assert_eq!(one_tail.layout_rect.expect("tail rect").x, 150.0);
+        assert_eq!(three_tail.layout_rect.expect("tail rect").x, 200.0);
+    }
+
+    #[test]
+    fn desired_state_fact_text_length_updates_fit_sibling_layout_rect() {
+        let mut label = node(
+            "Label",
+            StyleDef {
+                sizing: Some(crate::core::view::layout::ViewSizingDef::Fit),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        label.texts.push(crate::core::view::layout::TextDef {
+            id: "label_text".to_string(),
+            content: Some("{$label}".to_string()),
+            font: "default".to_string(),
+            align: None,
+            anchor: None,
+            world_scale: (Value::Static(1.0), Value::Static(1.0)),
+            color: (
+                Value::Static(1.0),
+                Value::Static(1.0),
+                Value::Static(1.0),
+                Value::Static(1.0),
+            ),
+            transform: SerializableTransform::default(),
+            line_height: None,
+            char_spacing: None,
+            word_spacing: None,
+            text_style: None,
+            conditional_style: None,
+            visible_when: None,
+        });
+        let marker = node(
+            "Marker",
+            StyleDef {
+                width: Some(SerializableVal::Px(20.0)),
+                height: Some(SerializableVal::Px(20.0)),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        let root = node(
+            "Root",
+            StyleDef {
+                width: Some(SerializableVal::Px(300.0)),
+                height: Some(SerializableVal::Px(100.0)),
+                flex_direction: Some(UiFlexDirection::Row),
+                ..Default::default()
+            },
+            vec![label, marker],
+        );
+        let db = LayeredFactDatabase::new();
+        let mut local = LocalState::new();
+        local.set("label", FactValue::String("A".to_string()));
+        let short = compute_desired_state(
+            &asset(root.clone()),
+            Vec2::new(300.0, 100.0),
+            &db,
+            &local,
+            "",
+            None,
+            None,
+        );
+
+        local.set("label", FactValue::String("ABCDEFG".to_string()));
+        let long = compute_desired_state(
+            &asset(root),
+            Vec2::new(300.0, 100.0),
+            &db,
+            &local,
+            "",
+            None,
+            None,
+        );
+
+        let short_marker = short.roots[0].children.last().expect("marker child");
+        let long_marker = long.roots[0].children.last().expect("marker child");
+        assert!(
+            long_marker.layout_rect.expect("long marker rect").x
+                > short_marker.layout_rect.expect("short marker rect").x
+        );
+    }
+
+    #[test]
+    fn desired_state_repeat_item_text_length_updates_fit_sibling_layout_rect() {
+        let mut label = node(
+            "Label",
+            StyleDef {
+                sizing: Some(crate::core::view::layout::ViewSizingDef::Fit),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        label.repeat = Some(RepeatDef {
+            source: "items".to_string(),
+            limit: Some(1),
+            index_var: None,
+            item_var: None,
+        });
+        label.texts.push(crate::core::view::layout::TextDef {
+            id: "label_text".to_string(),
+            content: Some("@item".to_string()),
+            font: "default".to_string(),
+            align: None,
+            anchor: None,
+            world_scale: (Value::Static(1.0), Value::Static(1.0)),
+            color: (
+                Value::Static(1.0),
+                Value::Static(1.0),
+                Value::Static(1.0),
+                Value::Static(1.0),
+            ),
+            transform: SerializableTransform::default(),
+            line_height: None,
+            char_spacing: None,
+            word_spacing: None,
+            text_style: None,
+            conditional_style: None,
+            visible_when: None,
+        });
+        let marker = node(
+            "Marker",
+            StyleDef {
+                width: Some(SerializableVal::Px(20.0)),
+                height: Some(SerializableVal::Px(20.0)),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        let root = node(
+            "Root",
+            StyleDef {
+                width: Some(SerializableVal::Px(300.0)),
+                height: Some(SerializableVal::Px(100.0)),
+                flex_direction: Some(UiFlexDirection::Row),
+                ..Default::default()
+            },
+            vec![label, marker],
+        );
+        let db = LayeredFactDatabase::new();
+        let mut local = LocalState::new();
+        local.set("items", FactValue::StringList(vec!["A".to_string()]));
+        let short = compute_desired_state(
+            &asset(root.clone()),
+            Vec2::new(300.0, 100.0),
+            &db,
+            &local,
+            "",
+            None,
+            None,
+        );
+
+        local.set(
+            "items",
+            FactValue::StringList(vec!["LONG_LABEL".to_string()]),
+        );
+        let long = compute_desired_state(
+            &asset(root),
+            Vec2::new(300.0, 100.0),
+            &db,
+            &local,
+            "",
+            None,
+            None,
+        );
+
+        let short_marker = short.roots[0].children.last().expect("marker child");
+        let long_marker = long.roots[0].children.last().expect("marker child");
+        assert!(
+            long_marker.layout_rect.expect("long marker rect").x
+                > short_marker.layout_rect.expect("short marker rect").x
+        );
+    }
+
+    #[test]
+    fn desired_state_repeat_default_item_var_resolves_text_content() {
+        let mut label = node("Label", StyleDef::default(), Vec::new());
+        label.repeat = Some(RepeatDef {
+            source: "items".to_string(),
+            limit: Some(1),
+            index_var: None,
+            item_var: None,
+        });
+        label.texts.push(crate::core::view::layout::TextDef {
+            id: "label_text".to_string(),
+            content: Some("@item".to_string()),
+            font: "default".to_string(),
+            align: None,
+            anchor: None,
+            world_scale: (Value::Static(1.0), Value::Static(1.0)),
+            color: (
+                Value::Static(1.0),
+                Value::Static(1.0),
+                Value::Static(1.0),
+                Value::Static(1.0),
+            ),
+            transform: SerializableTransform::default(),
+            line_height: None,
+            char_spacing: None,
+            word_spacing: None,
+            text_style: None,
+            conditional_style: None,
+            visible_when: None,
+        });
+        let db = LayeredFactDatabase::new();
+        let mut local = LocalState::new();
+        local.set("items", FactValue::StringList(vec!["Alpha".to_string()]));
+
+        let desired = compute_desired_state(
+            &asset(label),
+            Vec2::new(300.0, 100.0),
+            &db,
+            &local,
+            "",
+            None,
+            None,
+        );
+
+        assert_eq!(desired.roots[0].texts[0].content, "Alpha");
     }
 }

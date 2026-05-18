@@ -187,10 +187,8 @@ pub fn resolve_visibility(
         return Visibility::Inherited;
     };
 
-    // Replace @i with concrete index if in repeat context
     let processed_expr = if let Some(ctx) = repeat_ctx {
-        expr.replace("@i", &ctx.index.to_string())
-            .replace("@index", &ctx.index.to_string())
+        resolve_repeat_variables(expr, ctx)
     } else {
         expr.to_string()
     };
@@ -248,11 +246,8 @@ pub fn resolve_single_text(
     // Get content with default empty string
     let raw_content = text_def.content.clone().unwrap_or_default();
 
-    // For repeat elements, handle @i replacement
     let content = if let Some(ctx) = repeat_ctx {
-        raw_content
-            .replace("@i", &ctx.index.to_string())
-            .replace("@index", &ctx.index.to_string())
+        resolve_repeat_variables(&raw_content, ctx)
     } else {
         raw_content
     };
@@ -318,13 +313,49 @@ pub fn process_visible_when_for_repeat(
     let expr = visible_when?;
 
     let processed = if let Some(ctx) = repeat_ctx {
-        expr.replace("@i", &ctx.index.to_string())
-            .replace("@index", &ctx.index.to_string())
+        resolve_repeat_variables(expr, ctx)
     } else {
         expr.to_string()
     };
 
     Some(processed)
+}
+
+fn resolve_repeat_variables(input: &str, repeat_ctx: &RepeatContext) -> String {
+    let mut result = replace_repeat_variable(input, "i", &repeat_ctx.index.to_string());
+    result = replace_repeat_variable(&result, "index", &repeat_ctx.index.to_string());
+
+    let mut variables = repeat_ctx.variables.iter().collect::<Vec<_>>();
+    variables.sort_by_key(|(name, _)| std::cmp::Reverse(name.len()));
+    for (name, value) in variables {
+        result = replace_repeat_variable(&result, name, value);
+    }
+
+    result
+}
+
+fn replace_repeat_variable(input: &str, name: &str, value: &str) -> String {
+    let token = format!("@{name}");
+    let mut output = String::with_capacity(input.len());
+    let mut rest = input;
+
+    while let Some(pos) = rest.find(&token) {
+        let after_token = &rest[pos + token.len()..];
+        output.push_str(&rest[..pos]);
+        if after_token
+            .chars()
+            .next()
+            .is_none_or(|ch| !ch.is_ascii_alphanumeric() && ch != '_')
+        {
+            output.push_str(value);
+        } else {
+            output.push_str(&token);
+        }
+        rest = after_token;
+    }
+
+    output.push_str(rest);
+    output
 }
 
 #[cfg(test)]
