@@ -104,6 +104,66 @@ pub struct StyleGap {
     pub column: SerializableVal,
 }
 
+/// Per-axis View sizing mode.
+///
+/// 单轴 View 尺寸模式。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
+pub enum ViewSizeAxisDef {
+    /// Use measured content size.
+    ///
+    /// 使用内容测量尺寸。
+    Fit,
+    /// Fill available parent space on the flex axis.
+    ///
+    /// 在 Flex 轴上填充父级可用空间。
+    Fill,
+    /// Use a fixed serialized length value.
+    ///
+    /// 使用固定的序列化长度值。
+    Fixed(SerializableVal),
+}
+
+/// Author-facing View sizing shorthand.
+///
+/// 面向作者的 View 尺寸简写。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
+pub enum ViewSizingDef {
+    /// Both axes use measured content size.
+    ///
+    /// 两个轴都使用内容测量尺寸。
+    Fit,
+    /// Both axes try to fill available space.
+    ///
+    /// 两个轴都尝试填充可用空间。
+    Fill,
+    /// Both axes use fixed values.
+    ///
+    /// 两个轴都使用固定值。
+    Fixed {
+        /// Fixed width.
+        ///
+        /// 固定宽度。
+        width: SerializableVal,
+        /// Fixed height.
+        ///
+        /// 固定高度。
+        height: SerializableVal,
+    },
+    /// Configure each axis separately.
+    ///
+    /// 分别配置每个轴。
+    Axes {
+        /// Width sizing mode.
+        ///
+        /// 宽度尺寸模式。
+        width: ViewSizeAxisDef,
+        /// Height sizing mode.
+        ///
+        /// 高度尺寸模式。
+        height: ViewSizeAxisDef,
+    },
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
 pub enum SerializablePositionType {
     Relative,
@@ -350,7 +410,7 @@ pub fn is_dynamic_vec3(vec: &SerializableVec3) -> bool {
     vec.0.is_expr() || vec.1.is_expr() || vec.2.is_expr()
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct SerializableTransform {
     #[serde(default)]
     pub translation: Option<SerializableVec3>,

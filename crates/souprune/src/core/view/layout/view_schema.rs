@@ -275,9 +275,13 @@ pub struct StyleDef {
     #[serde(default)]
     pub padding: Option<SerializableRect>,
     #[serde(default)]
+    pub border: Option<SerializableRect>,
+    #[serde(default)]
     pub gap: Option<StyleGap>,
     #[serde(default)]
     pub display: Option<SerializableDisplay>,
+    #[serde(default)]
+    pub sizing: Option<ViewSizingDef>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

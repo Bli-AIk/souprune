@@ -72,12 +72,22 @@ mod tests {
                         top: souprune_schema::view::SerializableVal::Percent(7.0),
                         bottom: souprune_schema::view::SerializableVal::Percent(8.0),
                     }),
+                    border: Some(souprune_schema::view::SerializableRect {
+                        left: souprune_schema::view::SerializableVal::Px(11.0),
+                        right: souprune_schema::view::SerializableVal::Px(12.0),
+                        top: souprune_schema::view::SerializableVal::Px(13.0),
+                        bottom: souprune_schema::view::SerializableVal::Px(14.0),
+                    }),
                     gap: Some(souprune_schema::view::StyleGap {
                         row: souprune_schema::view::SerializableVal::Px(9.0),
                         column: souprune_schema::view::SerializableVal::Px(10.0),
                     }),
                     align_self: Some(souprune_schema::view::SerializableAlignSelf::Center),
                     display: Some(souprune_schema::view::SerializableDisplay::Flex),
+                    sizing: Some(souprune_schema::view::ViewSizingDef::Axes {
+                        width: souprune_schema::view::ViewSizeAxisDef::Fill,
+                        height: souprune_schema::view::ViewSizeAxisDef::Fit,
+                    }),
                     ..Default::default()
                 },
                 transform: None,
@@ -153,6 +163,9 @@ mod tests {
         assert!(
             matches!(padding.top, SerializableVal::Percent(v) if (v - 7.0).abs() < f32::EPSILON)
         );
+        let border = style.border.as_ref().expect("border should convert");
+        assert!(matches!(border.left, SerializableVal::Px(v) if (v - 11.0).abs() < f32::EPSILON));
+        assert!(matches!(border.bottom, SerializableVal::Px(v) if (v - 14.0).abs() < f32::EPSILON));
         let gap = style.gap.as_ref().expect("gap should convert");
         assert!(matches!(gap.row, SerializableVal::Px(v) if (v - 9.0).abs() < f32::EPSILON));
         assert!(matches!(
@@ -160,6 +173,13 @@ mod tests {
             Some(SerializableAlignSelf::Center)
         ));
         assert!(matches!(style.display, Some(SerializableDisplay::Flex)));
+        assert!(matches!(
+            style.sizing,
+            Some(ViewSizingDef::Axes {
+                width: ViewSizeAxisDef::Fill,
+                height: ViewSizeAxisDef::Fit
+            })
+        ));
         assert_eq!(text.char_spacing, Some(1.5));
         assert_eq!(text.word_spacing, Some(3.0));
         assert_eq!(text.text_style.as_deref(), Some("battle_narration"));

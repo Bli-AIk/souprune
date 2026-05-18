@@ -4,9 +4,9 @@
 
 use super::{
     SerializableAlignItems, SerializableAlignSelf, SerializableDisplay, SerializableJustifyContent,
-    SerializablePositionType, SerializableRect, SerializableVal, StyleDef, StyleGap,
+    SerializablePositionType, SerializableRect, SerializableVal, StyleDef, StyleGap, TextDef,
     UiFlexDirection, ViewLayoutAsset, ViewLayoutSlot, ViewLayoutSlots, ViewNodeDef,
-    layout_child_path, layout_root_path,
+    ViewSizeAxisDef, ViewSizingDef, layout_child_path, layout_root_path, serializable_vec2_to_vec2,
 };
 use bevy::prelude::Vec2;
 use std::error::Error;
@@ -48,32 +48,36 @@ pub fn compute_taffy_layout(
     asset: &ViewLayoutAsset,
     viewport_size: Vec2,
 ) -> Result<ViewLayoutSlots, ViewLayoutError> {
-    let mut tree = TaffyTree::new();
+    let mut tree = TaffyTree::<LeafMeasureContext>::new();
     let mut nodes = Vec::new();
+    let mut root_ids = Vec::new();
     for (root_idx, root) in asset.roots.iter().enumerate() {
-        build_node(
+        let root_id = build_node(
             &mut tree,
             root,
             layout_root_path(root_idx, root),
             viewport_size,
+            UiFlexDirection::Row,
+            true,
             false,
             &mut nodes,
         )?;
+        root_ids.push(root_id);
     }
-
-    let root_ids = nodes
-        .iter()
-        .filter(|(_, path, _)| !path.contains('/'))
-        .map(|(node_id, _, _)| *node_id)
-        .collect::<Vec<_>>();
 
     let available = Size {
         width: AvailableSpace::Definite(viewport_size.x),
         height: AvailableSpace::Definite(viewport_size.y),
     };
     for root_id in root_ids {
-        tree.compute_layout(root_id, available)
-            .map_err(|error| ViewLayoutError::new(format!("failed to compute layout: {error}")))?;
+        tree.compute_layout_with_measure(
+            root_id,
+            available,
+            |known_dimensions, _available_space, _node_id, node_context, _style| {
+                measure_leaf(known_dimensions, node_context)
+            },
+        )
+        .map_err(|error| ViewLayoutError::new(format!("failed to compute layout: {error}")))?;
     }
 
     let mut slots = ViewLayoutSlots::new();
@@ -95,14 +99,17 @@ pub fn compute_taffy_layout(
 }
 
 fn build_node(
-    tree: &mut TaffyTree,
+    tree: &mut TaffyTree<LeafMeasureContext>,
     node: &ViewNodeDef,
     path: String,
     viewport_size: Vec2,
+    parent_flex_direction: UiFlexDirection,
+    is_root: bool,
     ancestor_hidden: bool,
     nodes: &mut Vec<(NodeId, String, String)>,
 ) -> Result<NodeId, ViewLayoutError> {
     let hidden = ancestor_hidden || matches!(node.style.display, Some(SerializableDisplay::None));
+    let node_flex_direction = node.style.flex_direction.unwrap_or_default();
     let children = node
         .children
         .iter()
@@ -113,14 +120,27 @@ fn build_node(
                 child,
                 layout_child_path(&path, child_idx, child),
                 viewport_size,
+                node_flex_direction,
+                false,
                 hidden,
                 nodes,
             )
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let style = to_taffy_style(&node.style, viewport_size);
+    let natural_size = natural_measure_size(node);
+    let style = to_taffy_style(
+        &node.style,
+        viewport_size,
+        parent_flex_direction,
+        is_root,
+        natural_size,
+    );
     let node_id = if children.is_empty() {
-        tree.new_leaf(style)
+        if let Some(context) = natural_size.map(|size| LeafMeasureContext { size }) {
+            tree.new_leaf_with_context(style, context)
+        } else {
+            tree.new_leaf(style)
+        }
     } else {
         tree.new_with_children(style, &children)
     }
@@ -131,7 +151,98 @@ fn build_node(
     Ok(node_id)
 }
 
-fn to_taffy_style(style: &StyleDef, viewport_size: Vec2) -> Style {
+#[derive(Clone, Debug)]
+struct LeafMeasureContext {
+    size: Size<f32>,
+}
+
+fn natural_measure_size(node: &ViewNodeDef) -> Option<Size<f32>> {
+    node.view_box
+        .as_ref()
+        .map(|view_box| Size {
+            width: view_box.width,
+            height: view_box.height,
+        })
+        .or_else(|| (!node.texts.is_empty()).then(|| measure_texts(&node.texts)))
+}
+
+fn measure_leaf(
+    known_dimensions: Size<Option<f32>>,
+    node_context: Option<&mut LeafMeasureContext>,
+) -> Size<f32> {
+    let measured = node_context.map_or(
+        Size {
+            width: 0.0,
+            height: 0.0,
+        },
+        |context| context.size,
+    );
+    Size {
+        width: known_dimensions.width.unwrap_or(measured.width),
+        height: known_dimensions.height.unwrap_or(measured.height),
+    }
+}
+
+fn measure_texts(texts: &[TextDef]) -> Size<f32> {
+    texts.iter().fold(
+        Size {
+            width: 0.0,
+            height: 0.0,
+        },
+        |mut total, text| {
+            let size = measure_text(text);
+            total.width = total.width.max(size.width);
+            total.height += size.height;
+            total
+        },
+    )
+}
+
+fn measure_text(text: &TextDef) -> Size<f32> {
+    let content = text.content.as_deref().unwrap_or("");
+    let view_font: crate::core::view::components::ViewFont = text.font.clone().into();
+    let font_size = view_font.default_size();
+    let world_scale = serializable_vec2_to_vec2(&text.world_scale);
+    let scale = world_scale.x.abs() / font_size;
+    let line_height = text.line_height.unwrap_or(1.0);
+    let char_spacing = text.char_spacing.unwrap_or(0.0);
+    let word_spacing = text.word_spacing.unwrap_or(0.0);
+    let lines = content.split('\n').collect::<Vec<_>>();
+    let line_count = lines.len() as f32;
+    let glyph_width = font_size * 0.5;
+    let width = lines
+        .iter()
+        .map(|line| measure_text_line(line, glyph_width, char_spacing, word_spacing) * scale)
+        .fold(0.0, f32::max);
+    Size {
+        width,
+        height: line_count * font_size * line_height * scale,
+    }
+}
+
+fn measure_text_line(line: &str, glyph_width: f32, char_spacing: f32, word_spacing: f32) -> f32 {
+    let char_count = line.chars().count();
+    if char_count == 0 {
+        return 0.0;
+    }
+    let word_gap_count = line.chars().filter(|value| value.is_whitespace()).count();
+    char_count as f32 * (glyph_width + char_spacing) + word_gap_count as f32 * word_spacing
+}
+
+fn to_taffy_style(
+    style: &StyleDef,
+    viewport_size: Vec2,
+    parent_flex_direction: UiFlexDirection,
+    is_root: bool,
+    natural_size: Option<Size<f32>>,
+) -> Style {
+    let (size, flex_grow, flex_shrink, flex_basis, align_self) = to_sizing_style(
+        style,
+        viewport_size,
+        parent_flex_direction,
+        is_root,
+        natural_size,
+    );
     Style {
         display: style.display.map_or(TaffyDisplay::Flex, to_taffy_display),
         position: style
@@ -151,31 +262,216 @@ fn to_taffy_style(style: &StyleDef, viewport_size: Vec2) -> Style {
                 to_length_percentage_auto(value, viewport_size)
             }),
         },
-        size: Size {
-            width: style.width.map_or(Dimension::auto(), |value| {
-                to_dimension(value, viewport_size)
-            }),
-            height: style.height.map_or(Dimension::auto(), |value| {
-                to_dimension(value, viewport_size)
-            }),
-        },
+        size,
         margin: style.margin.map_or_else(auto_rect_zero, |rect| {
             to_length_percentage_auto_rect(rect, viewport_size)
         }),
         padding: style.padding.map_or_else(length_rect_zero, |rect| {
             to_length_percentage_rect(rect, viewport_size)
         }),
+        border: style.border.map_or_else(length_rect_zero, |rect| {
+            to_length_percentage_rect(rect, viewport_size)
+        }),
         gap: style.gap.map_or_else(length_size_zero, |gap| {
             to_length_percentage_gap(gap, viewport_size)
         }),
         align_items: style.align_items.map(to_taffy_align_items),
-        align_self: style.align_self.and_then(to_taffy_align_self),
+        align_self,
         justify_content: style.justify_content.map(to_taffy_justify_content),
         flex_direction: style
             .flex_direction
             .map_or(TaffyFlexDirection::Row, to_taffy_flex_direction),
+        flex_basis,
+        flex_grow,
+        flex_shrink,
         ..Default::default()
     }
+}
+
+fn to_sizing_style(
+    style: &StyleDef,
+    viewport_size: Vec2,
+    parent_flex_direction: UiFlexDirection,
+    is_root: bool,
+    natural_size: Option<Size<f32>>,
+) -> (
+    Size<Dimension>,
+    f32,
+    f32,
+    Dimension,
+    Option<TaffyAlignItems>,
+) {
+    let (width_axis, height_axis) = sizing_axes(style);
+    let mut size = Size {
+        width: Dimension::auto(),
+        height: Dimension::auto(),
+    };
+    let mut flex_grow = 0.0;
+    let mut flex_shrink = 1.0;
+    let mut flex_basis = Dimension::auto();
+    let mut align_self = style.align_self.and_then(to_taffy_align_self);
+    let fit_size = natural_size.map(|size| Size {
+        width: size.width + box_axis_extra(style, true, viewport_size),
+        height: size.height + box_axis_extra(style, false, viewport_size),
+    });
+
+    apply_size_axis(
+        width_axis,
+        true,
+        &mut size,
+        &mut flex_grow,
+        &mut flex_shrink,
+        &mut flex_basis,
+        &mut align_self,
+        viewport_size,
+        parent_flex_direction,
+        is_root,
+        fit_size,
+    );
+    apply_size_axis(
+        height_axis,
+        false,
+        &mut size,
+        &mut flex_grow,
+        &mut flex_shrink,
+        &mut flex_basis,
+        &mut align_self,
+        viewport_size,
+        parent_flex_direction,
+        is_root,
+        fit_size,
+    );
+    if style.sizing.is_some()
+        && !is_root
+        && align_self.is_none()
+        && (fit_axis_is_cross(width_axis, true, parent_flex_direction)
+            || fit_axis_is_cross(height_axis, false, parent_flex_direction))
+    {
+        align_self = Some(TaffyAlignItems::Start);
+    }
+
+    (size, flex_grow, flex_shrink, flex_basis, align_self)
+}
+
+fn sizing_axes(style: &StyleDef) -> (ViewSizeAxisDef, ViewSizeAxisDef) {
+    let (mut width, mut height) = match style.sizing {
+        Some(ViewSizingDef::Fit) | None => (ViewSizeAxisDef::Fit, ViewSizeAxisDef::Fit),
+        Some(ViewSizingDef::Fill) => (ViewSizeAxisDef::Fill, ViewSizeAxisDef::Fill),
+        Some(ViewSizingDef::Fixed { width, height }) => (
+            ViewSizeAxisDef::Fixed(width),
+            ViewSizeAxisDef::Fixed(height),
+        ),
+        Some(ViewSizingDef::Axes { width, height }) => (width, height),
+    };
+    if let Some(value) = style.width {
+        width = ViewSizeAxisDef::Fixed(value);
+    }
+    if let Some(value) = style.height {
+        height = ViewSizeAxisDef::Fixed(value);
+    }
+    (width, height)
+}
+
+fn box_axis_extra(style: &StyleDef, is_width: bool, viewport_size: Vec2) -> f32 {
+    spacing_axis_extra(style.padding, is_width, viewport_size)
+        + spacing_axis_extra(style.border, is_width, viewport_size)
+}
+
+fn spacing_axis_extra(rect: Option<SerializableRect>, is_width: bool, viewport_size: Vec2) -> f32 {
+    rect.map_or(0.0, |rect| {
+        let (start, end) = if is_width {
+            (rect.left, rect.right)
+        } else {
+            (rect.top, rect.bottom)
+        };
+        to_layout_length(start, is_width, viewport_size)
+            + to_layout_length(end, is_width, viewport_size)
+    })
+}
+
+fn to_layout_length(value: SerializableVal, is_width: bool, viewport_size: Vec2) -> f32 {
+    match value {
+        SerializableVal::Auto => 0.0,
+        SerializableVal::Px(value) => value,
+        SerializableVal::Percent(value) => {
+            let basis = if is_width {
+                viewport_size.x
+            } else {
+                viewport_size.y
+            };
+            basis * value / 100.0
+        }
+        SerializableVal::Vw(value) => viewport_size.x * value / 100.0,
+        SerializableVal::Vh(value) => viewport_size.y * value / 100.0,
+    }
+}
+
+fn apply_size_axis(
+    axis: ViewSizeAxisDef,
+    is_width: bool,
+    size: &mut Size<Dimension>,
+    flex_grow: &mut f32,
+    flex_shrink: &mut f32,
+    flex_basis: &mut Dimension,
+    align_self: &mut Option<TaffyAlignItems>,
+    viewport_size: Vec2,
+    parent_flex_direction: UiFlexDirection,
+    is_root: bool,
+    fit_size: Option<Size<f32>>,
+) {
+    match axis {
+        ViewSizeAxisDef::Fit => {
+            let value = fit_size.map_or(Dimension::auto(), |size| {
+                Dimension::length(if is_width { size.width } else { size.height })
+            });
+            set_size_axis(size, is_width, value);
+        }
+        ViewSizeAxisDef::Fixed(value) => {
+            set_size_axis(size, is_width, to_dimension(value, viewport_size));
+        }
+        ViewSizeAxisDef::Fill if is_root => {
+            set_size_axis(size, is_width, Dimension::percent(1.0));
+        }
+        ViewSizeAxisDef::Fill if axis_matches_main(is_width, parent_flex_direction) => {
+            *flex_grow = 1.0;
+            *flex_shrink = 1.0;
+            *flex_basis = Dimension::length(0.0);
+            set_size_axis(size, is_width, Dimension::auto());
+        }
+        ViewSizeAxisDef::Fill => {
+            set_size_axis(size, is_width, Dimension::percent(1.0));
+            if align_self.is_none() {
+                *align_self = Some(TaffyAlignItems::Stretch);
+            }
+        }
+    }
+}
+
+fn set_size_axis(size: &mut Size<Dimension>, is_width: bool, value: Dimension) {
+    if is_width {
+        size.width = value;
+    } else {
+        size.height = value;
+    }
+}
+
+fn axis_matches_main(is_width: bool, parent_flex_direction: UiFlexDirection) -> bool {
+    matches!(
+        (is_width, parent_flex_direction),
+        (true, UiFlexDirection::Row | UiFlexDirection::RowReverse)
+            | (
+                false,
+                UiFlexDirection::Column | UiFlexDirection::ColumnReverse
+            )
+    )
+}
+
+fn fit_axis_is_cross(
+    axis: ViewSizeAxisDef,
+    is_width: bool,
+    parent_flex_direction: UiFlexDirection,
+) -> bool {
+    matches!(axis, ViewSizeAxisDef::Fit) && !axis_matches_main(is_width, parent_flex_direction)
 }
 
 fn to_length_percentage_auto_rect(
@@ -324,7 +620,7 @@ mod tests {
     use super::*;
     use crate::core::view::layout::{
         SerializableDisplay, SerializablePositionType, SerializableTransform, SerializableVal,
-        StyleDef, StyleGap, UiFlexDirection, ViewNodeDef,
+        StyleDef, StyleGap, UiFlexDirection, ViewNodeDef, ViewSizeAxisDef, ViewSizingDef,
     };
 
     fn asset(root: ViewNodeDef) -> ViewLayoutAsset {
@@ -566,10 +862,378 @@ mod tests {
             .expect("centered element slot");
         assert_close(centered.x, 240.0);
         assert_close(centered.width, 160.0);
+        let button_row = slots
+            .get("0:TaffyMinimalRoot/1:ButtonRow")
+            .expect("button row slot");
+        assert!(button_row.width > 360.0);
+        let fit_probe = slots
+            .get("0:TaffyMinimalRoot/4:MeasuredViewBox")
+            .expect("fit probe slot");
+        assert_close(fit_probe.width, 134.0);
+        assert_close(fit_probe.height, 54.0);
         assert!(
             slots
                 .get("0:TaffyMinimalRoot/3:HiddenDisplayNoneProbe")
                 .is_none()
         );
+    }
+
+    #[test]
+    fn fit_view_box_leaf_uses_view_box_measurement() {
+        let mut measured = node(
+            "measured",
+            StyleDef {
+                sizing: Some(ViewSizingDef::Fit),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        measured.view_box = Some(crate::core::view::layout::ViewBoxLogicDef {
+            width: 180.0,
+            height: 64.0,
+            border_width: 0.0,
+            offset: (
+                crate::core::sequencer::chapter_schema::Value::Static(0.0),
+                crate::core::sequencer::chapter_schema::Value::Static(0.0),
+                crate::core::sequencer::chapter_schema::Value::Static(0.0),
+            ),
+            fill_shader: None,
+            structure_file: None,
+            fill_color: None,
+        });
+        let root = node(
+            "root",
+            StyleDef {
+                width: Some(SerializableVal::Px(640.0)),
+                height: Some(SerializableVal::Px(480.0)),
+                ..Default::default()
+            },
+            vec![measured],
+        );
+
+        let slots = compute_taffy_layout(&asset(root), Vec2::new(640.0, 480.0)).unwrap();
+
+        let measured = slots.get("0:root/0:measured").expect("measured slot");
+        assert_close(measured.width, 180.0);
+        assert_close(measured.height, 64.0);
+    }
+
+    #[test]
+    fn fit_view_box_adds_padding_and_border_to_measured_content() {
+        let mut measured = node(
+            "measured",
+            StyleDef {
+                sizing: Some(ViewSizingDef::Fit),
+                padding: Some(crate::core::view::layout::SerializableRect {
+                    left: SerializableVal::Px(10.0),
+                    right: SerializableVal::Px(10.0),
+                    top: SerializableVal::Px(3.0),
+                    bottom: SerializableVal::Px(7.0),
+                }),
+                border: Some(crate::core::view::layout::SerializableRect {
+                    left: SerializableVal::Px(1.0),
+                    right: SerializableVal::Px(2.0),
+                    top: SerializableVal::Px(4.0),
+                    bottom: SerializableVal::Px(6.0),
+                }),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        measured.view_box = Some(crate::core::view::layout::ViewBoxLogicDef {
+            width: 100.0,
+            height: 50.0,
+            border_width: 0.0,
+            offset: (
+                crate::core::sequencer::chapter_schema::Value::Static(0.0),
+                crate::core::sequencer::chapter_schema::Value::Static(0.0),
+                crate::core::sequencer::chapter_schema::Value::Static(0.0),
+            ),
+            fill_shader: None,
+            structure_file: None,
+            fill_color: None,
+        });
+        let root = node(
+            "root",
+            StyleDef {
+                width: Some(SerializableVal::Px(640.0)),
+                height: Some(SerializableVal::Px(480.0)),
+                ..Default::default()
+            },
+            vec![measured],
+        );
+
+        let slots = compute_taffy_layout(&asset(root), Vec2::new(640.0, 480.0)).unwrap();
+
+        let measured = slots.get("0:root/0:measured").expect("measured slot");
+        assert_close(measured.width, 123.0);
+        assert_close(measured.height, 70.0);
+    }
+
+    #[test]
+    fn fit_view_box_with_children_uses_view_box_measurement() {
+        let mut measured = node(
+            "measured",
+            StyleDef {
+                sizing: Some(ViewSizingDef::Fit),
+                flex_direction: Some(UiFlexDirection::Row),
+                ..Default::default()
+            },
+            vec![node(
+                "child",
+                StyleDef {
+                    width: Some(SerializableVal::Px(25.0)),
+                    height: Some(SerializableVal::Px(12.0)),
+                    ..Default::default()
+                },
+                Vec::new(),
+            )],
+        );
+        measured.view_box = Some(crate::core::view::layout::ViewBoxLogicDef {
+            width: 180.0,
+            height: 64.0,
+            border_width: 0.0,
+            offset: (
+                crate::core::sequencer::chapter_schema::Value::Static(0.0),
+                crate::core::sequencer::chapter_schema::Value::Static(0.0),
+                crate::core::sequencer::chapter_schema::Value::Static(0.0),
+            ),
+            fill_shader: None,
+            structure_file: None,
+            fill_color: None,
+        });
+        let root = node(
+            "root",
+            StyleDef {
+                width: Some(SerializableVal::Px(640.0)),
+                height: Some(SerializableVal::Px(480.0)),
+                ..Default::default()
+            },
+            vec![measured],
+        );
+
+        let slots = compute_taffy_layout(&asset(root), Vec2::new(640.0, 480.0)).unwrap();
+
+        let measured = slots.get("0:root/0:measured").expect("measured slot");
+        assert_close(measured.width, 180.0);
+        assert_close(measured.height, 64.0);
+    }
+
+    #[test]
+    fn fit_text_leaf_uses_conservative_text_measurement() {
+        let mut measured = node(
+            "text",
+            StyleDef {
+                sizing: Some(ViewSizingDef::Fit),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        measured.texts.push(crate::core::view::layout::TextDef {
+            id: "label".to_string(),
+            content: Some("AB\nC".to_string()),
+            font: "DTM-Mono".to_string(),
+            align: None,
+            anchor: None,
+            world_scale: (
+                crate::core::sequencer::chapter_schema::Value::Static(1.0),
+                crate::core::sequencer::chapter_schema::Value::Static(1.0),
+            ),
+            color: (
+                crate::core::sequencer::chapter_schema::Value::Static(1.0),
+                crate::core::sequencer::chapter_schema::Value::Static(1.0),
+                crate::core::sequencer::chapter_schema::Value::Static(1.0),
+                crate::core::sequencer::chapter_schema::Value::Static(1.0),
+            ),
+            transform: SerializableTransform::default(),
+            line_height: Some(1.0),
+            char_spacing: Some(0.0),
+            word_spacing: Some(0.0),
+            text_style: None,
+            conditional_style: None,
+            visible_when: None,
+        });
+        let root = node(
+            "root",
+            StyleDef {
+                width: Some(SerializableVal::Px(640.0)),
+                height: Some(SerializableVal::Px(480.0)),
+                ..Default::default()
+            },
+            vec![measured],
+        );
+
+        let slots = compute_taffy_layout(&asset(root), Vec2::new(640.0, 480.0)).unwrap();
+
+        let measured = slots.get("0:root/0:text").expect("text slot");
+        assert_close(measured.width, 1.0);
+        assert_close(measured.height, 2.0);
+    }
+
+    #[test]
+    fn fit_text_measurement_preserves_negative_spacing() {
+        let mut measured = node(
+            "text",
+            StyleDef {
+                sizing: Some(ViewSizingDef::Fit),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        measured.texts.push(crate::core::view::layout::TextDef {
+            id: "label".to_string(),
+            content: Some("A B".to_string()),
+            font: "DTM-Mono".to_string(),
+            align: None,
+            anchor: None,
+            world_scale: (
+                crate::core::sequencer::chapter_schema::Value::Static(128.0),
+                crate::core::sequencer::chapter_schema::Value::Static(128.0),
+            ),
+            color: (
+                crate::core::sequencer::chapter_schema::Value::Static(1.0),
+                crate::core::sequencer::chapter_schema::Value::Static(1.0),
+                crate::core::sequencer::chapter_schema::Value::Static(1.0),
+                crate::core::sequencer::chapter_schema::Value::Static(1.0),
+            ),
+            transform: SerializableTransform::default(),
+            line_height: Some(1.0),
+            char_spacing: Some(-4.0),
+            word_spacing: Some(-8.0),
+            text_style: None,
+            conditional_style: None,
+            visible_when: None,
+        });
+        let root = node(
+            "root",
+            StyleDef {
+                width: Some(SerializableVal::Px(640.0)),
+                height: Some(SerializableVal::Px(480.0)),
+                ..Default::default()
+            },
+            vec![measured],
+        );
+
+        let slots = compute_taffy_layout(&asset(root), Vec2::new(640.0, 480.0)).unwrap();
+
+        let measured = slots.get("0:root/0:text").expect("text slot");
+        assert_close(measured.width, 172.0);
+    }
+
+    #[test]
+    fn fit_text_measurement_applies_spacing_after_every_glyph_and_keeps_trailing_line() {
+        let mut measured = node(
+            "text",
+            StyleDef {
+                sizing: Some(ViewSizingDef::Fit),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        measured.texts.push(crate::core::view::layout::TextDef {
+            id: "label".to_string(),
+            content: Some("AB\n".to_string()),
+            font: "DTM-Mono".to_string(),
+            align: None,
+            anchor: None,
+            world_scale: (
+                crate::core::sequencer::chapter_schema::Value::Static(128.0),
+                crate::core::sequencer::chapter_schema::Value::Static(128.0),
+            ),
+            color: (
+                crate::core::sequencer::chapter_schema::Value::Static(1.0),
+                crate::core::sequencer::chapter_schema::Value::Static(1.0),
+                crate::core::sequencer::chapter_schema::Value::Static(1.0),
+                crate::core::sequencer::chapter_schema::Value::Static(1.0),
+            ),
+            transform: SerializableTransform::default(),
+            line_height: Some(1.0),
+            char_spacing: Some(16.0),
+            word_spacing: Some(0.0),
+            text_style: None,
+            conditional_style: None,
+            visible_when: None,
+        });
+        let root = node(
+            "root",
+            StyleDef {
+                width: Some(SerializableVal::Px(640.0)),
+                height: Some(SerializableVal::Px(480.0)),
+                ..Default::default()
+            },
+            vec![measured],
+        );
+
+        let slots = compute_taffy_layout(&asset(root), Vec2::new(640.0, 480.0)).unwrap();
+
+        let measured = slots.get("0:root/0:text").expect("text slot");
+        assert_close(measured.width, 160.0);
+        assert_close(measured.height, 256.0);
+    }
+
+    #[test]
+    fn fixed_sizing_sets_dimensions_without_width_height_fields() {
+        let root = node(
+            "root",
+            StyleDef {
+                sizing: Some(ViewSizingDef::Fixed {
+                    width: SerializableVal::Px(320.0),
+                    height: SerializableVal::Px(120.0),
+                }),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+
+        let slots = compute_taffy_layout(&asset(root), Vec2::new(640.0, 480.0)).unwrap();
+
+        let root = slots.get("0:root").expect("root slot");
+        assert_close(root.width, 320.0);
+        assert_close(root.height, 120.0);
+    }
+
+    #[test]
+    fn fill_sizing_takes_remaining_main_axis_space() {
+        let fixed = node(
+            "fixed",
+            StyleDef {
+                sizing: Some(ViewSizingDef::Fixed {
+                    width: SerializableVal::Px(100.0),
+                    height: SerializableVal::Px(40.0),
+                }),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        let fill = node(
+            "fill",
+            StyleDef {
+                sizing: Some(ViewSizingDef::Axes {
+                    width: ViewSizeAxisDef::Fill,
+                    height: ViewSizeAxisDef::Fixed(SerializableVal::Px(40.0)),
+                }),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        let root = node(
+            "root",
+            StyleDef {
+                width: Some(SerializableVal::Px(640.0)),
+                height: Some(SerializableVal::Px(480.0)),
+                flex_direction: Some(UiFlexDirection::Row),
+                gap: Some(StyleGap {
+                    row: SerializableVal::Px(0.0),
+                    column: SerializableVal::Px(20.0),
+                }),
+                ..Default::default()
+            },
+            vec![fixed, fill],
+        );
+
+        let slots = compute_taffy_layout(&asset(root), Vec2::new(640.0, 480.0)).unwrap();
+
+        let fill = slots.get("0:root/1:fill").expect("fill slot");
+        assert_close(fill.width, 520.0);
     }
 }
