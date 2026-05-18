@@ -1,0 +1,128 @@
+(
+    roots: [
+        (
+            name: "SpatialPanel",
+            tags: ["spatial_panel"],
+            style: (
+                width: Some(Px(360.0)),
+                height: Some(Px(220.0)),
+                position_type: Some(Relative),
+                flex_direction: Some(Column),
+                justify_content: Some(Center),
+                align_items: Some(Center),
+                padding: Some((
+                    left: Px(24.0),
+                    right: Px(24.0),
+                    top: Px(20.0),
+                    bottom: Px(20.0),
+                )),
+                gap: Some((
+                    row: Px(16.0),
+                    column: Px(16.0),
+                )),
+                display: Some(Flex),
+            ),
+            transform: Some((
+                translation: Some((-1.8, -1.1, 0.0)),
+            )),
+            sprite: Some((
+                visual: "procedural://white_pixel",
+                color: Some((0.08, 0.12, 0.18, 0.92)),
+                transform: Some((
+                    translation: Some((1.8, 1.1, -0.02)),
+                    scale: Some((3.6, 2.2, 1.0)),
+                )),
+                pivot: Some((0.5, 0.5)),
+            )),
+            children: [
+                (
+                    name: "SpatialRow",
+                    tags: ["spatial_row"],
+                    style: (
+                        width: Some(Px(280.0)),
+                        height: Some(Px(72.0)),
+                        position_type: Some(Relative),
+                        flex_direction: Some(Row),
+                        justify_content: Some(SpaceBetween),
+                        align_items: Some(Center),
+                        gap: Some((
+                            row: Px(0.0),
+                            column: Px(20.0),
+                        )),
+                        display: Some(Flex),
+                    ),
+                    children: [
+                        (
+                            name: "SpatialRowItemA",
+                            tags: ["spatial_row_item"],
+                            style: (
+                                width: Some(Px(88.0)),
+                                height: Some(Px(44.0)),
+                                display: Some(Flex),
+                            ),
+                            sprite: Some((
+                                visual: "procedural://white_pixel",
+                                color: Some((0.95, 0.68, 0.22, 1.0)),
+                                transform: Some((
+                                    translation: Some((0.44, 0.22, 0.02)),
+                                    scale: Some((0.88, 0.44, 1.0)),
+                                )),
+                                pivot: Some((0.5, 0.5)),
+                            )),
+                        ),
+                        (
+                            name: "SpatialRowItemB",
+                            tags: ["spatial_row_item"],
+                            style: (
+                                width: Some(Px(88.0)),
+                                height: Some(Px(44.0)),
+                                display: Some(Flex),
+                            ),
+                            sprite: Some((
+                                visual: "procedural://white_pixel",
+                                color: Some((0.23, 0.67, 1.0, 1.0)),
+                                transform: Some((
+                                    translation: Some((0.44, 0.22, 0.03)),
+                                    scale: Some((0.88, 0.44, 1.0)),
+                                )),
+                                pivot: Some((0.5, 0.5)),
+                            )),
+                        ),
+                    ],
+                ),
+                (
+                    name: "SpatialAbsoluteMarker",
+                    tags: ["spatial_absolute_marker"],
+                    style: (
+                        width: Some(Px(36.0)),
+                        height: Some(Px(36.0)),
+                        left: Some(Px(294.0)),
+                        top: Some(Px(154.0)),
+                        position_type: Some(Absolute),
+                        display: Some(Flex),
+                    ),
+                    sprite: Some((
+                        visual: "procedural://white_pixel",
+                        color: Some((0.95, 0.18, 0.34, 1.0)),
+                        transform: Some((
+                            translation: Some((0.18, 0.18, 0.04)),
+                            scale: Some((0.36, 0.36, 1.0)),
+                        )),
+                        pivot: Some((0.5, 0.5)),
+                    )),
+                ),
+            ],
+        ),
+    ],
+    space: Some(World3dPlane((
+        transform: (
+            translation: Some((0.0, 0.0, 0.0)),
+            rotation: Some(0.0),
+            scale: Some((1.0, 1.0, 1.0)),
+        ),
+        rotation_degrees: Some((18.0, 0.0, 0.0)),
+        plane_size: (3.6, 2.2),
+        pixels_per_unit: 100.0,
+        camera: Main,
+    ))),
+)

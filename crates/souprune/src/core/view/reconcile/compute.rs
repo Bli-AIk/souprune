@@ -14,13 +14,14 @@ use super::tree::{DesiredElement, DesiredViewTree, ViewElementKey};
 use crate::core::view::LocalState;
 use crate::core::view::layout::{
     SerializableDisplay, ViewLayoutAsset, ViewLayoutContext, ViewLayoutRect,
-    ViewLayoutRepeatContext, ViewLayoutSlot, ViewLayoutSlots, ViewNodeDef,
-    apply_layout_repeat_context_to_text, compute_taffy_layout_with_context, layout_child_path,
-    layout_repeat_path, layout_root_path,
+    ViewLayoutRepeatContext, ViewLayoutSlot, ViewLayoutSlots, ViewNodeDef, ViewSpaceDef,
+    ViewWorld3dPlaneDef, apply_layout_repeat_context_to_text, compute_taffy_layout_with_context,
+    layout_child_path, layout_repeat_path, layout_root_path,
 };
 use crate::core::view::ron_view::parsing::{
     DataPathResolvers, ExprFunctionResolvers, PlayerDataView, RepeatContext, resolve_text_content,
 };
+use crate::core::view::spatial::layout_slot_to_plane_translation;
 use bevy::prelude::{Transform, Vec2, Vec3};
 use bevy_fact_rule_event::LayeredFactDatabase;
 
@@ -124,13 +125,21 @@ pub fn compute_desired_state(
     )
     .ok();
 
+    let spatial_plane = spatial_plane_for_asset(asset);
     let roots = asset
         .roots
         .iter()
         .enumerate()
         .flat_map(|(root_idx, node_def)| {
             let node_path = layout_root_path(root_idx, node_def);
-            compute_element(&ctx, node_def, None, layout_slots.as_ref(), &node_path)
+            compute_element(
+                &ctx,
+                node_def,
+                None,
+                layout_slots.as_ref(),
+                &node_path,
+                spatial_plane,
+            )
         })
         .collect();
 
@@ -148,6 +157,7 @@ fn compute_element(
     repeat_ctx: Option<&RepeatContext>,
     layout_slots: Option<&ViewLayoutSlots>,
     node_path: &str,
+    spatial_plane: Option<&ViewWorld3dPlaneDef>,
 ) -> Vec<DesiredElement> {
     if node_display_is_none(node_def) {
         return Vec::new();
@@ -155,7 +165,14 @@ fn compute_element(
 
     // Handle repeat expansion
     if let Some(repeat_spec) = &node_def.repeat {
-        return expand_repeat(ctx, node_def, repeat_spec, layout_slots, node_path);
+        return expand_repeat(
+            ctx,
+            node_def,
+            repeat_spec,
+            layout_slots,
+            node_path,
+            spatial_plane,
+        );
     }
 
     // Build element key
@@ -165,6 +182,7 @@ fn compute_element(
     let transform = combine_layout_transform(
         layout_slot,
         resolve_element_transform(&ctx.player_data, node_def, repeat_ctx),
+        spatial_plane,
     );
 
     let visibility = resolve_visibility(
@@ -190,7 +208,14 @@ fn compute_element(
         .enumerate()
         .flat_map(|(child_idx, child)| {
             let child_path = layout_child_path(node_path, child_idx, child);
-            compute_element(ctx, child, repeat_ctx, layout_slots, &child_path)
+            compute_element(
+                ctx,
+                child,
+                repeat_ctx,
+                layout_slots,
+                &child_path,
+                spatial_plane,
+            )
         })
         .collect();
 
@@ -216,6 +241,7 @@ fn expand_repeat(
     repeat_spec: &crate::core::view::layout::RepeatDef,
     layout_slots: Option<&ViewLayoutSlots>,
     node_path: &str,
+    spatial_plane: Option<&ViewWorld3dPlaneDef>,
 ) -> Vec<DesiredElement> {
     let count = resolve_repeat_count(&ctx.player_data, repeat_spec);
 
@@ -256,6 +282,7 @@ fn expand_repeat(
         let transform = combine_layout_transform(
             layout_slot,
             resolve_element_transform(&ctx.player_data, node_def, Some(&repeat_ctx)),
+            spatial_plane,
         );
 
         let visibility = resolve_visibility(
@@ -280,7 +307,14 @@ fn expand_repeat(
             .enumerate()
             .flat_map(|(child_idx, child)| {
                 let child_path = layout_child_path(&repeat_node_path, child_idx, child);
-                compute_element(ctx, child, Some(&repeat_ctx), layout_slots, &child_path)
+                compute_element(
+                    ctx,
+                    child,
+                    Some(&repeat_ctx),
+                    layout_slots,
+                    &child_path,
+                    spatial_plane,
+                )
             })
             .collect();
 
@@ -347,14 +381,31 @@ fn resolve_element_transform(
     }
 }
 
-fn combine_layout_transform(slot: Option<&ViewLayoutSlot>, transform: Transform) -> Transform {
+fn combine_layout_transform(
+    slot: Option<&ViewLayoutSlot>,
+    transform: Transform,
+    spatial_plane: Option<&ViewWorld3dPlaneDef>,
+) -> Transform {
     let Some(slot) = slot else {
         return transform;
     };
+    if let Some(plane) = spatial_plane {
+        return combine_transforms(
+            Transform::from_translation(layout_slot_to_plane_translation(slot, plane)),
+            transform,
+        );
+    }
     combine_transforms(
         Transform::from_translation(Vec3::new(slot.x, -slot.y, 0.0)),
         transform,
     )
+}
+
+fn spatial_plane_for_asset(asset: &ViewLayoutAsset) -> Option<&ViewWorld3dPlaneDef> {
+    let Some(ViewSpaceDef::World3dPlane(plane)) = asset.space.as_ref() else {
+        return None;
+    };
+    Some(plane)
 }
 
 fn combine_transforms(parent: Transform, child: Transform) -> Transform {
@@ -396,7 +447,8 @@ mod tests {
     use crate::core::sequencer::chapter_schema::Value;
     use crate::core::view::layout::{
         CoordinateSystem, RepeatDef, SerializableJustifyContent, SerializableTransform,
-        SerializableVal, StyleDef, UiFlexDirection,
+        SerializableVal, StyleDef, UiFlexDirection, ViewCameraTargetDef, ViewSpaceDef,
+        ViewWorld3dPlaneDef,
     };
     use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 
@@ -406,6 +458,7 @@ mod tests {
             requires: Vec::new(),
             facts: None,
             world_space: false,
+            space: None,
             coordinate_system: CoordinateSystem::Standard,
             coordinate_space: None,
         }
@@ -474,6 +527,55 @@ mod tests {
         assert_eq!(rect.y, 0.0);
         assert_eq!(rect.width, 100.0);
         assert_eq!(rect.height, 40.0);
+    }
+
+    #[test]
+    fn desired_state_maps_spatial_layout_offset_to_plane_units() {
+        let child = node(
+            "Child",
+            StyleDef {
+                width: Some(SerializableVal::Px(100.0)),
+                height: Some(SerializableVal::Px(40.0)),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        let root = node(
+            "Root",
+            StyleDef {
+                width: Some(SerializableVal::Px(640.0)),
+                height: Some(SerializableVal::Px(480.0)),
+                flex_direction: Some(UiFlexDirection::Row),
+                justify_content: Some(SerializableJustifyContent::Center),
+                ..Default::default()
+            },
+            vec![child],
+        );
+        let mut layout = asset(root);
+        layout.space = Some(ViewSpaceDef::World3dPlane(Box::new(ViewWorld3dPlaneDef {
+            transform: SerializableTransform::default(),
+            rotation_degrees: None,
+            plane_size: (6.4, 4.8),
+            pixels_per_unit: 100.0,
+            camera: ViewCameraTargetDef::Main,
+        })));
+        let db = LayeredFactDatabase::new();
+        let local = LocalState::new();
+
+        let desired = compute_desired_state(
+            &layout,
+            Vec2::new(640.0, 480.0),
+            &db,
+            &local,
+            "",
+            None,
+            None,
+        );
+
+        assert_eq!(
+            desired.roots[0].children[0].transform.translation,
+            Vec3::new(2.7, 0.0, 0.0)
+        );
     }
 
     #[test]

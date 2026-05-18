@@ -10,10 +10,12 @@ use super::compute::compute_desired_state;
 use super::delta::{DeltaStats, apply_deltas};
 use super::diff::reconcile;
 use super::tree::CurrentViewTree;
+use crate::core::view::camera::select_view_camera_target;
 use crate::core::view::components::{ViewElement, ViewRoot};
 use crate::core::view::layout::{
-    CoordinateExtentDef, CoordinateSpaceDef, ViewLayoutAsset, ViewLayoutRect,
+    CoordinateExtentDef, CoordinateSpaceDef, ViewLayoutAsset, ViewLayoutRect, ViewSpaceDef,
 };
+use crate::core::view::spatial::{ViewSpatialRoot, spatial_root_transform};
 use crate::extra::debug::DebugCamera;
 use bevy::asset::AssetEvent;
 use bevy::ecs::prelude::MessageReader;
@@ -111,11 +113,11 @@ pub fn detect_view_root_local_state_changes_system(
     }
 }
 
-/// System to detect main 2D camera changes and force all reconciliation.
+/// System to detect main View camera changes and force all reconciliation.
 ///
-/// 检测主 2D 摄像机变化并强制所有协调的系统。
+/// 检测主 View 摄像机变化并强制所有协调的系统。
 pub fn detect_main_camera_view_changes_system(
-    changed_cameras: Query<
+    changed_2d_cameras: Query<
         (),
         (
             With<Camera2d>,
@@ -133,9 +135,21 @@ pub fn detect_main_camera_view_changes_system(
             Changed<Projection>,
         ),
     >,
+    changed_3d_cameras: Query<
+        (),
+        (
+            With<Camera3d>,
+            With<crate::core::camera::MainGameCamera>,
+            Without<DebugCamera>,
+            Changed<Camera>,
+        ),
+    >,
     mut pending: ResMut<PendingReconciliations>,
 ) {
-    if !changed_cameras.is_empty() || !changed_projections.is_empty() {
+    if !changed_2d_cameras.is_empty()
+        || !changed_projections.is_empty()
+        || !changed_3d_cameras.is_empty()
+    {
         pending.force_reconcile_all();
     }
 }
@@ -171,10 +185,18 @@ pub fn view_reconciliation_system(
         Option<&crate::core::view::components::ViewBoxAnchor>,
     )>,
     children_query: Query<&Children>,
-    camera_query: Query<
-        (&Camera, &Projection),
+    main_2d_camera_query: Query<
+        (Entity, &Camera, &Projection),
         (
             With<Camera2d>,
+            With<crate::core::camera::MainGameCamera>,
+            Without<DebugCamera>,
+        ),
+    >,
+    main_3d_camera_query: Query<
+        (Entity, &Camera),
+        (
+            With<Camera3d>,
             With<crate::core::camera::MainGameCamera>,
             Without<DebugCamera>,
         ),
@@ -203,12 +225,16 @@ pub fn view_reconciliation_system(
             continue;
         };
 
+        sync_spatial_view_root(&mut commands, root_entity, asset);
+
         // Compute desired state
         let namespace = &view_root.namespace;
-        let visible_size = camera_query
-            .iter()
-            .find(|(camera, _)| camera.is_active)
-            .and_then(|(_, projection)| camera_visible_size(projection));
+        let visible_size = select_view_camera_target(
+            asset,
+            main_2d_camera_query.iter(),
+            main_3d_camera_query.iter(),
+        )
+        .and_then(|target| target.visible_size);
         let desired = compute_desired_state(
             asset,
             layout_viewport_size(asset, visible_size),
@@ -247,6 +273,19 @@ pub fn view_reconciliation_system(
     pending.clear();
 }
 
+fn sync_spatial_view_root(commands: &mut Commands, root_entity: Entity, asset: &ViewLayoutAsset) {
+    let Some(ViewSpaceDef::World3dPlane(plane)) = asset.space.as_ref() else {
+        return;
+    };
+
+    commands.entity(root_entity).insert((
+        spatial_root_transform(plane),
+        ViewSpatialRoot {
+            plane: plane.as_ref().clone(),
+        },
+    ));
+}
+
 /// Build current view tree from ECS queries for a specific root entity.
 /// 从特定根实体的 ECS 查询构建当前视图树。
 fn build_current_tree_from_query(
@@ -276,21 +315,6 @@ fn build_current_tree_from_query(
     );
 
     build_current_tree_with_components(root_entity, &elements)
-}
-
-fn camera_visible_size(projection: &Projection) -> Option<Vec2> {
-    let Projection::Orthographic(orthographic) = projection else {
-        return None;
-    };
-    let size = Vec2::new(
-        orthographic.area.width().abs(),
-        orthographic.area.height().abs(),
-    );
-    if size.x > 0.0 && size.y > 0.0 {
-        Some(size)
-    } else {
-        None
-    }
 }
 
 fn layout_viewport_size(view_layout: &ViewLayoutAsset, camera_visible_size: Option<Vec2>) -> Vec2 {
@@ -485,6 +509,7 @@ mod tests {
             requires: Vec::new(),
             facts: None,
             world_space: false,
+            space: None,
             coordinate_system: CoordinateSystem::Standard,
             coordinate_space: None,
         }

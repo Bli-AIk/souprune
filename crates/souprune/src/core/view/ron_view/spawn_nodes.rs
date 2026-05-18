@@ -20,6 +20,7 @@ mod sprite;
 
 use super::super::components::*;
 use super::super::layout::*;
+use super::super::spatial::layout_slot_to_plane_translation;
 use super::parsing::PlayerDataView;
 use super::resources::RonDrivenView;
 use super::spawn_helpers::{build_text_config, spawn_container_texts, spawn_ui_sprite};
@@ -45,6 +46,7 @@ pub fn spawn_view_node(
     namespace: &str,
     layout_slots: Option<&ViewLayoutSlots>,
     node_path: &str,
+    spatial_plane: Option<&ViewWorld3dPlaneDef>,
 ) {
     if node_display_is_none(node_def) {
         return;
@@ -98,6 +100,7 @@ pub fn spawn_view_node(
                 Some(&ctx),
                 layout_slots,
                 &repeat_node_path,
+                spatial_plane,
             );
         }
         return;
@@ -116,6 +119,7 @@ pub fn spawn_view_node(
         None,
         layout_slots,
         node_path,
+        spatial_plane,
     );
 }
 
@@ -132,11 +136,12 @@ fn spawn_view_node_with_repeat_context(
     repeat_ctx: Option<&super::parsing::RepeatContext>,
     layout_slots: Option<&ViewLayoutSlots>,
     node_path: &str,
+    spatial_plane: Option<&ViewWorld3dPlaneDef>,
 ) {
-    let has_ui_box = node_def.view_box.is_some();
-    let is_standalone_sprite = !has_ui_box && node_def.sprite.is_some();
-    let is_state_sprite = !has_ui_box && node_def.state_sprite.is_some();
-    let is_pure_container = !has_ui_box
+    let has_view_box = node_def.view_box.is_some();
+    let is_standalone_sprite = !has_view_box && node_def.sprite.is_some();
+    let is_state_sprite = !has_view_box && node_def.state_sprite.is_some();
+    let is_pure_container = !has_view_box
         && !is_standalone_sprite
         && !is_state_sprite
         && (!node_def.texts.is_empty() || !node_def.children.is_empty());
@@ -176,7 +181,7 @@ fn spawn_view_node_with_repeat_context(
                 player_data,
                 repeat_ctx,
             );
-            let transform = combine_layout_transform(layout_slot, transform);
+            let transform = combine_layout_transform(layout_slot, transform, spatial_plane);
 
             info!(
                 "[State Sprite] Spawning state sprite '{}' at position: {:?}",
@@ -226,10 +231,10 @@ fn spawn_view_node_with_repeat_context(
                 player_data,
                 repeat_ctx,
             );
-            let transform = combine_layout_transform(layout_slot, transform);
+            let transform = combine_layout_transform(layout_slot, transform, spatial_plane);
 
             info!(
-                "[UI Sprite] Spawning standalone sprite '{}' at position: {:?}, scale: {:?}",
+                "[View Sprite] Spawning standalone sprite '{}' at position: {:?}, scale: {:?}",
                 node_name, transform.translation, transform.scale
             );
 
@@ -248,13 +253,13 @@ fn spawn_view_node_with_repeat_context(
             return;
         }
 
-        if has_ui_box {
+        if has_view_box {
             let view_box = node_def
                 .view_box
                 .as_ref()
-                .expect("view_box must exist when has_ui_box is true");
+                .expect("view_box must exist when has_view_box is true");
             info!(
-                "[UI Box] Creating ViewBox '{}' with dimensions: {}x{}, border: {}, offset: {:?}",
+                "[View Box] Creating ViewBox '{}' with dimensions: {}x{}, border: {}, offset: {:?}",
                 node_def.name,
                 view_box.width,
                 view_box.height,
@@ -279,7 +284,7 @@ fn spawn_view_node_with_repeat_context(
                     )
                 })
                 .unwrap_or_else(|| Transform::from_translation(offset));
-            let transform = combine_layout_transform(layout_slot, transform);
+            let transform = combine_layout_transform(layout_slot, transform, spatial_plane);
             let is_dynamic_node_transform = node_def
                 .transform
                 .as_ref()
@@ -344,13 +349,13 @@ fn spawn_view_node_with_repeat_context(
             }
 
             info!(
-                "[UI Box] Spawned ViewBox '{}' at offset: {:?} with structure_file: {:?}",
+                "[View Box] Spawned ViewBox '{}' at offset: {:?} with structure_file: {:?}",
                 node_def.name, offset, view_box.structure_file
             );
 
             if let Some(sprite_def) = &node_def.sprite {
                 info!(
-                    "[UI Box] Adding child sprite to ViewBox '{}': {:?}",
+                    "[View Box] Adding child sprite to ViewBox '{}': {:?}",
                     node_def.name,
                     sprite_def.visual.path()
                 );
@@ -371,7 +376,7 @@ fn spawn_view_node_with_repeat_context(
 
         if is_pure_container {
             info!(
-                "[UI Container] Creating pure container '{}' with {} texts and {} children",
+                "[View Container] Creating pure container '{}' with {} texts and {} children",
                 node_def.name,
                 node_def.texts.len(),
                 node_def.children.len()
@@ -386,6 +391,7 @@ fn spawn_view_node_with_repeat_context(
                         .as_ref()
                         .map(|transform| build_transform(transform, player_data, repeat_ctx))
                         .unwrap_or_default(),
+                    spatial_plane,
                 ),
                 GlobalTransform::default(),
                 Visibility::default(),
@@ -446,6 +452,7 @@ fn spawn_view_node_with_repeat_context(
             namespace,
             layout_slots,
             &child_path,
+            spatial_plane,
         );
     }
 }
@@ -476,10 +483,20 @@ fn combine_transforms(parent: Transform, child: Transform) -> Transform {
     }
 }
 
-fn combine_layout_transform(slot: Option<&ViewLayoutSlot>, transform: Transform) -> Transform {
+fn combine_layout_transform(
+    slot: Option<&ViewLayoutSlot>,
+    transform: Transform,
+    spatial_plane: Option<&ViewWorld3dPlaneDef>,
+) -> Transform {
     let Some(slot) = slot else {
         return transform;
     };
+    if let Some(plane) = spatial_plane {
+        return combine_transforms(
+            Transform::from_translation(layout_slot_to_plane_translation(slot, plane)),
+            transform,
+        );
+    }
     combine_transforms(
         Transform::from_translation(Vec3::new(slot.x, -slot.y, 0.0)),
         transform,
@@ -556,9 +573,33 @@ mod tests {
         };
         let explicit = Transform::from_translation(Vec3::new(5.0, -6.0, 7.0));
 
-        let combined = combine_layout_transform(Some(&slot), explicit);
+        let combined = combine_layout_transform(Some(&slot), explicit, None);
 
         assert_eq!(combined.translation, Vec3::new(215.0, -126.0, 7.0));
+    }
+
+    #[test]
+    fn spatial_layout_slot_uses_plane_units_for_translation() {
+        let slot = ViewLayoutSlot {
+            path: "Root/Child".to_string(),
+            name: "Child".to_string(),
+            x: 210.0,
+            y: 120.0,
+            width: 100.0,
+            height: 40.0,
+        };
+        let plane = ViewWorld3dPlaneDef {
+            transform: SerializableTransform::default(),
+            rotation_degrees: None,
+            plane_size: (6.4, 4.8),
+            pixels_per_unit: 100.0,
+            camera: ViewCameraTargetDef::Main,
+        };
+        let explicit = Transform::from_translation(Vec3::new(0.5, -0.25, 7.0));
+
+        let combined = combine_layout_transform(Some(&slot), explicit, Some(&plane));
+
+        assert_eq!(combined.translation, Vec3::new(2.6, -1.45, 7.0));
     }
 
     #[derive(Resource)]

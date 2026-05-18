@@ -152,6 +152,23 @@ mod tests {
                 ]),
             )])),
             world_space: true,
+            space: Some(souprune_schema::view::ViewSpaceDef::World3dPlane(Box::new(
+                souprune_schema::view::ViewWorld3dPlaneDef {
+                    transform: souprune_schema::view::SerializableTransform {
+                        translation: Some((Val::Static(1.0), Val::Static(2.0), Val::Static(3.0))),
+                        rotation: Some(Val::Static(25.0)),
+                        scale: Some((Val::Static(1.0), Val::Static(2.0), Val::Static(1.0))),
+                    },
+                    rotation_degrees: Some((
+                        Val::Static(10.0),
+                        Val::Static(20.0),
+                        Val::Static(30.0),
+                    )),
+                    plane_size: (6.4, 4.8),
+                    pixels_per_unit: 100.0,
+                    camera: souprune_schema::view::ViewCameraTargetDef::Main,
+                },
+            ))),
             coordinate_system: souprune_schema::view::CoordinateSystem::Standard,
             coordinate_space: None,
         };
@@ -160,6 +177,20 @@ mod tests {
         let text = &runtime.roots[0].texts[0];
 
         assert!(runtime.world_space);
+        let Some(ViewSpaceDef::World3dPlane(plane)) = runtime.space.as_ref() else {
+            panic!("runtime space should be World3dPlane");
+        };
+        assert!(matches!(
+            plane.rotation_degrees,
+            Some((
+                Value::Static(10.0),
+                Value::Static(20.0),
+                Value::Static(30.0)
+            ))
+        ));
+        assert_eq!(plane.plane_size, (6.4, 4.8));
+        assert_eq!(plane.pixels_per_unit, 100.0);
+        assert!(matches!(plane.camera, ViewCameraTargetDef::Main));
         let style = &runtime.roots[0].style;
         let margin = style.margin.as_ref().expect("margin should convert");
         assert!(matches!(margin.left, SerializableVal::Px(v) if (v - 1.0).abs() < f32::EPSILON));
@@ -205,6 +236,39 @@ mod tests {
         assert!(matches!(
             text.transform.translation.as_ref().expect("translation").1,
             Value::Expr(ref expr) if expr == "4.0 + @i"
+        ));
+    }
+
+    #[test]
+    fn parses_world_3d_plane_view_space_from_ron() {
+        let layout: souprune_schema::view::ViewLayoutAsset = ron::from_str(
+            r#"
+            (
+                roots: [],
+                space: Some(World3dPlane((
+                    transform: (
+                        translation: Some((1.0, 2.0, 3.0)),
+                        rotation: Some(15.0),
+                        scale: Some((1.0, 1.0, 1.0)),
+                    ),
+                    plane_size: (6.4, 4.8),
+                    pixels_per_unit: 100.0,
+                    camera: Main,
+                ))),
+            )
+            "#,
+        )
+        .expect("world 3d plane space should parse");
+
+        let Some(souprune_schema::view::ViewSpaceDef::World3dPlane(plane)) = layout.space.as_ref()
+        else {
+            panic!("schema space should be World3dPlane");
+        };
+        assert_eq!(plane.plane_size, (6.4, 4.8));
+        assert_eq!(plane.pixels_per_unit, 100.0);
+        assert!(matches!(
+            plane.camera,
+            souprune_schema::view::ViewCameraTargetDef::Main
         ));
     }
 

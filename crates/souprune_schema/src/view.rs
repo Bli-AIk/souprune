@@ -495,6 +495,69 @@ pub enum CoordinateExtentDef {
     Explicit((f32, f32)),
 }
 
+/// View root placement space.
+///
+/// View 根放置空间。
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum ViewSpaceDef {
+    /// Parent the View root to the active 2D camera.
+    ///
+    /// 将 View 根挂到当前 2D 相机下。
+    Camera2dRelative,
+    /// Keep the View root in 2D world space.
+    ///
+    /// 将 View 根保持在 2D 世界空间。
+    World2d,
+    /// Place the 2D layout result on a plane in 3D world space.
+    ///
+    /// 将二维布局结果放置到 3D 世界空间平面上。
+    World3dPlane(Box<ViewWorld3dPlaneDef>),
+}
+
+/// 3D plane placement data for a View root.
+///
+/// View 根的 3D 平面放置数据。
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ViewWorld3dPlaneDef {
+    /// Plane root transform in world space.
+    ///
+    /// 平面根在世界空间中的变换。
+    #[serde(default)]
+    pub transform: SerializableTransform,
+    /// Additional plane rotation in XYZ degrees.
+    ///
+    /// 额外的平面 XYZ 角度旋转。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rotation_degrees: Option<SerializableVec3>,
+    /// Plane size in world units.
+    ///
+    /// 平面尺寸，单位为世界单位。
+    pub plane_size: (f32, f32),
+    /// Layout pixels represented by one world unit.
+    ///
+    /// 每个世界单位对应的布局像素数。
+    pub pixels_per_unit: f32,
+    /// Camera target used to make this spatial View active.
+    ///
+    /// 用于激活此空间 View 的相机目标。
+    pub camera: ViewCameraTargetDef,
+}
+
+/// Camera selection target for a View root.
+///
+/// View 根的相机选择目标。
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum ViewCameraTargetDef {
+    /// Use the main game camera.
+    ///
+    /// 使用主游戏相机。
+    Main,
+    /// Use a named camera target.
+    ///
+    /// 使用具名相机目标。
+    Named(String),
+}
+
 // ============================================================================
 // ViewLayout (top-level asset, mirrors ViewLayoutAsset)
 // ============================================================================
@@ -504,9 +567,9 @@ pub enum CoordinateExtentDef {
 /// 视图布局——`.view.ron` 文件的顶层 Schema。
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ViewLayout {
-    /// Root nodes of the UI tree.
+    /// Root nodes of the View tree.
     ///
-    /// UI 树的根节点。
+    /// View 树的根节点。
     pub roots: Vec<ViewNodeDef>,
 
     /// External data dependencies (e.g., locale files, interfaces).
@@ -529,6 +592,12 @@ pub struct ViewLayout {
     /// 布局是否应在世界空间中渲染。
     #[serde(default)]
     pub world_space: bool,
+
+    /// Explicit View root placement space.
+    ///
+    /// 显式 View 根放置空间。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub space: Option<ViewSpaceDef>,
 
     /// Coordinate system used for absolute positioning.
     ///
@@ -570,9 +639,9 @@ pub enum InitialFactValue {
 // ViewNodeDef
 // ============================================================================
 
-/// Node definition in the UI tree.
+/// Node definition in the View tree.
 ///
-/// UI 树中的节点定义。
+/// View 树中的节点定义。
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ViewNodeDef {
     /// Unique name of the node (used for identification and animation).
@@ -959,11 +1028,11 @@ pub enum StateTriggerDef {
 }
 
 // ============================================================================
-// UI Visibility Rule
+// View Visibility Rule
 // ============================================================================
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct UIVisibilityRuleDef {
+pub struct ViewVisibilityRuleDef {
     pub rule_type: String,
     #[serde(default)]
     pub layers: Option<Vec<String>>,

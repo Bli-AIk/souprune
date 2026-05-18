@@ -890,7 +890,7 @@ mod tests {
     use crate::core::view::layout::{
         SerializableDisplay, SerializablePositionType, SerializableTransform, SerializableVal,
         StyleDef, StyleGap, UiFlexDirection, ViewFocusPolicyDef, ViewNodeDef, ViewOverflowAxisDef,
-        ViewOverflowDef, ViewScrollState, ViewSizeAxisDef, ViewSizingDef,
+        ViewOverflowDef, ViewScrollState, ViewSizeAxisDef, ViewSizingDef, ViewSpaceDef,
     };
 
     fn asset(root: ViewNodeDef) -> ViewLayoutAsset {
@@ -899,6 +899,7 @@ mod tests {
             requires: Vec::new(),
             facts: None,
             world_space: false,
+            space: None,
             coordinate_system: Default::default(),
             coordinate_space: None,
         }
@@ -1600,5 +1601,34 @@ mod tests {
 
         let fill = slots.get("0:root/1:fill").expect("fill slot");
         assert_close(fill.width, 520.0);
+    }
+
+    #[test]
+    fn spatial_plane_view_asset_parses_and_solves() {
+        let layout: ViewLayoutAsset = ron::from_str(include_str!(
+            "../../../../examples/assets/view/spatial_plane.view.ron"
+        ))
+        .expect("spatial plane example should parse");
+
+        let Some(ViewSpaceDef::World3dPlane(plane)) = &layout.space else {
+            panic!("spatial plane example should declare World3dPlane space");
+        };
+        assert!(plane.rotation_degrees.is_some());
+
+        let slots = compute_taffy_layout(&layout, Vec2::new(360.0, 220.0))
+            .expect("spatial plane example should solve layout");
+
+        assert!(slots.get("0:SpatialPanel").is_some());
+        assert!(slots.get("0:SpatialPanel/0:SpatialRow").is_some());
+        assert!(
+            slots
+                .get("0:SpatialPanel/0:SpatialRow/0:SpatialRowItemA")
+                .is_some()
+        );
+        assert!(
+            slots
+                .get("0:SpatialPanel/1:SpatialAbsoluteMarker")
+                .is_some()
+        );
     }
 }

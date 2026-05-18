@@ -15,6 +15,7 @@ mod pre_spawn_events;
 
 use super::super::components::*;
 use super::super::layout::*;
+use super::super::spatial::{ViewSpatialRoot, spatial_root_transform};
 use super::parsing::{
     DataPathResolvers, ExprFunctionResolvers, PlayerDataView, resolve_text_content,
 };
@@ -30,6 +31,7 @@ use pre_spawn_events::apply_pre_spawn_events;
 use super::spawn_helpers::load_fre_into_view_root;
 use super::spawn_nodes::spawn_view_node;
 use crate::core::game_action::{GameFreAsset, GameRuleRegistry};
+use crate::core::view::camera::select_view_camera_target;
 
 /// System parameter bundle for FRE-related resources.
 /// Reduces system parameter count to stay within Bevy's 16-parameter limit.
@@ -319,6 +321,10 @@ pub fn spawn_ron_view_for_entity(
     // Spawn view nodes BEFORE attaching ViewRoot, using player_data with LocalState.
     // 在附加 ViewRoot 之前生成视图节点，使用带有 LocalState 的 player_data。
     {
+        let spatial_plane = match &view_layout.space {
+            Some(ViewSpaceDef::World3dPlane(plane)) => Some(plane.as_ref()),
+            _ => None,
+        };
         // Create player_data with LocalState for spawning children.
         // 使用 LocalState 创建 player_data 以生成子节点。
         let player_data_with_locals =
@@ -369,6 +375,7 @@ pub fn spawn_ron_view_for_entity(
                 &namespace,
                 layout_slots.as_ref(),
                 &root_path,
+                spatial_plane,
             );
         }
     }
@@ -450,21 +457,6 @@ fn required_pre_spawn_fre_files_loaded(
         .all(|handle| fre_assets.get(handle).is_some())
 }
 
-fn camera_visible_size(projection: &Projection) -> Option<Vec2> {
-    let Projection::Orthographic(orthographic) = projection else {
-        return None;
-    };
-    let size = Vec2::new(
-        orthographic.area.width().abs(),
-        orthographic.area.height().abs(),
-    );
-    if size.x > 0.0 && size.y > 0.0 {
-        Some(size)
-    } else {
-        None
-    }
-}
-
 fn layout_viewport_size(view_layout: &ViewLayoutAsset, camera_visible_size: Option<Vec2>) -> Vec2 {
     if let Some(CoordinateSpaceDef {
         extent: CoordinateExtentDef::Explicit((width, height)),
@@ -477,6 +469,23 @@ fn layout_viewport_size(view_layout: &ViewLayoutAsset, camera_visible_size: Opti
     }
 
     camera_visible_size.unwrap_or(Vec2::new(640.0, 480.0))
+}
+
+fn layout_uses_3d_plane_space(view_layout: &ViewLayoutAsset) -> bool {
+    matches!(view_layout.space, Some(ViewSpaceDef::World3dPlane(_)))
+}
+
+fn camera_relative_parent_for_view(
+    view_layout: &ViewLayoutAsset,
+    target_parent: Option<Entity>,
+) -> Option<Entity> {
+    match view_layout.space {
+        Some(ViewSpaceDef::Camera2dRelative) => target_parent,
+        Some(ViewSpaceDef::World2d | ViewSpaceDef::World3dPlane(_)) => None,
+        None => (!view_layout.world_space)
+            .then_some(target_parent)
+            .flatten(),
+    }
 }
 
 fn camera_relative_view_offset(
@@ -549,10 +558,18 @@ pub fn spawn_dynamic_view_system(
             Without<ViewBox>,
         ),
     >,
-    camera_query: Query<
-        (Entity, &Transform, &Camera, &Projection),
+    main_2d_camera_query: Query<
+        (Entity, &Camera, &Projection),
         (
             With<Camera2d>,
+            With<crate::core::camera::MainGameCamera>,
+            Without<DebugCamera>,
+        ),
+    >,
+    main_3d_camera_query: Query<
+        (Entity, &Camera),
+        (
+            With<Camera3d>,
             With<crate::core::camera::MainGameCamera>,
             Without<DebugCamera>,
         ),
@@ -605,10 +622,12 @@ pub fn spawn_dynamic_view_system(
             continue;
         }
 
-        let Some((camera_entity, _, _, projection)) =
-            camera_query.iter().find(|(_, _, c, _)| c.is_active)
-        else {
-            warn!("[spawn_dynamic_view] No Camera2d found for view spawning!");
+        let Some(camera_target) = select_view_camera_target(
+            view_layout,
+            main_2d_camera_query.iter(),
+            main_3d_camera_query.iter(),
+        ) else {
+            warn!("[spawn_dynamic_view] No active MainGameCamera found for view spawning!");
             continue;
         };
 
@@ -619,7 +638,7 @@ pub fn spawn_dynamic_view_system(
 
         // Get bindings from PendingViewData if present
         let bindings = pending_view_data.map(|pvd| &pvd.bindings);
-        let visible_size = camera_visible_size(projection);
+        let visible_size = camera_target.visible_size;
 
         spawn_ron_view_for_entity(
             &mut commands,
@@ -643,12 +662,21 @@ pub fn spawn_dynamic_view_system(
         // Camera-relative views: parent the view entity to the camera so child
         // transforms are automatically relative to the camera position.
         // World-space views (battle): keep the view entity as a standalone world entity.
-        if !view_layout.world_space {
+        if let Some(ViewSpaceDef::World3dPlane(plane)) = &view_layout.space {
+            commands.entity(view_entity).insert((
+                spatial_root_transform(plane),
+                ViewSpatialRoot {
+                    plane: plane.as_ref().clone(),
+                },
+            ));
+        } else if let Some(camera_parent) =
+            camera_relative_parent_for_view(view_layout, camera_target.camera_relative_parent)
+        {
             commands.entity(view_entity).insert((
                 Transform::from_translation(
                     camera_relative_view_offset(view_layout, visible_size).extend(0.0),
                 ),
-                ChildOf(camera_entity),
+                ChildOf(camera_parent),
             ));
         }
 
@@ -685,6 +713,7 @@ mod tests {
             requires: Vec::new(),
             facts: None,
             world_space,
+            space: None,
             coordinate_system: CoordinateSystem::Standard,
             coordinate_space: Some(CoordinateSpaceDef {
                 axis_origin: (
@@ -723,6 +752,41 @@ mod tests {
         let viewport = layout_viewport_size(&layout, Some(Vec2::new(320.0, 240.0)));
 
         assert_eq!(viewport, Vec2::new(640.0, 480.0));
+    }
+
+    #[test]
+    fn layout_uses_3d_plane_space_detects_world_3d_plane() {
+        let mut layout = explicit_screen_layout(false);
+        layout.space = Some(ViewSpaceDef::World3dPlane(Box::new(ViewWorld3dPlaneDef {
+            transform: SerializableTransform::default(),
+            rotation_degrees: None,
+            plane_size: (6.4, 4.8),
+            pixels_per_unit: 100.0,
+            camera: ViewCameraTargetDef::Main,
+        })));
+
+        assert!(layout_uses_3d_plane_space(&layout));
+    }
+
+    #[test]
+    fn explicit_world_2d_space_does_not_parent_camera_relative_view() {
+        let mut layout = explicit_screen_layout(false);
+        layout.space = Some(ViewSpaceDef::World2d);
+        let camera = Entity::from_raw_u32(1).expect("test entity should be valid");
+
+        assert_eq!(camera_relative_parent_for_view(&layout, Some(camera)), None);
+    }
+
+    #[test]
+    fn camera_2d_relative_space_keeps_camera_parent() {
+        let mut layout = explicit_screen_layout(true);
+        layout.space = Some(ViewSpaceDef::Camera2dRelative);
+        let camera = Entity::from_raw_u32(1).expect("test entity should be valid");
+
+        assert_eq!(
+            camera_relative_parent_for_view(&layout, Some(camera)),
+            Some(camera)
+        );
     }
 
     fn focus_node(policy: Option<ViewFocusPolicyDef>, children: Vec<ViewNodeDef>) -> ViewNodeDef {
