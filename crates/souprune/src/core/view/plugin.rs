@@ -13,6 +13,7 @@
 
 use bevy::prelude::*;
 use bevy::sprite_render::Material2dPlugin;
+use bevy::transform::TransformSystems;
 use bevy_tween::TweenSystemSet;
 
 #[cfg(feature = "debug")]
@@ -181,6 +182,12 @@ impl Plugin for CoreViewPlugin {
             )
             .add_systems(
                 schedule,
+                super::spatial::sync_spatial_view_roots_system
+                    .after(ron_view::spawn_dynamic_view_system)
+                    .in_set(ViewUpdate),
+            )
+            .add_systems(
+                schedule,
                 (
                     ui_animation_init_system,
                     cleanup_view_rules_system,
@@ -204,6 +211,11 @@ impl Plugin for CoreViewPlugin {
                     sync_view_box_child_visibility_system.after(evaluate_visible_when_system),
                 )
                     .in_set(ViewUpdate),
+            )
+            .add_systems(
+                PostUpdate,
+                super::spatial::input::update_spatial_view_hits_system
+                    .after(TransformSystems::Propagate),
             );
 
         #[cfg(feature = "debug")]

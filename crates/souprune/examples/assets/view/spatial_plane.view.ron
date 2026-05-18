@@ -124,5 +124,9 @@
         plane_size: (3.6, 2.2),
         pixels_per_unit: 100.0,
         camera: Main,
+        anchor: Named("SpatialAnchor"),
+        orientation: FaceCameraYaw,
+        depth: DistanceToCamera,
+        input: PlaneRay,
     ))),
 )

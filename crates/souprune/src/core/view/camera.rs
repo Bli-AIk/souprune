@@ -193,6 +193,10 @@ mod tests {
                 plane_size: (1.0, 1.0),
                 pixels_per_unit: 100.0,
                 camera: ViewCameraTargetDef::Named("SideCamera".to_string()),
+                anchor: Default::default(),
+                orientation: Default::default(),
+                depth: Default::default(),
+                input: Default::default(),
             }
             .into(),
         ));

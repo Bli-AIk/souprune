@@ -167,6 +167,12 @@ mod tests {
                     plane_size: (6.4, 4.8),
                     pixels_per_unit: 100.0,
                     camera: souprune_schema::view::ViewCameraTargetDef::Main,
+                    anchor: souprune_schema::view::ViewSpatialAnchorDef::Named(
+                        "SpatialAnchor".to_string(),
+                    ),
+                    orientation: souprune_schema::view::ViewSpatialOrientationDef::FaceCameraYaw,
+                    depth: souprune_schema::view::ViewSpatialDepthDef::DistanceToCamera,
+                    input: souprune_schema::view::ViewSpatialInputDef::PlaneRay,
                 },
             ))),
             coordinate_system: souprune_schema::view::CoordinateSystem::Standard,
@@ -191,6 +197,16 @@ mod tests {
         assert_eq!(plane.plane_size, (6.4, 4.8));
         assert_eq!(plane.pixels_per_unit, 100.0);
         assert!(matches!(plane.camera, ViewCameraTargetDef::Main));
+        assert!(matches!(
+            plane.anchor,
+            ViewSpatialAnchorDef::Named(ref name) if name == "SpatialAnchor"
+        ));
+        assert!(matches!(
+            plane.orientation,
+            ViewSpatialOrientationDef::FaceCameraYaw
+        ));
+        assert!(matches!(plane.depth, ViewSpatialDepthDef::DistanceToCamera));
+        assert!(matches!(plane.input, ViewSpatialInputDef::PlaneRay));
         let style = &runtime.roots[0].style;
         let margin = style.margin.as_ref().expect("margin should convert");
         assert!(matches!(margin.left, SerializableVal::Px(v) if (v - 1.0).abs() < f32::EPSILON));
@@ -254,6 +270,10 @@ mod tests {
                     plane_size: (6.4, 4.8),
                     pixels_per_unit: 100.0,
                     camera: Main,
+                    anchor: Named("SpatialAnchor"),
+                    orientation: FaceCameraYaw,
+                    depth: DistanceToCamera,
+                    input: PlaneRay,
                 ))),
             )
             "#,
@@ -269,6 +289,23 @@ mod tests {
         assert!(matches!(
             plane.camera,
             souprune_schema::view::ViewCameraTargetDef::Main
+        ));
+        assert!(matches!(
+            plane.anchor,
+            souprune_schema::view::ViewSpatialAnchorDef::Named(ref name)
+                if name == "SpatialAnchor"
+        ));
+        assert!(matches!(
+            plane.orientation,
+            souprune_schema::view::ViewSpatialOrientationDef::FaceCameraYaw
+        ));
+        assert!(matches!(
+            plane.depth,
+            souprune_schema::view::ViewSpatialDepthDef::DistanceToCamera
+        ));
+        assert!(matches!(
+            plane.input,
+            souprune_schema::view::ViewSpatialInputDef::PlaneRay
         ));
     }
 

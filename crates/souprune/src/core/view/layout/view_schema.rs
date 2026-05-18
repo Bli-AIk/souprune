@@ -153,6 +153,78 @@ pub enum ViewSpaceDef {
     World3dPlane(Box<ViewWorld3dPlaneDef>),
 }
 
+/// Anchor strategy for a spatial View.
+///
+/// 空间 View 的锚点策略。
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
+pub enum ViewSpatialAnchorDef {
+    /// Anchor the View plane in world space.
+    ///
+    /// 将 View 平面锚定在世界空间。
+    #[default]
+    World,
+    /// Anchor the View plane to a named spatial anchor.
+    ///
+    /// 将 View 平面锚定到具名空间锚点。
+    Named(String),
+}
+
+/// Orientation strategy for a spatial View.
+///
+/// 空间 View 的朝向策略。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ViewSpatialOrientationDef {
+    /// Keep the authored plane orientation fixed.
+    ///
+    /// 保持作者配置的平面朝向固定。
+    #[default]
+    Fixed,
+    /// Rotate the plane to face the active camera.
+    ///
+    /// 旋转平面以朝向当前相机。
+    FaceCamera,
+    /// Rotate the plane around yaw only to face the active camera.
+    ///
+    /// 仅绕偏航轴旋转平面以朝向当前相机。
+    FaceCameraYaw,
+}
+
+/// Depth ordering strategy for a spatial View.
+///
+/// 空间 View 的深度排序策略。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ViewSpatialDepthDef {
+    /// Use View tree order for draw depth.
+    ///
+    /// 使用 View 树顺序作为绘制深度。
+    #[default]
+    TreeOrder,
+    /// Use the layout Z value for draw depth.
+    ///
+    /// 使用布局 Z 值作为绘制深度。
+    LayoutZ,
+    /// Use camera distance for draw depth.
+    ///
+    /// 使用相机距离作为绘制深度。
+    DistanceToCamera,
+}
+
+/// Input projection strategy for a spatial View.
+///
+/// 空间 View 的输入投射策略。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ViewSpatialInputDef {
+    /// Disable spatial input for this View plane.
+    ///
+    /// 禁用此 View 平面的空间输入。
+    #[default]
+    Disabled,
+    /// Project pointer input onto the View plane by raycast.
+    ///
+    /// 通过射线投射将指针输入投射到 View 平面。
+    PlaneRay,
+}
+
 /// 3D plane placement data for a View root.
 ///
 /// View 根的 3D 平面放置数据。
@@ -180,6 +252,26 @@ pub struct ViewWorld3dPlaneDef {
     ///
     /// 用于激活此空间 View 的相机目标。
     pub camera: ViewCameraTargetDef,
+    /// Anchor strategy for this spatial View.
+    ///
+    /// 此空间 View 的锚点策略。
+    #[serde(default)]
+    pub anchor: ViewSpatialAnchorDef,
+    /// Orientation strategy for this spatial View.
+    ///
+    /// 此空间 View 的朝向策略。
+    #[serde(default)]
+    pub orientation: ViewSpatialOrientationDef,
+    /// Depth ordering strategy for this spatial View.
+    ///
+    /// 此空间 View 的深度排序策略。
+    #[serde(default)]
+    pub depth: ViewSpatialDepthDef,
+    /// Input projection strategy for this spatial View.
+    ///
+    /// 此空间 View 的输入投射策略。
+    #[serde(default)]
+    pub input: ViewSpatialInputDef,
 }
 
 /// Camera selection target for a View root.

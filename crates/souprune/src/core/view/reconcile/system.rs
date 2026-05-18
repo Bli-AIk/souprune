@@ -15,7 +15,7 @@ use crate::core::view::components::{ViewElement, ViewRoot};
 use crate::core::view::layout::{
     CoordinateExtentDef, CoordinateSpaceDef, ViewLayoutAsset, ViewLayoutRect, ViewSpaceDef,
 };
-use crate::core::view::spatial::{ViewSpatialRoot, spatial_root_transform};
+use crate::core::view::spatial::ViewSpatialRoot;
 use crate::extra::debug::DebugCamera;
 use bevy::asset::AssetEvent;
 use bevy::ecs::prelude::MessageReader;
@@ -225,7 +225,7 @@ pub fn view_reconciliation_system(
             continue;
         };
 
-        sync_spatial_view_root(&mut commands, root_entity, asset);
+        refresh_spatial_view_root_definition(&mut commands, root_entity, asset);
 
         // Compute desired state
         let namespace = &view_root.namespace;
@@ -273,17 +273,18 @@ pub fn view_reconciliation_system(
     pending.clear();
 }
 
-fn sync_spatial_view_root(commands: &mut Commands, root_entity: Entity, asset: &ViewLayoutAsset) {
+fn refresh_spatial_view_root_definition(
+    commands: &mut Commands,
+    root_entity: Entity,
+    asset: &ViewLayoutAsset,
+) {
     let Some(ViewSpaceDef::World3dPlane(plane)) = asset.space.as_ref() else {
         return;
     };
 
-    commands.entity(root_entity).insert((
-        spatial_root_transform(plane),
-        ViewSpatialRoot {
-            plane: plane.as_ref().clone(),
-        },
-    ));
+    commands.entity(root_entity).insert(ViewSpatialRoot {
+        plane: plane.as_ref().clone(),
+    });
 }
 
 /// Build current view tree from ECS queries for a specific root entity.

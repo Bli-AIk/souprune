@@ -15,7 +15,7 @@ use bevy_fact_rule_event::FREPlugin;
 use souprune::core::camera::MainGameCamera;
 use souprune::core::game_action::GameActionDef;
 use souprune::core::view::layout::ViewLayoutRect;
-use souprune::core::view::spatial::ViewSpatialRoot;
+use souprune::core::view::spatial::{ViewSpatialHit, ViewSpatialRoot};
 use souprune::core::view::{CoreViewPlugin, SpawnViewRequest};
 
 const VIEW_PATH: &str = "view/spatial_plane.view.ron";
@@ -69,6 +69,11 @@ fn setup(
         Transform::from_xyz(0.0, 0.2, 6.2).looking_at(Vec3::ZERO, Vec3::Y),
         MainGameCamera,
     ));
+    commands.spawn((
+        Name::new("SpatialAnchor"),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        GlobalTransform::default(),
+    ));
 
     next_state.set(souprune::app_state::AppState::Running);
     spawn_writer.write(SpawnViewRequest {
@@ -83,6 +88,7 @@ fn draw_spatial_acceptance_gizmos(
     mut gizmos: Gizmos,
     spatial_roots: Query<(&GlobalTransform, &ViewSpatialRoot)>,
     layout_rects: Query<(&GlobalTransform, &ViewLayoutRect, Option<&Name>)>,
+    hits: Query<&ViewSpatialHit>,
 ) {
     let Some((root_transform, spatial_root)) = spatial_roots.iter().next() else {
         return;
@@ -98,6 +104,9 @@ fn draw_spatial_acceptance_gizmos(
             rect.height / pixels_per_unit,
             rect_color(name),
         );
+    }
+    for hit in &hits {
+        draw_hit_marker(&mut gizmos, hit.world_position);
     }
 }
 
@@ -149,6 +158,20 @@ fn draw_layout_rect(
             Vec3::new(0.0, -height, 0.0),
         ],
         color,
+    );
+}
+
+fn draw_hit_marker(gizmos: &mut Gizmos, position: Vec3) {
+    let extent = 0.06;
+    gizmos.line(
+        position + Vec3::new(-extent, 0.0, 0.0),
+        position + Vec3::new(extent, 0.0, 0.0),
+        Color::srgb(1.0, 1.0, 1.0),
+    );
+    gizmos.line(
+        position + Vec3::new(0.0, -extent, 0.0),
+        position + Vec3::new(0.0, extent, 0.0),
+        Color::srgb(1.0, 1.0, 1.0),
     );
 }
 

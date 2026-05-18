@@ -558,6 +558,10 @@ mod tests {
             plane_size: (6.4, 4.8),
             pixels_per_unit: 100.0,
             camera: ViewCameraTargetDef::Main,
+            anchor: Default::default(),
+            orientation: Default::default(),
+            depth: Default::default(),
+            input: Default::default(),
         })));
         let db = LayeredFactDatabase::new();
         let local = LocalState::new();

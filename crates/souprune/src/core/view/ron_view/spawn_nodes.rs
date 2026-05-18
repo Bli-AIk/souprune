@@ -594,6 +594,10 @@ mod tests {
             plane_size: (6.4, 4.8),
             pixels_per_unit: 100.0,
             camera: ViewCameraTargetDef::Main,
+            anchor: Default::default(),
+            orientation: Default::default(),
+            depth: Default::default(),
+            input: Default::default(),
         };
         let explicit = Transform::from_translation(Vec3::new(0.5, -0.25, 7.0));
 

@@ -891,6 +891,7 @@ mod tests {
         SerializableDisplay, SerializablePositionType, SerializableTransform, SerializableVal,
         StyleDef, StyleGap, UiFlexDirection, ViewFocusPolicyDef, ViewNodeDef, ViewOverflowAxisDef,
         ViewOverflowDef, ViewScrollState, ViewSizeAxisDef, ViewSizingDef, ViewSpaceDef,
+        ViewSpatialAnchorDef, ViewSpatialInputDef, ViewSpatialOrientationDef,
     };
 
     fn asset(root: ViewNodeDef) -> ViewLayoutAsset {
@@ -1614,6 +1615,15 @@ mod tests {
             panic!("spatial plane example should declare World3dPlane space");
         };
         assert!(plane.rotation_degrees.is_some());
+        assert!(matches!(
+            plane.anchor,
+            ViewSpatialAnchorDef::Named(ref name) if name == "SpatialAnchor"
+        ));
+        assert!(matches!(
+            plane.orientation,
+            ViewSpatialOrientationDef::FaceCameraYaw
+        ));
+        assert!(matches!(plane.input, ViewSpatialInputDef::PlaneRay));
 
         let slots = compute_taffy_layout(&layout, Vec2::new(360.0, 220.0))
             .expect("spatial plane example should solve layout");
