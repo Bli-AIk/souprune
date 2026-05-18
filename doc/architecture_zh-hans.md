@@ -8,9 +8,9 @@
 
 ## 总览
 
-SoupRune 是构建在 Bevy 之上的框架。本体已经不再存在编译进二进制的
-`preset/` 层。分发的二进制只包含通用框架运行时；具体游戏语义由项目内容与
-项目 WASM runtime 表达。
+SoupRune 是构建在 Bevy 之上的通用框架。分发的二进制包含框架运行时、host
+primitive 与 schema/SDK 约定；具体游戏语义由项目内容、项目资源与项目 WASM
+runtime 表达。
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -32,8 +32,8 @@ SoupRune 是构建在 Bevy 之上的框架。本体已经不再存在编译进�
 ```
 
 依赖方向必须保持清晰：框架代码定义通用 host primitive 与 schema；项目内容和
-项目 WASM runtime 把这些 primitive 组合成具体游戏。本体 Rust 代码禁止重新出现
-`preset` 或 `host_runtime` 层。
+项目 WASM runtime 把这些 primitive 组合成具体游戏。框架 Rust 的职责边界是
+通用基础设施；项目专属玩法层属于 `projects/<project>/`。
 
 ---
 
@@ -62,7 +62,7 @@ SoupRune 是构建在 Bevy 之上的框架。本体已经不再存在编译进�
 入口 sequence、FRE 规则与固定相机参数。`battle`、`overworld`、`field`、`puzzle`
 等名称都是项目配置数据；core 不默认注册这些名称，也不根据这些名称切换系统。
 
-有些模块仍会出现 item、enemy、battle 等当前项目格式词汇。边界不由词汇本身决定，
+有些模块会出现 item、enemy、battle 等当前项目格式词汇。边界不由词汇本身决定，
 而由职责归属决定：框架可以加载类型化数据、投影 facts、提供可复用 primitive；
 物品使用效果、敌人回合选择、BattleBox、玩家生成语义等项目玩法规则必须位于项目
 内容或项目 WASM runtime。
@@ -105,7 +105,7 @@ SoupRune 是构建在 Bevy 之上的框架。本体已经不再存在编译进�
 - 敌人回合选择策略。
 - Boss 专属弹幕行为与生成模式。
 
-这样的拆分让二进制保持通用，同时允许前置项目通过自己的 runtime 模块提供完整玩法。
+这样的拆分让二进制保持通用，同时允许项目通过自己的 runtime 模块提供完整玩法。
 
 ---
 
@@ -127,7 +127,7 @@ View 布局由 RON 声明。View 拥有自己的 `LocalState`；外部系统通�
 
 输入以统一输入事务进入框架。View、FRE 与 WASM behavior 消费同一种事务模型，
 但各自桥接层可以把它翻译为自己的本地命令。输入事务携带当前项目声明的 mode 名，
-而不是框架内置的 `battle` / `overworld` 上下文。直接读取原始按键不再作为长期扩展点。
+而不是框架内置的 `battle` / `overworld` 上下文。直接读取原始按键不属于长期扩展点。
 
 ### WASM Runtime
 
@@ -147,8 +147,8 @@ host primitive、播放音频并处理 custom action。高频可复用 primitive
 
 框架 Rust 禁止：
 
-- `crates/souprune/src/preset*` 或 `crates/souprune/src/host_runtime*`。
-- 为已删除 preset 入口保留历史兼容别名。
+- 在框架 crate 内创建项目专属玩法层。
+- 提供未纳入公开 schema/SDK 表面的替代入口。
 - 把项目专属玩法命令硬编码进二进制。
 - 在 `core/` 中保留 BattleBox/BattlePlayer 玩法抽象。
 - 把物品使用或敌人回合选择行为放在项目 runtime 之外。

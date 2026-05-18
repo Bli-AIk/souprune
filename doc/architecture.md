@@ -8,9 +8,9 @@ This document describes the current internal architecture of SoupRune.
 
 ## Big Picture
 
-SoupRune is a framework on top of Bevy. It no longer has a compiled `preset/`
-layer. The distributed binary contains the generic framework runtime; game
-semantics are authored in project content and project WASM runtimes.
+SoupRune is a generic framework on top of Bevy. The distributed binary contains
+the framework runtime, host primitives, and schema/SDK contracts; game semantics
+are authored in project content, project assets, and project WASM runtimes.
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -33,8 +33,8 @@ semantics are authored in project content and project WASM runtimes.
 
 The dependency direction is strict: framework code defines generic host
 primitives and schemas; project content and project WASM runtimes compose those
-primitives into a game. Framework Rust must not regain a `preset` or
-`host_runtime` layer.
+primitives into a game. Framework Rust owns generic infrastructure; project-only
+gameplay layers belong under `projects/<project>/`.
 
 ---
 
@@ -69,7 +69,7 @@ fixed-camera parameters through `game.modes.<id>` in `mod.toml`. Names such as
 `battle`, `overworld`, `field`, or `puzzle` are project data. Core does not
 register those names by default and must not switch systems by matching them.
 
-Some modules still use current project-format terms such as item, enemy, or
+Some modules use current project-format terms such as item, enemy, or
 battle. The boundary is not the word itself; the boundary is ownership.
 Framework code may load typed data, project it into facts, and provide reusable
 primitives. Project-specific rules such as item use effects, enemy turn
@@ -117,8 +117,8 @@ Project runtime owns:
 - Enemy turn selection strategy.
 - Boss-specific danmaku behaviors and patterns.
 
-This split keeps the binary generic while still letting first-party projects
-ship rich behavior through their own runtime modules.
+This split keeps the binary generic while projects ship rich behavior through
+their own runtime modules.
 
 ---
 
@@ -167,8 +167,8 @@ Allowed in framework Rust:
 
 Forbidden in framework Rust:
 
-- `crates/souprune/src/preset*` or `crates/souprune/src/host_runtime*`.
-- Historical compatibility aliases for removed preset entrypoints.
+- Project-specific gameplay layers inside framework crates.
+- Alternate entrypoints outside the public schema/SDK surface.
 - Project-only gameplay commands hardcoded into the binary.
 - BattleBox/BattlePlayer gameplay abstractions in `core/`.
 - Special item-use or enemy-turn behavior outside project runtime.
