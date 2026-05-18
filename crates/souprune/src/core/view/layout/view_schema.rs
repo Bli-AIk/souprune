@@ -128,6 +128,93 @@ pub enum InitialFactValue {
     IntList(Vec<i64>),
 }
 
+/// Per-axis View overflow behavior.
+///
+/// 单轴 View 溢出行为。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+pub enum ViewOverflowAxisDef {
+    /// Let content render outside this View.
+    ///
+    /// 允许内容绘制到此 View 外。
+    Visible,
+    /// Clip content to this View without scroll state.
+    ///
+    /// 将内容裁剪到此 View 内且不生成滚动状态。
+    Hidden,
+    /// Clip content to this View and create scroll state.
+    ///
+    /// 将内容裁剪到此 View 内并生成滚动状态。
+    Scroll,
+}
+
+/// Author-facing View overflow shorthand.
+///
+/// 面向作者的 View 溢出简写。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+pub enum ViewOverflowDef {
+    /// Both axes are visible.
+    ///
+    /// 两个轴都可见。
+    Visible,
+    /// Both axes are clipped without scroll state.
+    ///
+    /// 两个轴都裁剪且不生成滚动状态。
+    Hidden,
+    /// Both axes are clipped and scrollable.
+    ///
+    /// 两个轴都裁剪并可滚动。
+    Scroll,
+    /// Configure each axis separately.
+    ///
+    /// 分别配置每个轴。
+    Axes {
+        /// Horizontal overflow behavior.
+        ///
+        /// 水平方向溢出行为。
+        horizontal: ViewOverflowAxisDef,
+        /// Vertical overflow behavior.
+        ///
+        /// 垂直方向溢出行为。
+        vertical: ViewOverflowAxisDef,
+    },
+}
+
+impl ViewOverflowDef {
+    /// Return per-axis overflow behavior.
+    ///
+    /// 返回逐轴溢出行为。
+    pub fn axes(self) -> (ViewOverflowAxisDef, ViewOverflowAxisDef) {
+        match self {
+            Self::Visible => (ViewOverflowAxisDef::Visible, ViewOverflowAxisDef::Visible),
+            Self::Hidden => (ViewOverflowAxisDef::Hidden, ViewOverflowAxisDef::Hidden),
+            Self::Scroll => (ViewOverflowAxisDef::Scroll, ViewOverflowAxisDef::Scroll),
+            Self::Axes {
+                horizontal,
+                vertical,
+            } => (horizontal, vertical),
+        }
+    }
+}
+
+/// View focus participation policy.
+///
+/// View 焦点参与策略。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+pub enum ViewFocusPolicyDef {
+    /// This View explicitly does not participate in focus navigation.
+    ///
+    /// 此 View 显式不参与焦点导航。
+    Disabled,
+    /// This View can receive focus.
+    ///
+    /// 此 View 可以接收焦点。
+    Focusable,
+    /// This View groups focusable children.
+    ///
+    /// 此 View 分组可聚焦子节点。
+    Scope,
+}
+
 /// View Node Definition - defines a single visual element in the view layout.
 ///
 /// 视图节点定义 - 定义视图布局中的单个可视化元素。
@@ -144,6 +231,11 @@ pub struct ViewNodeDef {
     /// 容器节点或显式对象层级节点的变换。
     #[serde(default)]
     pub transform: Option<SerializableTransform>,
+    /// Focus participation policy for this View node.
+    ///
+    /// 此 View 节点的焦点参与策略。
+    #[serde(default)]
+    pub focus_policy: Option<ViewFocusPolicyDef>,
     /// Expression-based visibility control.
     /// Examples: "fact('depth') == 1", "$selection == 0", "true"
     ///
@@ -280,6 +372,8 @@ pub struct StyleDef {
     pub gap: Option<StyleGap>,
     #[serde(default)]
     pub display: Option<SerializableDisplay>,
+    #[serde(default)]
+    pub overflow: Option<ViewOverflowDef>,
     #[serde(default)]
     pub sizing: Option<ViewSizingDef>,
 }

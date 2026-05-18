@@ -62,6 +62,58 @@ pub struct ViewLayoutRect {
     pub height: f32,
 }
 
+/// Runtime clipping rectangle for a View node.
+///
+/// View 节点的运行时裁剪矩形。
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct ViewClipRect {
+    /// Clip left coordinate in pixels.
+    ///
+    /// 裁剪矩形左侧像素坐标。
+    pub x: f32,
+    /// Clip top coordinate in pixels.
+    ///
+    /// 裁剪矩形顶部像素坐标。
+    pub y: f32,
+    /// Clip width in pixels.
+    ///
+    /// 裁剪矩形像素宽度。
+    pub width: f32,
+    /// Clip height in pixels.
+    ///
+    /// 裁剪矩形像素高度。
+    pub height: f32,
+}
+
+/// Runtime scroll state for a View node.
+///
+/// View 节点的运行时滚动状态。
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
+pub struct ViewScrollState {
+    /// Horizontal scroll offset in pixels.
+    ///
+    /// 水平方向滚动偏移像素值。
+    pub offset_x: f32,
+    /// Vertical scroll offset in pixels.
+    ///
+    /// 垂直方向滚动偏移像素值。
+    pub offset_y: f32,
+}
+
+impl ViewClipRect {
+    /// Create a clip rectangle from computed bounds.
+    ///
+    /// 根据计算边界创建裁剪矩形。
+    pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+}
+
 impl From<&ViewLayoutSlot> for ViewLayoutRect {
     fn from(slot: &ViewLayoutSlot) -> Self {
         Self {
@@ -73,6 +125,12 @@ impl From<&ViewLayoutSlot> for ViewLayoutRect {
     }
 }
 
+impl From<&ViewLayoutSlot> for ViewClipRect {
+    fn from(slot: &ViewLayoutSlot) -> Self {
+        Self::new(slot.x, slot.y, slot.width, slot.height)
+    }
+}
+
 /// Computed layout slots indexed by stable node path.
 ///
 /// 按稳定节点路径索引的计算布局槽位集合。
@@ -80,6 +138,8 @@ impl From<&ViewLayoutSlot> for ViewLayoutRect {
 pub struct ViewLayoutSlots {
     slots: Vec<ViewLayoutSlot>,
     by_path: HashMap<String, usize>,
+    clip_rects: HashMap<String, ViewClipRect>,
+    scroll_states: HashMap<String, ViewScrollState>,
 }
 
 impl ViewLayoutSlots {
@@ -98,11 +158,43 @@ impl ViewLayoutSlots {
         self.slots.push(slot);
     }
 
+    /// Insert a computed slot with overflow metadata.
+    ///
+    /// 插入带 overflow 元数据的计算槽位。
+    pub fn push_with_metadata(
+        &mut self,
+        slot: ViewLayoutSlot,
+        clip_rect: Option<ViewClipRect>,
+        scroll_state: Option<ViewScrollState>,
+    ) {
+        if let Some(clip_rect) = clip_rect {
+            self.clip_rects.insert(slot.path.clone(), clip_rect);
+        }
+        if let Some(scroll_state) = scroll_state {
+            self.scroll_states.insert(slot.path.clone(), scroll_state);
+        }
+        self.push(slot);
+    }
+
     /// Return a slot by its stable path.
     ///
     /// 根据稳定路径返回槽位。
     pub fn get(&self, path: &str) -> Option<&ViewLayoutSlot> {
         self.by_path.get(path).and_then(|idx| self.slots.get(*idx))
+    }
+
+    /// Return clip metadata by stable path.
+    ///
+    /// 根据稳定路径返回裁剪元数据。
+    pub fn clip_rect(&self, path: &str) -> Option<&ViewClipRect> {
+        self.clip_rects.get(path)
+    }
+
+    /// Return scroll metadata by stable path.
+    ///
+    /// 根据稳定路径返回滚动元数据。
+    pub fn scroll_state(&self, path: &str) -> Option<&ViewScrollState> {
+        self.scroll_states.get(path)
     }
 
     /// Return all slots in traversal order.

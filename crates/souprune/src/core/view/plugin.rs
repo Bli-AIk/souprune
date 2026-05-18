@@ -25,8 +25,9 @@ use super::fact_toggle_color::update_fact_toggle_sdf_colors_system;
 use super::layout::ViewLayoutAsset;
 use super::lifecycle::{
     StateTransitionTracker, StateViewTransitionSet, UIInteractiveStateTracker,
-    backpack_state_transition_system, cleanup_view_rules_system, process_pending_view_rules_system,
-    state_transition_sound_system,
+    backpack_state_transition_system, cleanup_removed_view_focus_system, cleanup_view_rules_system,
+    process_pending_view_rules_system, push_added_focus_scopes_system,
+    state_transition_sound_system, sync_active_view_system,
 };
 use super::messages::{
     DespawnViewRequest, SpawnViewRequest, handle_despawn_view_request_system,
@@ -99,6 +100,7 @@ impl Plugin for CoreViewPlugin {
             .add_plugins(ViewReconciliationPlugin)
             .init_resource::<UIInteractiveStateTracker>()
             .init_resource::<StateTransitionTracker>()
+            .init_resource::<super::components::ViewFocusStack>()
             .add_message::<SpawnViewRequest>()
             .add_message::<DespawnViewRequest>()
             .add_systems(
@@ -111,7 +113,21 @@ impl Plugin for CoreViewPlugin {
                     .after(backpack_state_transition_system)
                     .before(ron_view::spawn_dynamic_view_system),
             )
-            .add_systems(schedule, handle_despawn_view_request_system)
+            .add_systems(
+                schedule,
+                handle_despawn_view_request_system.before(cleanup_removed_view_focus_system),
+            )
+            .add_systems(
+                schedule,
+                (
+                    push_added_focus_scopes_system,
+                    cleanup_removed_view_focus_system,
+                    sync_active_view_system,
+                )
+                    .chain()
+                    .after(ron_view::spawn_dynamic_view_system)
+                    .before(super::input::dispatch_view_input_system),
+            )
             .configure_sets(schedule, StateViewTransitionSet)
             .add_systems(
                 schedule,

@@ -26,6 +26,6 @@ pub(crate) use text::{
 pub use hpbar::{DynamicViewElement, TimeDependentTransform};
 pub use view_element::{
     ActiveView, ElementState, LocalState, PendingViewData, PendingViewRules, ViewElement,
-    ViewElementHistory, ViewNodeTags, ViewRoot, VisibleWhen, find_element_by_full_name,
-    find_elements_by_tag,
+    ViewElementHistory, ViewFocusScope, ViewFocusStack, ViewNodeTags, ViewRoot, VisibleWhen,
+    find_element_by_full_name, find_elements_by_tag,
 };

@@ -315,6 +315,76 @@ pub enum SerializableAlignSelf {
     Stretch,
 }
 
+/// Per-axis View overflow behavior.
+///
+/// 单轴 View 溢出行为。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+pub enum ViewOverflowAxisDef {
+    /// Let content render outside this View.
+    ///
+    /// 允许内容绘制到此 View 外。
+    Visible,
+    /// Clip content to this View without scroll state.
+    ///
+    /// 将内容裁剪到此 View 内且不生成滚动状态。
+    Hidden,
+    /// Clip content to this View and create scroll state.
+    ///
+    /// 将内容裁剪到此 View 内并生成滚动状态。
+    Scroll,
+}
+
+/// Author-facing View overflow shorthand.
+///
+/// 面向作者的 View 溢出简写。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+pub enum ViewOverflowDef {
+    /// Both axes are visible.
+    ///
+    /// 两个轴都可见。
+    Visible,
+    /// Both axes are clipped without scroll state.
+    ///
+    /// 两个轴都裁剪且不生成滚动状态。
+    Hidden,
+    /// Both axes are clipped and scrollable.
+    ///
+    /// 两个轴都裁剪并可滚动。
+    Scroll,
+    /// Configure each axis separately.
+    ///
+    /// 分别配置每个轴。
+    Axes {
+        /// Horizontal overflow behavior.
+        ///
+        /// 水平方向溢出行为。
+        horizontal: ViewOverflowAxisDef,
+        /// Vertical overflow behavior.
+        ///
+        /// 垂直方向溢出行为。
+        vertical: ViewOverflowAxisDef,
+    },
+}
+
+/// View focus participation policy.
+///
+/// View 焦点参与策略。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+pub enum ViewFocusPolicyDef {
+    /// This View explicitly does not participate in focus navigation.
+    ///
+    /// 此 View 显式不参与焦点导航。
+    Disabled,
+    /// This View can receive focus.
+    ///
+    /// 此 View 可以接收焦点。
+    Focusable,
+    /// This View groups focusable children.
+    ///
+    /// 此 View 分组可聚焦子节点。
+    Scope,
+}
+
 /// Layout display mode.
 ///
 /// 布局显示模式。
@@ -524,6 +594,11 @@ pub struct ViewNodeDef {
     /// 容器节点或显式对象层级节点的变换。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub transform: Option<SerializableTransform>,
+    /// Focus participation policy for this View node.
+    ///
+    /// 此 View 节点的焦点参与策略。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub focus_policy: Option<ViewFocusPolicyDef>,
     /// Conditional visibility based on a FRE expression.
     ///
     /// 基于 FRE 表达式的条件可见性。
@@ -665,6 +740,11 @@ pub struct StyleDef {
     /// 布局显示模式。
     #[serde(default)]
     pub display: Option<SerializableDisplay>,
+    /// Overflow clipping and scrolling behavior.
+    ///
+    /// 溢出裁剪和滚动行为。
+    #[serde(default)]
+    pub overflow: Option<ViewOverflowDef>,
     /// Author-facing sizing shorthand.
     ///
     /// 面向作者的尺寸简写。
@@ -899,6 +979,10 @@ mod tests {
             roots: [
                 (
                     name: "HudRoot",
+                    focus_policy: Some(Focusable),
+                    style: (
+                        overflow: Some(Axes(horizontal: Hidden, vertical: Scroll)),
+                    ),
                     background_color: Some((0.1, 0.2, 0.3, 1.0)),
                     texts: [(
                         id: "label",
@@ -925,8 +1009,20 @@ mod tests {
         )"#;
 
         let layout: ViewLayoutAsset = ron::from_str(ron).expect("view layout should parse");
+        let root = &layout.roots[0];
         let text = &layout.roots[0].texts[0];
 
+        assert!(matches!(
+            root.focus_policy,
+            Some(ViewFocusPolicyDef::Focusable)
+        ));
+        assert!(matches!(
+            root.style.overflow,
+            Some(ViewOverflowDef::Axes {
+                horizontal: ViewOverflowAxisDef::Hidden,
+                vertical: ViewOverflowAxisDef::Scroll,
+            })
+        ));
         assert_eq!(text.char_spacing, Some(1.5));
         assert_eq!(text.word_spacing, Some(3.0));
         assert_eq!(text.text_style.as_deref(), Some("battle_narration"));

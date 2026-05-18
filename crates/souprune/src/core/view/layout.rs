@@ -84,6 +84,10 @@ mod tests {
                     }),
                     align_self: Some(souprune_schema::view::SerializableAlignSelf::Center),
                     display: Some(souprune_schema::view::SerializableDisplay::Flex),
+                    overflow: Some(souprune_schema::view::ViewOverflowDef::Axes {
+                        horizontal: souprune_schema::view::ViewOverflowAxisDef::Hidden,
+                        vertical: souprune_schema::view::ViewOverflowAxisDef::Scroll,
+                    }),
                     sizing: Some(souprune_schema::view::ViewSizingDef::Axes {
                         width: souprune_schema::view::ViewSizeAxisDef::Fill,
                         height: souprune_schema::view::ViewSizeAxisDef::Fit,
@@ -91,6 +95,7 @@ mod tests {
                     ..Default::default()
                 },
                 transform: None,
+                focus_policy: Some(souprune_schema::view::ViewFocusPolicyDef::Focusable),
                 visible_when: Some("$show_hud".to_string()),
                 background_color: Some((
                     Val::Static(0.1),
@@ -173,6 +178,17 @@ mod tests {
             Some(SerializableAlignSelf::Center)
         ));
         assert!(matches!(style.display, Some(SerializableDisplay::Flex)));
+        assert!(matches!(
+            style.overflow,
+            Some(ViewOverflowDef::Axes {
+                horizontal: ViewOverflowAxisDef::Hidden,
+                vertical: ViewOverflowAxisDef::Scroll,
+            })
+        ));
+        assert!(matches!(
+            runtime.roots[0].focus_policy,
+            Some(ViewFocusPolicyDef::Focusable)
+        ));
         assert!(matches!(
             style.sizing,
             Some(ViewSizingDef::Axes {

@@ -417,6 +417,7 @@ mod tests {
             tags: Vec::new(),
             style,
             transform: None,
+            focus_policy: None,
             visible_when: None,
             background_color: None,
             border_color: None,

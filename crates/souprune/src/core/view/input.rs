@@ -4,7 +4,7 @@
 
 use bevy::prelude::*;
 
-use super::{ActiveView, ViewRoot};
+use super::components::{ActiveView, ViewFocusStack, ViewRoot};
 use crate::core::input::{InputEnvelope, InputEnvelopeEvent, InputTarget};
 
 /// Bridge that applies unified input envelopes to active Views.
@@ -31,7 +31,9 @@ impl ViewInputBridge {
 /// 将面向 View 的输入事务分发给当前活跃 View 根节点。
 pub fn dispatch_view_input_system(
     mut events: MessageReader<InputEnvelopeEvent>,
-    mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
+    focus_stack: Option<Res<ViewFocusStack>>,
+    active_view_query: Query<Entity, With<ActiveView>>,
+    mut view_root_query: Query<&mut ViewRoot>,
 ) {
     let bridge = ViewInputBridge;
 
@@ -40,7 +42,21 @@ pub fn dispatch_view_input_system(
             continue;
         }
 
-        let Ok(mut view_root) = active_view_query.single_mut() else {
+        let target = match focus_stack.as_ref() {
+            Some(stack) => stack
+                .top()
+                .filter(|entity| view_root_query.contains(*entity)),
+            None => active_view_query
+                .single()
+                .ok()
+                .filter(|entity| view_root_query.contains(*entity)),
+        };
+
+        let Some(entity) = target else {
+            continue;
+        };
+
+        let Ok(mut view_root) = view_root_query.get_mut(entity) else {
             continue;
         };
 
@@ -58,7 +74,7 @@ mod tests {
     use crate::core::input::{
         Direction, InputCommand, InputContextId, InputEnvelope, InputEnvelopeEvent, InputTarget,
     };
-    use crate::core::view::{ActiveView, ViewRoot};
+    use crate::core::view::components::{ActiveView, ViewFocusScope, ViewFocusStack, ViewRoot};
 
     #[test]
     fn navigate_down_changes_selection_through_view_control_method() {
@@ -110,5 +126,58 @@ mod tests {
         let fre_events = app.world().resource::<Messages<FreCustomActionEvent>>();
         let mut cursor = fre_events.get_cursor();
         assert_eq!(cursor.read(fre_events).count(), 0);
+    }
+
+    #[test]
+    fn dispatch_uses_focus_stack_top_when_multiple_view_roots_exist() {
+        let mut app = App::new();
+        app.add_message::<InputEnvelopeEvent>()
+            .init_resource::<ViewFocusStack>()
+            .add_systems(Update, super::dispatch_view_input_system);
+
+        let bottom = app
+            .world_mut()
+            .spawn((
+                ViewRoot::new("tests/bottom.view.ron".to_string()),
+                ViewFocusScope,
+            ))
+            .id();
+        let top = app
+            .world_mut()
+            .spawn((
+                ViewRoot::new("tests/top.view.ron".to_string()),
+                ViewFocusScope,
+            ))
+            .id();
+        app.world_mut()
+            .resource_mut::<ViewFocusStack>()
+            .push(bottom);
+        app.world_mut().resource_mut::<ViewFocusStack>().push(top);
+
+        app.world_mut()
+            .write_message(InputEnvelopeEvent::new(InputEnvelope::new(
+                InputContextId::View,
+                InputTarget::ActiveView,
+                InputCommand::Confirm,
+                "Confirm",
+            )));
+
+        app.update();
+
+        let bottom_root = app.world().entity(bottom).get::<ViewRoot>().unwrap();
+        assert_eq!(
+            bottom_root
+                .local_state()
+                .get_bool(ViewRoot::INPUT_CONFIRM_REQUESTED),
+            None
+        );
+
+        let top_root = app.world().entity(top).get::<ViewRoot>().unwrap();
+        assert_eq!(
+            top_root
+                .local_state()
+                .get_bool(ViewRoot::INPUT_CONFIRM_REQUESTED),
+            Some(true)
+        );
     }
 }

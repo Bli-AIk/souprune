@@ -30,6 +30,75 @@ use bevy::reflect::Reflect;
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub struct ActiveView;
 
+/// Marker component for View roots that participate in the View focus stack.
+///
+/// Views receive this marker when they can own View-targeted input focus.
+/// `ActiveView` is derived from the top of `ViewFocusStack`; systems should
+/// insert this scope marker instead of inserting `ActiveView` directly.
+///
+/// 参与 View 焦点栈的 View 根节点标记组件。
+///
+/// 当 View 可以拥有面向 View 的输入焦点时，它会获得此标记。
+/// `ActiveView` 由 `ViewFocusStack` 栈顶派生；系统应插入此作用域标记，
+/// 而不是直接插入 `ActiveView`。
+#[derive(Component, Debug, Clone, Copy, Default)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub struct ViewFocusScope;
+
+/// Authoritative stack of View roots that can receive View-targeted input.
+///
+/// The newest pushed entity is the current focus owner. Pushing an existing
+/// entity moves it to the top instead of duplicating it.
+///
+/// 可接收面向 View 输入的 View 根节点权威栈。
+///
+/// 最新推入的实体是当前焦点拥有者。推入已存在实体会把它移动到栈顶，
+/// 而不是创建重复项。
+#[derive(Resource, Debug, Clone, Default)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub struct ViewFocusStack {
+    stack: Vec<Entity>,
+}
+
+impl ViewFocusStack {
+    /// Push an entity onto the focus stack, moving existing entries to the top.
+    ///
+    /// 将实体推入焦点栈；如果实体已存在，则移动到栈顶。
+    pub fn push(&mut self, entity: Entity) {
+        self.remove(entity);
+        self.stack.push(entity);
+    }
+
+    /// Remove an entity from the focus stack.
+    ///
+    /// 从焦点栈中移除实体。
+    pub fn remove(&mut self, entity: Entity) -> Option<Entity> {
+        let position = self
+            .stack
+            .iter()
+            .position(|candidate| *candidate == entity)?;
+        Some(self.stack.remove(position))
+    }
+
+    /// Return the current focus owner.
+    ///
+    /// 返回当前焦点拥有者。
+    pub fn top(&self) -> Option<Entity> {
+        self.stack.last().copied()
+    }
+
+    /// Clear all focus ownership.
+    ///
+    /// 清空所有焦点归属。
+    pub fn clear(&mut self) {
+        self.stack.clear();
+    }
+
+    pub(crate) fn retain(&mut self, mut keep: impl FnMut(Entity) -> bool) {
+        self.stack.retain(|entity| keep(*entity));
+    }
+}
+
 /// Tags from a `.view_layout.ron` node definition.
 ///
 /// Runtime systems can query for entities with specific tags and add

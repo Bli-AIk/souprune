@@ -415,11 +415,7 @@ fn spawn_view_node_with_repeat_context(
         return;
     };
 
-    if let Some(slot) = layout_slot {
-        commands
-            .entity(entity_id)
-            .try_insert(ViewLayoutRect::from(slot));
-    }
+    insert_layout_slot_components(commands, entity_id, layout_slots, node_path, layout_slot);
 
     if let Some(visible_when_expr) = &node_def.visible_when {
         apply_visible_when(
@@ -490,6 +486,31 @@ fn combine_layout_transform(slot: Option<&ViewLayoutSlot>, transform: Transform)
     )
 }
 
+fn insert_layout_slot_components(
+    commands: &mut Commands,
+    entity_id: Entity,
+    layout_slots: Option<&ViewLayoutSlots>,
+    node_path: &str,
+    layout_slot: Option<&ViewLayoutSlot>,
+) {
+    let mut entity_commands = commands.entity(entity_id);
+    if let Some(slot) = layout_slot {
+        entity_commands.try_insert(ViewLayoutRect::from(slot));
+    }
+    if let Some(clip_rect) = layout_slots
+        .and_then(|slots| slots.clip_rect(node_path))
+        .copied()
+    {
+        entity_commands.try_insert(clip_rect);
+    }
+    if let Some(scroll_state) = layout_slots
+        .and_then(|slots| slots.scroll_state(node_path))
+        .copied()
+    {
+        entity_commands.try_insert(scroll_state);
+    }
+}
+
 fn node_display_is_none(node_def: &ViewNodeDef) -> bool {
     matches!(node_def.style.display, Some(SerializableDisplay::None))
 }
@@ -540,6 +561,51 @@ mod tests {
         assert_eq!(combined.translation, Vec3::new(215.0, -126.0, 7.0));
     }
 
+    #[derive(Resource)]
+    struct LayoutMetadataTarget(Entity);
+
+    #[derive(Resource)]
+    struct LayoutMetadataSlots(ViewLayoutSlots);
+
+    fn insert_layout_metadata_for_test(
+        mut commands: Commands,
+        target: Res<LayoutMetadataTarget>,
+        slots: Res<LayoutMetadataSlots>,
+    ) {
+        let slot = slots.0.get("Root/Child");
+        insert_layout_slot_components(&mut commands, target.0, Some(&slots.0), "Root/Child", slot);
+    }
+
+    #[test]
+    fn layout_slot_metadata_is_inserted_as_runtime_components() {
+        let mut slots = ViewLayoutSlots::new();
+        slots.push_with_metadata(
+            ViewLayoutSlot {
+                path: "Root/Child".to_string(),
+                name: "Child".to_string(),
+                x: 210.0,
+                y: 120.0,
+                width: 100.0,
+                height: 40.0,
+            },
+            Some(ViewClipRect::new(210.0, 120.0, 100.0, 40.0)),
+            Some(ViewScrollState::default()),
+        );
+
+        let mut app = App::new();
+        let entity = app.world_mut().spawn_empty().id();
+        app.insert_resource(LayoutMetadataTarget(entity));
+        app.insert_resource(LayoutMetadataSlots(slots));
+        app.add_systems(Update, insert_layout_metadata_for_test);
+
+        app.update();
+
+        let entity_ref = app.world().entity(entity);
+        assert!(entity_ref.contains::<ViewLayoutRect>());
+        assert!(entity_ref.contains::<ViewClipRect>());
+        assert!(entity_ref.contains::<ViewScrollState>());
+    }
+
     #[test]
     fn display_none_node_is_not_spawned() {
         let node = ViewNodeDef {
@@ -550,6 +616,7 @@ mod tests {
                 ..Default::default()
             },
             transform: None,
+            focus_policy: None,
             visible_when: None,
             background_color: None,
             border_color: None,

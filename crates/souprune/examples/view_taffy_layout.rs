@@ -28,6 +28,50 @@ use souprune::core::view::ViewRoot;
 use souprune::core::view::{CoreViewPlugin, SpawnViewRequest};
 
 const VIEW_PATH: &str = "view/taffy_minimal.view.ron";
+const SCROLL_STEP: i64 = 12;
+const SCROLL_MIN: i64 = -48;
+const SCROLL_MAX: i64 = 48;
+const FOCUS_SLOT_COUNT: i64 = 3;
+const FOCUS_STACK_MAX: i64 = 3;
+
+struct AcceptanceState {
+    compact: bool,
+    hidden_leaf_visible: bool,
+    hidden_container_visible: bool,
+    scroll_offset: i64,
+    focus_index: i64,
+    focus_stack_depth: i64,
+    focus_active: bool,
+}
+
+impl Default for AcceptanceState {
+    fn default() -> Self {
+        Self {
+            compact: false,
+            hidden_leaf_visible: true,
+            hidden_container_visible: true,
+            scroll_offset: 0,
+            focus_index: 0,
+            focus_stack_depth: 0,
+            focus_active: true,
+        }
+    }
+}
+
+impl AcceptanceState {
+    fn reset_focus(&mut self) {
+        self.focus_index = 0;
+        self.focus_stack_depth = 0;
+        self.focus_active = true;
+    }
+
+    fn focus_label(&self) -> String {
+        format!(
+            "focus={} stack={} active={}",
+            self.focus_index, self.focus_stack_depth, self.focus_active
+        )
+    }
+}
 
 fn main() {
     let asset_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/assets");
@@ -103,19 +147,60 @@ fn setup(
 
 fn drive_dynamic_acceptance(
     keys: Res<ButtonInput<KeyCode>>,
-    mut compact: Local<bool>,
+    mut state: Local<AcceptanceState>,
     mut roots: Query<&mut ViewRoot>,
 ) {
-    if !keys.just_pressed(KeyCode::Space) {
+    let mut changed = false;
+
+    if keys.just_pressed(KeyCode::Space) {
+        state.compact = !state.compact;
+        changed = true;
+    }
+    if keys.just_pressed(KeyCode::KeyH) {
+        state.hidden_leaf_visible = !state.hidden_leaf_visible;
+        changed = true;
+    }
+    if keys.just_pressed(KeyCode::KeyC) {
+        state.hidden_container_visible = !state.hidden_container_visible;
+        changed = true;
+    }
+    if keys.just_pressed(KeyCode::ArrowUp) {
+        state.scroll_offset = (state.scroll_offset + SCROLL_STEP).min(SCROLL_MAX);
+        changed = true;
+    }
+    if keys.just_pressed(KeyCode::ArrowDown) {
+        state.scroll_offset = (state.scroll_offset - SCROLL_STEP).max(SCROLL_MIN);
+        changed = true;
+    }
+    if keys.just_pressed(KeyCode::Tab) {
+        state.focus_active = true;
+        state.focus_index = (state.focus_index + 1) % FOCUS_SLOT_COUNT;
+        changed = true;
+    }
+    if keys.just_pressed(KeyCode::Enter) {
+        state.focus_active = true;
+        state.focus_stack_depth = (state.focus_stack_depth + 1).min(FOCUS_STACK_MAX);
+        changed = true;
+    }
+    if keys.just_pressed(KeyCode::Escape) {
+        state.focus_stack_depth = (state.focus_stack_depth - 1).max(0);
+        state.focus_active = state.focus_stack_depth > 0;
+        changed = true;
+    }
+    if keys.just_pressed(KeyCode::Digit0) {
+        state.reset_focus();
+        changed = true;
+    }
+
+    if !changed {
         return;
     }
 
-    *compact = !*compact;
     for mut root in roots
         .iter_mut()
         .filter(|root| root.layout_path == VIEW_PATH)
     {
-        if *compact {
+        if state.compact {
             root.override_local_value_for_debug(
                 "dynamic_label",
                 FactValue::String("dynamic label expanded".to_string()),
@@ -138,5 +223,33 @@ fn drive_dynamic_acceptance(
                 ]),
             );
         }
+        root.override_local_value_for_debug(
+            "stage4:hidden_leaf_visible",
+            FactValue::Bool(state.hidden_leaf_visible),
+        );
+        root.override_local_value_for_debug(
+            "stage4:hidden_container_visible",
+            FactValue::Bool(state.hidden_container_visible),
+        );
+        root.override_local_value_for_debug(
+            "stage4:scroll_offset",
+            FactValue::Int(state.scroll_offset),
+        );
+        root.override_local_value_for_debug(
+            "stage4:focus_index",
+            FactValue::Int(state.focus_index),
+        );
+        root.override_local_value_for_debug(
+            "stage4:focus_stack_depth",
+            FactValue::Int(state.focus_stack_depth),
+        );
+        root.override_local_value_for_debug(
+            "stage4:focus_active",
+            FactValue::Bool(state.focus_active),
+        );
+        root.override_local_value_for_debug(
+            "stage4:focus_label",
+            FactValue::String(state.focus_label()),
+        );
     }
 }

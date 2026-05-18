@@ -6,17 +6,20 @@ use super::{
     RepeatDef, SerializableAlignItems, SerializableAlignSelf, SerializableDisplay,
     SerializableJustifyContent, SerializablePositionType, SerializableRect, SerializableVal,
     StyleDef, StyleGap, TextDef, UiFlexDirection, ViewLayoutAsset, ViewLayoutSlot, ViewLayoutSlots,
-    ViewNodeDef, ViewSizeAxisDef, ViewSizingDef, layout_child_path, layout_repeat_path,
-    layout_root_path, serializable_vec2_to_vec2,
+    ViewNodeDef, ViewOverflowAxisDef, ViewOverflowDef, ViewScrollState, ViewSizeAxisDef,
+    ViewSizingDef, layout_child_path, layout_repeat_path, layout_root_path,
+    serializable_vec2_to_vec2,
 };
 use bevy::prelude::Vec2;
 use std::error::Error;
 use std::fmt;
+use taffy::geometry::Point;
 use taffy::prelude::{
     AlignItems as TaffyAlignItems, AvailableSpace, Dimension, Display as TaffyDisplay,
     FlexDirection as TaffyFlexDirection, JustifyContent as TaffyJustifyContent, LengthPercentage,
     LengthPercentageAuto, NodeId, Position as TaffyPosition, Rect, Size, Style, TaffyTree,
 };
+use taffy::style::Overflow as TaffyOverflow;
 
 /// Error returned when pure view layout solving fails.
 ///
@@ -148,18 +151,32 @@ pub fn compute_taffy_layout_with_context(
     }
 
     let mut slots = ViewLayoutSlots::new();
-    for (node_id, path, name) in nodes {
+    for (node_id, path, name, overflow) in nodes {
         let layout = tree
             .layout(node_id)
             .map_err(|error| ViewLayoutError::new(format!("failed to read layout: {error}")))?;
-        slots.push(ViewLayoutSlot {
-            path,
-            name,
-            x: layout.location.x,
-            y: layout.location.y,
-            width: layout.size.width,
-            height: layout.size.height,
+        let clips_overflow = overflow_clips(overflow);
+        let clip_rect = clips_overflow.then(|| {
+            super::ViewClipRect::new(
+                layout.location.x,
+                layout.location.y,
+                layout.size.width,
+                layout.size.height,
+            )
         });
+        let scroll_state = overflow_scrolls(overflow).then_some(ViewScrollState::default());
+        slots.push_with_metadata(
+            ViewLayoutSlot {
+                path,
+                name,
+                x: layout.location.x,
+                y: layout.location.y,
+                width: layout.size.width,
+                height: layout.size.height,
+            },
+            clip_rect,
+            scroll_state,
+        );
     }
 
     Ok(slots)
@@ -175,7 +192,7 @@ fn build_node(
     ancestor_hidden: bool,
     context: &ViewLayoutContext<'_>,
     repeat_ctx: Option<&ViewLayoutRepeatContext>,
-    nodes: &mut Vec<(NodeId, String, String)>,
+    nodes: &mut Vec<(NodeId, String, String, Option<ViewOverflowDef>)>,
 ) -> Result<Vec<NodeId>, ViewLayoutError> {
     if let Some(repeat) = &node.repeat
         && let Some(count) = (context.repeat_count)(repeat)
@@ -233,7 +250,7 @@ fn build_single_node(
     ancestor_hidden: bool,
     context: &ViewLayoutContext<'_>,
     repeat_ctx: Option<&ViewLayoutRepeatContext>,
-    nodes: &mut Vec<(NodeId, String, String)>,
+    nodes: &mut Vec<(NodeId, String, String, Option<ViewOverflowDef>)>,
 ) -> Result<NodeId, ViewLayoutError> {
     let hidden = ancestor_hidden || matches!(node.style.display, Some(SerializableDisplay::None));
     let node_flex_direction = node.style.flex_direction.unwrap_or_default();
@@ -278,7 +295,7 @@ fn build_single_node(
     }
     .map_err(|error| ViewLayoutError::new(format!("failed to create layout node: {error}")))?;
     if !hidden {
-        nodes.push((node_id, path, node.name.clone()));
+        nodes.push((node_id, path, node.name.clone(), node.style.overflow));
     }
     Ok(node_id)
 }
@@ -474,6 +491,9 @@ fn to_taffy_style(
         flex_direction: style
             .flex_direction
             .map_or(TaffyFlexDirection::Row, to_taffy_flex_direction),
+        overflow: style
+            .overflow
+            .map_or_else(taffy_overflow_visible, to_taffy_overflow),
         flex_basis,
         flex_grow,
         flex_shrink,
@@ -808,12 +828,69 @@ fn to_taffy_align_self(align_self: SerializableAlignSelf) -> Option<TaffyAlignIt
     }
 }
 
+fn taffy_overflow_visible() -> Point<TaffyOverflow> {
+    Point {
+        x: TaffyOverflow::Visible,
+        y: TaffyOverflow::Visible,
+    }
+}
+
+fn to_taffy_overflow(overflow: ViewOverflowDef) -> Point<TaffyOverflow> {
+    let (horizontal, vertical) = overflow_axes(overflow);
+    Point {
+        x: to_taffy_overflow_axis(horizontal),
+        y: to_taffy_overflow_axis(vertical),
+    }
+}
+
+fn to_taffy_overflow_axis(axis: ViewOverflowAxisDef) -> TaffyOverflow {
+    match axis {
+        ViewOverflowAxisDef::Visible => TaffyOverflow::Visible,
+        ViewOverflowAxisDef::Hidden => TaffyOverflow::Hidden,
+        ViewOverflowAxisDef::Scroll => TaffyOverflow::Scroll,
+    }
+}
+
+fn overflow_axes(overflow: ViewOverflowDef) -> (ViewOverflowAxisDef, ViewOverflowAxisDef) {
+    match overflow {
+        ViewOverflowDef::Visible => (ViewOverflowAxisDef::Visible, ViewOverflowAxisDef::Visible),
+        ViewOverflowDef::Hidden => (ViewOverflowAxisDef::Hidden, ViewOverflowAxisDef::Hidden),
+        ViewOverflowDef::Scroll => (ViewOverflowAxisDef::Scroll, ViewOverflowAxisDef::Scroll),
+        ViewOverflowDef::Axes {
+            horizontal,
+            vertical,
+        } => (horizontal, vertical),
+    }
+}
+
+fn overflow_clips(overflow: Option<ViewOverflowDef>) -> bool {
+    overflow.is_some_and(|overflow| {
+        let (horizontal, vertical) = overflow_axes(overflow);
+        matches!(
+            horizontal,
+            ViewOverflowAxisDef::Hidden | ViewOverflowAxisDef::Scroll
+        ) || matches!(
+            vertical,
+            ViewOverflowAxisDef::Hidden | ViewOverflowAxisDef::Scroll
+        )
+    })
+}
+
+fn overflow_scrolls(overflow: Option<ViewOverflowDef>) -> bool {
+    overflow.is_some_and(|overflow| {
+        let (horizontal, vertical) = overflow_axes(overflow);
+        matches!(horizontal, ViewOverflowAxisDef::Scroll)
+            || matches!(vertical, ViewOverflowAxisDef::Scroll)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::core::view::layout::{
         SerializableDisplay, SerializablePositionType, SerializableTransform, SerializableVal,
-        StyleDef, StyleGap, UiFlexDirection, ViewNodeDef, ViewSizeAxisDef, ViewSizingDef,
+        StyleDef, StyleGap, UiFlexDirection, ViewFocusPolicyDef, ViewNodeDef, ViewOverflowAxisDef,
+        ViewOverflowDef, ViewScrollState, ViewSizeAxisDef, ViewSizingDef,
     };
 
     fn asset(root: ViewNodeDef) -> ViewLayoutAsset {
@@ -833,6 +910,7 @@ mod tests {
             tags: Vec::new(),
             style,
             transform: None,
+            focus_policy: None,
             visible_when: None,
             background_color: None,
             border_color: None,
@@ -844,6 +922,16 @@ mod tests {
             children,
             repeat: None,
         }
+    }
+
+    fn find_node<'a>(nodes: &'a [ViewNodeDef], name: &str) -> Option<&'a ViewNodeDef> {
+        nodes.iter().find_map(|node| {
+            if node.name == name {
+                Some(node)
+            } else {
+                find_node(&node.children, name)
+            }
+        })
     }
 
     fn assert_close(actual: f32, expected: f32) {
@@ -970,6 +1058,69 @@ mod tests {
     }
 
     #[test]
+    fn overflow_hidden_and_scroll_create_slot_metadata() {
+        let root = node(
+            "root",
+            StyleDef {
+                width: Some(SerializableVal::Px(640.0)),
+                height: Some(SerializableVal::Px(480.0)),
+                flex_direction: Some(UiFlexDirection::Row),
+                ..Default::default()
+            },
+            vec![
+                node(
+                    "hidden",
+                    StyleDef {
+                        width: Some(SerializableVal::Px(160.0)),
+                        height: Some(SerializableVal::Px(80.0)),
+                        overflow: Some(ViewOverflowDef::Hidden),
+                        ..Default::default()
+                    },
+                    Vec::new(),
+                ),
+                node(
+                    "scroll",
+                    StyleDef {
+                        width: Some(SerializableVal::Px(120.0)),
+                        height: Some(SerializableVal::Px(60.0)),
+                        overflow: Some(ViewOverflowDef::Axes {
+                            horizontal: ViewOverflowAxisDef::Visible,
+                            vertical: ViewOverflowAxisDef::Scroll,
+                        }),
+                        ..Default::default()
+                    },
+                    Vec::new(),
+                ),
+            ],
+        );
+
+        let slots = compute_taffy_layout(&asset(root), Vec2::new(640.0, 480.0)).unwrap();
+
+        let hidden = slots.get("0:root/0:hidden").expect("hidden slot");
+        let hidden_clip = slots
+            .clip_rect("0:root/0:hidden")
+            .expect("hidden clip rect");
+        assert_close(hidden_clip.x, hidden.x);
+        assert_close(hidden_clip.y, hidden.y);
+        assert_close(hidden_clip.width, 160.0);
+        assert_close(hidden_clip.height, 80.0);
+        assert!(slots.scroll_state("0:root/0:hidden").is_none());
+
+        let scroll = slots.get("0:root/1:scroll").expect("scroll slot");
+        let scroll_clip = slots
+            .clip_rect("0:root/1:scroll")
+            .expect("scroll clip rect");
+        assert_close(scroll_clip.x, scroll.x);
+        assert_close(scroll_clip.y, scroll.y);
+        assert_close(scroll_clip.width, 120.0);
+        assert_close(scroll_clip.height, 60.0);
+        assert_eq!(
+            slots.scroll_state("0:root/1:scroll"),
+            Some(&ViewScrollState::default())
+        );
+    }
+
+    #[test]
     fn explicit_transform_is_not_applied_to_solver_output() {
         let mut child = node(
             "child",
@@ -1069,6 +1220,27 @@ mod tests {
                 .get("0:TaffyMinimalRoot/3:HiddenDisplayNoneProbe")
                 .is_none()
         );
+        let hidden_leaf = slots
+            .iter()
+            .find(|slot| slot.name == "Stage4HiddenLeafPanel")
+            .expect("stage 4 hidden leaf panel slot");
+        assert!(slots.clip_rect(&hidden_leaf.path).is_some());
+        assert!(slots.scroll_state(&hidden_leaf.path).is_none());
+        let scroll_viewport = slots
+            .iter()
+            .find(|slot| slot.name == "Stage4ScrollViewport")
+            .expect("stage 4 scroll viewport slot");
+        assert!(slots.clip_rect(&scroll_viewport.path).is_some());
+        assert_eq!(
+            slots.scroll_state(&scroll_viewport.path),
+            Some(&ViewScrollState::default())
+        );
+        let stage4_region = find_node(&asset.roots, "Stage4AcceptanceRegion")
+            .expect("stage 4 acceptance region node");
+        assert!(matches!(
+            stage4_region.focus_policy,
+            Some(ViewFocusPolicyDef::Scope)
+        ));
     }
 
     #[test]

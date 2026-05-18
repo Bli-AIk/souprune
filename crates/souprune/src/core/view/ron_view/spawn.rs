@@ -42,6 +42,17 @@ pub struct FreSystemParams<'w> {
     pub enum_registry: ResMut<'w, bevy_fact_rule_event::EnumRegistry>,
 }
 
+fn layout_requests_focus_scope(view_layout: &ViewLayoutAsset) -> bool {
+    view_layout.roots.iter().any(node_requests_focus_scope)
+}
+
+fn node_requests_focus_scope(node: &ViewNodeDef) -> bool {
+    matches!(
+        node.focus_policy,
+        Some(ViewFocusPolicyDef::Focusable | ViewFocusPolicyDef::Scope)
+    ) || node.children.iter().any(node_requests_focus_scope)
+}
+
 /// Register view-scoped FRE rules from a loaded FreAsset.
 /// Returns the number of rules registered.
 fn register_fre_rules_from_asset(
@@ -641,11 +652,13 @@ pub fn spawn_dynamic_view_system(
             ));
         }
 
-        // 自动推断 ActiveView：有 requires（FRE 规则声明）或 bindings（外部数据绑定）
-        // → 标记为 ActiveView，接收 FRE 规则和交互
-        // TODO: 未来扩展：如果需要多个 同时交互 的 View，可以引入 `PrimaryView` / `SecondaryView` 概念
-        if !view_layout.requires.is_empty() || pending_view_data.is_some() {
-            commands.entity(view_entity).insert(ActiveView);
+        // 自动推断 ViewFocusScope：有 requires（FRE 规则声明）或 bindings（外部数据绑定）
+        // → 进入焦点栈，由生命周期系统派生唯一 ActiveView
+        if !view_layout.requires.is_empty()
+            || pending_view_data.is_some()
+            || layout_requests_focus_scope(view_layout)
+        {
+            commands.entity(view_entity).insert(ViewFocusScope);
         }
 
         // Add ViewGenerated and ReconciliationEnabled; remove PendingViewData
@@ -710,5 +723,44 @@ mod tests {
         let viewport = layout_viewport_size(&layout, Some(Vec2::new(320.0, 240.0)));
 
         assert_eq!(viewport, Vec2::new(640.0, 480.0));
+    }
+
+    fn focus_node(policy: Option<ViewFocusPolicyDef>, children: Vec<ViewNodeDef>) -> ViewNodeDef {
+        ViewNodeDef {
+            name: "FocusNode".to_string(),
+            tags: Vec::new(),
+            style: StyleDef::default(),
+            transform: None,
+            focus_policy: policy,
+            visible_when: None,
+            background_color: None,
+            border_color: None,
+            image: None,
+            sprite: None,
+            state_sprite: None,
+            texts: Vec::new(),
+            view_box: None,
+            children,
+            repeat: None,
+        }
+    }
+
+    #[test]
+    fn focus_policy_marks_layout_as_focus_scope_candidate() {
+        let mut layout = explicit_screen_layout(false);
+        layout.roots = vec![focus_node(Some(ViewFocusPolicyDef::Scope), Vec::new())];
+
+        assert!(layout_requests_focus_scope(&layout));
+    }
+
+    #[test]
+    fn child_focus_policy_marks_layout_as_focus_scope_candidate() {
+        let mut layout = explicit_screen_layout(false);
+        layout.roots = vec![focus_node(
+            None,
+            vec![focus_node(Some(ViewFocusPolicyDef::Focusable), Vec::new())],
+        )];
+
+        assert!(layout_requests_focus_scope(&layout));
     }
 }
