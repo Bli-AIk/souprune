@@ -14,7 +14,7 @@ use bevy::window::WindowResolution;
 use souprune::core::camera::MainGameCamera;
 use souprune::core::view::layout::ViewLayoutRect;
 use souprune::core::view::spatial::{ViewSpatialHit, ViewSpatialRoot};
-use souprune::core::view::{CoreViewPlugin, SpawnViewRequest};
+use souprune::core::view::SpawnViewRequest;
 
 const VIEW_PATH: &str = "view/spatial_plane.view.ron";
 
@@ -45,7 +45,6 @@ fn main() {
         souprune::get_file_importer_plugins(),
         souprune::get_third_plugins(),
         souprune::core::CorePlugin,
-        CoreViewPlugin,
     ));
 
     souprune::init_game_state(&mut app);

@@ -23,8 +23,8 @@ use bevy::window::WindowResolution;
 use bevy_fact_rule_event::FactValue;
 use souprune::core::camera::MainGameCamera;
 use souprune::core::sequencer::chapter_schema::DataBinding;
+use souprune::core::view::SpawnViewRequest;
 use souprune::core::view::ViewRoot;
-use souprune::core::view::{CoreViewPlugin, SpawnViewRequest};
 
 const VIEW_PATH: &str = "view/taffy_minimal.view.ron";
 const SCROLL_STEP: i64 = 12;
@@ -99,9 +99,9 @@ fn main() {
         souprune::get_file_importer_plugins(),
         souprune::get_third_plugins(),
         souprune::core::CorePlugin,
-        CoreViewPlugin,
     ));
 
+    app.insert_resource(souprune::config::load_config());
     souprune::init_game_state(&mut app);
     souprune::insert_input_resources(&mut app);
 

@@ -213,7 +213,7 @@ fn public_docs_use_view_terminology_for_authoring_surface() {
 }
 
 #[test]
-fn direct_view_acceptance_examples_do_not_double_register_fre_plugin() {
+fn direct_view_acceptance_examples_do_not_double_register_core_view_plugin() {
     let workspace = workspace_root();
     let example_paths = [
         workspace.join("crates/souprune/examples/view_taffy_layout.rs"),
@@ -223,9 +223,9 @@ fn direct_view_acceptance_examples_do_not_double_register_fre_plugin() {
 
     for path in example_paths {
         let text = fs::read_to_string(&path).expect("read direct View acceptance example");
-        if text.contains("FREPlugin::<GameActionDef>") {
+        if text.contains("CoreViewPlugin") {
             hits.push(format!(
-                "{} explicitly adds `FREPlugin::<GameActionDef>`",
+                "{} explicitly adds `CoreViewPlugin`",
                 path.strip_prefix(&workspace).unwrap_or(&path).display()
             ));
         }
@@ -233,7 +233,7 @@ fn direct_view_acceptance_examples_do_not_double_register_fre_plugin() {
 
     assert!(
         hits.is_empty(),
-        "direct View acceptance examples add `CorePlugin`, whose TopDownPlugin already registers FRE:\n{}",
+        "direct View acceptance examples add `CorePlugin`, whose TopDownPlugin already registers CoreViewPlugin:\n{}",
         hits.join("\n")
     );
 }
