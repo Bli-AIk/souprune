@@ -1620,7 +1620,7 @@ mod tests {
         ));
         assert!(matches!(
             plane.orientation,
-            ViewSpatialOrientationDef::FaceCameraYaw
+            ViewSpatialOrientationDef::Fixed
         ));
         assert!(matches!(plane.input, ViewSpatialInputDef::PlaneRay));
 
