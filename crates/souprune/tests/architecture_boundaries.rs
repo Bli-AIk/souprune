@@ -239,6 +239,84 @@ fn direct_view_acceptance_examples_do_not_double_register_core_view_plugin() {
 }
 
 #[test]
+fn direct_view_acceptance_examples_insert_core_runtime_resources() {
+    let workspace = workspace_root();
+    let example_paths = [
+        workspace.join("crates/souprune/examples/view_taffy_layout.rs"),
+        workspace.join("crates/souprune/examples/view_spatial_3d.rs"),
+    ];
+    let mut hits = Vec::new();
+
+    for path in example_paths {
+        let text = fs::read_to_string(&path).expect("read direct View acceptance example");
+        if !text.contains("insert_resource(souprune::config::load_config())") {
+            hits.push(format!(
+                "{} does not insert SoupruneConfig",
+                path.strip_prefix(&workspace).unwrap_or(&path).display()
+            ));
+        }
+        if !text.contains("souprune::insert_input_resources(&mut app)") {
+            hits.push(format!(
+                "{} does not insert input runtime resources",
+                path.strip_prefix(&workspace).unwrap_or(&path).display()
+            ));
+        }
+    }
+
+    assert!(
+        hits.is_empty(),
+        "direct View acceptance examples must bootstrap core runtime resources:\n{}",
+        hits.join("\n")
+    );
+}
+
+#[test]
+fn direct_spatial_view_acceptance_example_uses_supported_tonemapping() {
+    let workspace = workspace_root();
+    let path = workspace.join("crates/souprune/examples/view_spatial_3d.rs");
+    let text = fs::read_to_string(&path).expect("read spatial View acceptance example");
+
+    assert!(
+        text.contains("Tonemapping::None"),
+        "view_spatial_3d must avoid Camera3d default tonemapping without Bevy LUT support"
+    );
+}
+
+#[test]
+fn direct_spatial_view_acceptance_example_uses_3d_native_preview() {
+    let workspace = workspace_root();
+    let example_path = workspace.join("crates/souprune/examples/view_spatial_3d.rs");
+    let manifest_path = workspace.join("crates/souprune/Cargo.toml");
+    let example = fs::read_to_string(&example_path).expect("read spatial View acceptance example");
+    let manifest = fs::read_to_string(&manifest_path).expect("read souprune manifest");
+
+    assert!(
+        manifest.contains("\"bevy_pbr\""),
+        "spatial View acceptance needs Bevy's 3D material pipeline enabled"
+    );
+    assert!(
+        example.contains("Mesh3d") && example.contains("StandardMaterial"),
+        "view_spatial_3d must render a 3D-native acceptance preview, not only 2D sprites or gizmos"
+    );
+}
+
+#[test]
+fn direct_spatial_view_acceptance_example_supports_right_mouse_orbit_camera() {
+    let workspace = workspace_root();
+    let path = workspace.join("crates/souprune/examples/view_spatial_3d.rs");
+    let text = fs::read_to_string(&path).expect("read spatial View acceptance example");
+
+    assert!(
+        text.contains("MouseButton::Right") && text.contains("MouseMotion"),
+        "view_spatial_3d should let the reviewer orbit the camera with right mouse drag"
+    );
+    assert!(
+        text.contains("orbit_spatial_camera_system"),
+        "view_spatial_3d should separate orbit control into a dedicated system"
+    );
+}
+
+#[test]
 fn framework_core_does_not_register_battle_or_overworld_as_first_class_modes() {
     let workspace = workspace_root();
     let roots = [workspace.join("crates/souprune/src/core")];
