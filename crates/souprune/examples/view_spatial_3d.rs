@@ -11,9 +11,7 @@ use std::path::PathBuf;
 use bevy::asset::UnapprovedPathMode;
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
-use bevy_fact_rule_event::FREPlugin;
 use souprune::core::camera::MainGameCamera;
-use souprune::core::game_action::GameActionDef;
 use souprune::core::view::layout::ViewLayoutRect;
 use souprune::core::view::spatial::{ViewSpatialHit, ViewSpatialRoot};
 use souprune::core::view::{CoreViewPlugin, SpawnViewRequest};
@@ -46,7 +44,6 @@ fn main() {
     app.add_plugins((
         souprune::get_file_importer_plugins(),
         souprune::get_third_plugins(),
-        FREPlugin::<GameActionDef>::default(),
         souprune::core::CorePlugin,
         CoreViewPlugin,
     ));
