@@ -21,6 +21,8 @@
 use super::serde_types::*;
 use super::{CoordinateSpaceDef, CoordinateSystem};
 use bevy::prelude::*;
+#[cfg(feature = "debug")]
+use bevy::reflect::Reflect;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -280,6 +282,7 @@ pub enum ViewCameraTargetDef {
 ///
 /// 单轴 View 溢出行为。
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
 pub enum ViewOverflowAxisDef {
     /// Let content render outside this View.
     ///
@@ -299,6 +302,7 @@ pub enum ViewOverflowAxisDef {
 ///
 /// 面向作者的 View 溢出简写。
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
 pub enum ViewOverflowDef {
     /// Both axes are visible.
     ///

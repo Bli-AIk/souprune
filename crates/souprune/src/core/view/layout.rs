@@ -308,6 +308,17 @@ mod tests {
     }
 
     #[test]
+    fn parses_view_layout_observer_example_asset() {
+        let layout: ViewLayoutAsset = ron::from_str(include_str!(
+            "../../../examples/assets/view/layout_observer_demo.view.ron"
+        ))
+        .expect("observer example asset should parse");
+
+        assert_eq!(layout.roots.len(), 1);
+        assert!(matches!(layout.space, Some(ViewSpaceDef::World3dPlane(_))));
+    }
+
+    #[test]
     fn converts_shared_sdf_structure_into_runtime_asset() {
         let schema = souprune_schema::view::SdfStructureAsset {
             layer_count: 2,

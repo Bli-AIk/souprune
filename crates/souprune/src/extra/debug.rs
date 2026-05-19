@@ -32,6 +32,7 @@
 //! | F8 | Toggle Debug Camera | 切换调试摄像机（滚轮缩放、中键平移） |
 //! | F9 | Restart Game | 重启游戏（重新启动进程） |
 //! | F10 | Toggle Image Diff | 切换图像 diff 对比 |
+//! | F11 | Toggle View Layout Observer | 切换 View 布局观察器 |
 //! | F12 | Toggle Debug Help Text | 切换调试帮助文本 |
 
 #[cfg(feature = "debug")]
@@ -50,6 +51,8 @@ mod inspector;
 mod restart;
 #[cfg(feature = "debug")]
 mod state_overlay;
+#[cfg(feature = "debug")]
+mod view_layout_observer;
 
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
@@ -135,6 +138,8 @@ impl Plugin for DebugPlugin {
             restart::debug_restart::setup_restart_debug(app);
 
             state_overlay::debug_state_overlay::setup_state_overlay(app);
+
+            view_layout_observer::setup_view_layout_observer_debug(app);
         }
     }
 }

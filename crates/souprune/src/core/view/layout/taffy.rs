@@ -5,9 +5,10 @@
 use super::{
     RepeatDef, SerializableAlignItems, SerializableAlignSelf, SerializableDisplay,
     SerializableJustifyContent, SerializablePositionType, SerializableRect, SerializableVal,
-    StyleDef, StyleGap, TextDef, UiFlexDirection, ViewLayoutAsset, ViewLayoutSlot, ViewLayoutSlots,
-    ViewNodeDef, ViewOverflowAxisDef, ViewOverflowDef, ViewScrollState, ViewSizeAxisDef,
-    ViewSizingDef, layout_child_path, layout_repeat_path, layout_root_path,
+    StyleDef, StyleGap, TextDef, UiFlexDirection, ViewLayoutAsset, ViewLayoutDebugMetadata,
+    ViewLayoutEdges, ViewLayoutGap, ViewLayoutLengthDebug, ViewLayoutSizingDebug, ViewLayoutSlot,
+    ViewLayoutSlots, ViewNodeDef, ViewOverflowAxisDef, ViewOverflowDef, ViewScrollState,
+    ViewSizeAxisDef, ViewSizingDef, layout_child_path, layout_repeat_path, layout_root_path,
     serializable_vec2_to_vec2,
 };
 use bevy::prelude::Vec2;
@@ -86,6 +87,14 @@ pub struct ViewLayoutRepeatContext {
     pub item_value: Option<String>,
 }
 
+#[derive(Debug)]
+struct LayoutNodeRecord {
+    node_id: NodeId,
+    path: String,
+    debug_metadata: ViewLayoutDebugMetadata,
+    overflow: Option<ViewOverflowDef>,
+}
+
 /// Compute stable layout slots for a view layout asset without spawning entities.
 ///
 /// 在不生成实体的情况下，为视图布局资源计算稳定布局槽位。
@@ -117,7 +126,7 @@ pub fn compute_taffy_layout_with_context(
     context: ViewLayoutContext<'_>,
 ) -> Result<ViewLayoutSlots, ViewLayoutError> {
     let mut tree = TaffyTree::<LeafMeasureContext>::new();
-    let mut nodes = Vec::new();
+    let mut nodes = Vec::<LayoutNodeRecord>::new();
     let mut root_ids = Vec::new();
     for (root_idx, root) in asset.roots.iter().enumerate() {
         let ids = build_node(
@@ -129,6 +138,8 @@ pub fn compute_taffy_layout_with_context(
             true,
             false,
             &context,
+            None,
+            0,
             None,
             &mut nodes,
         )?;
@@ -151,10 +162,16 @@ pub fn compute_taffy_layout_with_context(
     }
 
     let mut slots = ViewLayoutSlots::new();
-    for (node_id, path, name, overflow) in nodes {
+    for record in nodes {
         let layout = tree
-            .layout(node_id)
+            .layout(record.node_id)
             .map_err(|error| ViewLayoutError::new(format!("failed to read layout: {error}")))?;
+        let LayoutNodeRecord {
+            path,
+            debug_metadata,
+            overflow,
+            ..
+        } = record;
         let clips_overflow = overflow_clips(overflow);
         let clip_rect = clips_overflow.then(|| {
             super::ViewClipRect::new(
@@ -165,15 +182,16 @@ pub fn compute_taffy_layout_with_context(
             )
         });
         let scroll_state = overflow_scrolls(overflow).then_some(ViewScrollState::default());
-        slots.push_with_metadata(
+        slots.push_with_debug_metadata(
             ViewLayoutSlot {
                 path,
-                name,
+                name: debug_metadata.name.clone(),
                 x: layout.location.x,
                 y: layout.location.y,
                 width: layout.size.width,
                 height: layout.size.height,
             },
+            debug_metadata,
             clip_rect,
             scroll_state,
         );
@@ -192,7 +210,9 @@ fn build_node(
     ancestor_hidden: bool,
     context: &ViewLayoutContext<'_>,
     repeat_ctx: Option<&ViewLayoutRepeatContext>,
-    nodes: &mut Vec<(NodeId, String, String, Option<ViewOverflowDef>)>,
+    depth: usize,
+    parent_path: Option<String>,
+    nodes: &mut Vec<LayoutNodeRecord>,
 ) -> Result<Vec<NodeId>, ViewLayoutError> {
     if let Some(repeat) = &node.repeat
         && let Some(count) = (context.repeat_count)(repeat)
@@ -220,6 +240,8 @@ fn build_node(
                 ancestor_hidden,
                 context,
                 Some(&instance_ctx),
+                depth,
+                parent_path.clone(),
                 nodes,
             )?);
         }
@@ -236,6 +258,8 @@ fn build_node(
         ancestor_hidden,
         context,
         repeat_ctx,
+        depth,
+        parent_path,
         nodes,
     )?])
 }
@@ -250,7 +274,9 @@ fn build_single_node(
     ancestor_hidden: bool,
     context: &ViewLayoutContext<'_>,
     repeat_ctx: Option<&ViewLayoutRepeatContext>,
-    nodes: &mut Vec<(NodeId, String, String, Option<ViewOverflowDef>)>,
+    depth: usize,
+    parent_path: Option<String>,
+    nodes: &mut Vec<LayoutNodeRecord>,
 ) -> Result<NodeId, ViewLayoutError> {
     let hidden = ancestor_hidden || matches!(node.style.display, Some(SerializableDisplay::None));
     let node_flex_direction = node.style.flex_direction.unwrap_or_default();
@@ -269,6 +295,8 @@ fn build_single_node(
                 hidden,
                 context,
                 repeat_ctx,
+                depth + 1,
+                Some(path.clone()),
                 nodes,
             )
         })
@@ -295,7 +323,22 @@ fn build_single_node(
     }
     .map_err(|error| ViewLayoutError::new(format!("failed to create layout node: {error}")))?;
     if !hidden {
-        nodes.push((node_id, path, node.name.clone(), node.style.overflow));
+        let debug_metadata = build_layout_debug_metadata(
+            node,
+            path.clone(),
+            depth,
+            parent_path,
+            viewport_size,
+            parent_flex_direction,
+            is_root,
+            natural_size,
+        );
+        nodes.push(LayoutNodeRecord {
+            node_id,
+            path,
+            debug_metadata,
+            overflow: node.style.overflow,
+        });
     }
     Ok(node_id)
 }
@@ -437,6 +480,178 @@ fn measure_text_line(line: &str, glyph_width: f32, char_spacing: f32, word_spaci
     }
     let word_gap_count = line.chars().filter(|value| value.is_whitespace()).count();
     char_count as f32 * (glyph_width + char_spacing) + word_gap_count as f32 * word_spacing
+}
+
+fn build_layout_debug_metadata(
+    node: &ViewNodeDef,
+    path: String,
+    depth: usize,
+    parent_path: Option<String>,
+    viewport_size: Vec2,
+    parent_flex_direction: UiFlexDirection,
+    is_root: bool,
+    natural_size: Option<Size<f32>>,
+) -> ViewLayoutDebugMetadata {
+    let style = &node.style;
+    ViewLayoutDebugMetadata {
+        path,
+        name: node.name.clone(),
+        depth,
+        parent_path,
+        display: style.display.unwrap_or(SerializableDisplay::Flex),
+        position_type: style
+            .position_type
+            .unwrap_or(SerializablePositionType::Relative),
+        flex_direction: style.flex_direction.unwrap_or_default(),
+        justify_content: style.justify_content,
+        align_items: style.align_items,
+        align_self: style.align_self,
+        margin: debug_edges(style.margin, viewport_size),
+        padding: debug_edges(style.padding, viewport_size),
+        border: debug_edges(style.border, viewport_size),
+        gap: debug_gap(style.gap, viewport_size),
+        overflow: style.overflow,
+        sizing: debug_sizing(
+            style,
+            viewport_size,
+            parent_flex_direction,
+            is_root,
+            natural_size,
+        ),
+    }
+}
+
+fn debug_edges(rect: Option<SerializableRect>, viewport_size: Vec2) -> ViewLayoutEdges {
+    rect.map_or(ViewLayoutEdges::new(0.0, 0.0, 0.0, 0.0), |rect| {
+        ViewLayoutEdges::new(
+            to_layout_length(rect.left, true, viewport_size),
+            to_layout_length(rect.right, true, viewport_size),
+            to_layout_length(rect.top, false, viewport_size),
+            to_layout_length(rect.bottom, false, viewport_size),
+        )
+    })
+}
+
+fn debug_gap(gap: Option<StyleGap>, viewport_size: Vec2) -> ViewLayoutGap {
+    gap.map_or(ViewLayoutGap::new(0.0, 0.0), |gap| {
+        ViewLayoutGap::new(
+            to_layout_length(gap.row, false, viewport_size),
+            to_layout_length(gap.column, true, viewport_size),
+        )
+    })
+}
+
+fn debug_sizing(
+    style: &StyleDef,
+    viewport_size: Vec2,
+    parent_flex_direction: UiFlexDirection,
+    is_root: bool,
+    natural_size: Option<Size<f32>>,
+) -> ViewLayoutSizingDebug {
+    let (width_axis, height_axis) = sizing_axes(style);
+    let fit_size = natural_size.map(|size| Size {
+        width: size.width + box_axis_extra(style, true, viewport_size),
+        height: size.height + box_axis_extra(style, false, viewport_size),
+    });
+    let mut flex_grow = 0.0;
+    let mut flex_shrink = 1.0;
+    let mut flex_basis = ViewLayoutLengthDebug::Auto;
+
+    apply_debug_flex_axis(
+        width_axis,
+        true,
+        parent_flex_direction,
+        is_root,
+        &mut flex_grow,
+        &mut flex_shrink,
+        &mut flex_basis,
+    );
+    apply_debug_flex_axis(
+        height_axis,
+        false,
+        parent_flex_direction,
+        is_root,
+        &mut flex_grow,
+        &mut flex_shrink,
+        &mut flex_basis,
+    );
+
+    ViewLayoutSizingDebug {
+        width: debug_axis_length(
+            width_axis,
+            true,
+            parent_flex_direction,
+            is_root,
+            fit_size.map(|size| size.width),
+            viewport_size,
+        ),
+        height: debug_axis_length(
+            height_axis,
+            false,
+            parent_flex_direction,
+            is_root,
+            fit_size.map(|size| size.height),
+            viewport_size,
+        ),
+        flex_grow,
+        flex_shrink,
+        flex_basis,
+    }
+}
+
+fn apply_debug_flex_axis(
+    axis: ViewSizeAxisDef,
+    is_width: bool,
+    parent_flex_direction: UiFlexDirection,
+    is_root: bool,
+    flex_grow: &mut f32,
+    flex_shrink: &mut f32,
+    flex_basis: &mut ViewLayoutLengthDebug,
+) {
+    if matches!(axis, ViewSizeAxisDef::Fill)
+        && !is_root
+        && axis_matches_main(is_width, parent_flex_direction)
+    {
+        *flex_grow = 1.0;
+        *flex_shrink = 1.0;
+        *flex_basis = ViewLayoutLengthDebug::Px(0.0);
+    }
+}
+
+fn debug_axis_length(
+    axis: ViewSizeAxisDef,
+    is_width: bool,
+    parent_flex_direction: UiFlexDirection,
+    is_root: bool,
+    fit_size: Option<f32>,
+    viewport_size: Vec2,
+) -> ViewLayoutLengthDebug {
+    match axis {
+        ViewSizeAxisDef::Fit => fit_size.map_or(ViewLayoutLengthDebug::Auto, |value| {
+            ViewLayoutLengthDebug::Px(value)
+        }),
+        ViewSizeAxisDef::Fixed(value) => debug_serializable_length(value, is_width, viewport_size),
+        ViewSizeAxisDef::Fill if is_root => ViewLayoutLengthDebug::Percent(100.0),
+        ViewSizeAxisDef::Fill if axis_matches_main(is_width, parent_flex_direction) => {
+            ViewLayoutLengthDebug::Auto
+        }
+        ViewSizeAxisDef::Fill => ViewLayoutLengthDebug::Percent(100.0),
+    }
+}
+
+fn debug_serializable_length(
+    value: SerializableVal,
+    is_width: bool,
+    viewport_size: Vec2,
+) -> ViewLayoutLengthDebug {
+    match value {
+        SerializableVal::Auto => ViewLayoutLengthDebug::Auto,
+        SerializableVal::Px(value) => ViewLayoutLengthDebug::Px(value),
+        SerializableVal::Percent(value) => ViewLayoutLengthDebug::Percent(value),
+        SerializableVal::Vw(_) | SerializableVal::Vh(_) => {
+            ViewLayoutLengthDebug::Px(to_layout_length(value, is_width, viewport_size))
+        }
+    }
 }
 
 fn to_taffy_style(
@@ -888,10 +1103,11 @@ fn overflow_scrolls(overflow: Option<ViewOverflowDef>) -> bool {
 mod tests {
     use super::*;
     use crate::core::view::layout::{
-        SerializableDisplay, SerializablePositionType, SerializableTransform, SerializableVal,
-        StyleDef, StyleGap, UiFlexDirection, ViewFocusPolicyDef, ViewNodeDef, ViewOverflowAxisDef,
-        ViewOverflowDef, ViewScrollState, ViewSizeAxisDef, ViewSizingDef, ViewSpaceDef,
-        ViewSpatialAnchorDef, ViewSpatialInputDef, ViewSpatialOrientationDef,
+        SerializableAlignItems, SerializableAlignSelf, SerializableDisplay,
+        SerializableJustifyContent, SerializablePositionType, SerializableTransform,
+        SerializableVal, StyleDef, StyleGap, UiFlexDirection, ViewFocusPolicyDef, ViewNodeDef,
+        ViewOverflowAxisDef, ViewOverflowDef, ViewScrollState, ViewSizeAxisDef, ViewSizingDef,
+        ViewSpaceDef, ViewSpatialAnchorDef, ViewSpatialInputDef, ViewSpatialOrientationDef,
     };
 
     fn asset(root: ViewNodeDef) -> ViewLayoutAsset {
@@ -974,6 +1190,68 @@ mod tests {
 
         assert_close(slots.get("0:root/0:first").expect("first slot").x, 210.0);
         assert_close(slots.get("0:root/1:second").expect("second slot").x, 330.0);
+    }
+
+    #[test]
+    fn flex_layout_exposes_debug_metadata() {
+        let child_style = StyleDef {
+            width: Some(SerializableVal::Px(48.0)),
+            height: Some(SerializableVal::Px(24.0)),
+            align_self: Some(SerializableAlignSelf::Center),
+            ..Default::default()
+        };
+        let root = node(
+            "root",
+            StyleDef {
+                width: Some(SerializableVal::Px(320.0)),
+                height: Some(SerializableVal::Px(160.0)),
+                flex_direction: Some(UiFlexDirection::Row),
+                justify_content: Some(SerializableJustifyContent::SpaceBetween),
+                align_items: Some(SerializableAlignItems::Center),
+                padding: Some(SerializableRect {
+                    left: SerializableVal::Px(12.0),
+                    right: SerializableVal::Px(14.0),
+                    top: SerializableVal::Px(16.0),
+                    bottom: SerializableVal::Px(18.0),
+                }),
+                border: Some(SerializableRect {
+                    left: SerializableVal::Px(1.0),
+                    right: SerializableVal::Px(2.0),
+                    top: SerializableVal::Px(3.0),
+                    bottom: SerializableVal::Px(4.0),
+                }),
+                gap: Some(StyleGap {
+                    row: SerializableVal::Px(6.0),
+                    column: SerializableVal::Px(8.0),
+                }),
+                ..Default::default()
+            },
+            vec![node("child", child_style, Vec::new())],
+        );
+
+        let slots = compute_taffy_layout(&asset(root), Vec2::new(320.0, 160.0)).unwrap();
+        let root_debug = slots.debug_metadata("0:root").expect("root metadata");
+        let child_debug = slots
+            .debug_metadata("0:root/0:child")
+            .expect("child metadata");
+
+        assert_eq!(root_debug.display, SerializableDisplay::Flex);
+        assert_eq!(root_debug.position_type, SerializablePositionType::Relative);
+        assert_eq!(root_debug.flex_direction, UiFlexDirection::Row);
+        assert_eq!(
+            root_debug.justify_content,
+            Some(SerializableJustifyContent::SpaceBetween)
+        );
+        assert_eq!(root_debug.align_items, Some(SerializableAlignItems::Center));
+        assert_close(root_debug.padding.left, 12.0);
+        assert_close(root_debug.padding.bottom, 18.0);
+        assert_close(root_debug.border.top, 3.0);
+        assert_close(root_debug.gap.column, 8.0);
+        assert_eq!(root_debug.sizing.width, ViewLayoutLengthDebug::Px(320.0));
+        assert_eq!(root_debug.sizing.height, ViewLayoutLengthDebug::Px(160.0));
+        assert_eq!(child_debug.depth, 1);
+        assert_eq!(child_debug.parent_path.as_deref(), Some("0:root"));
+        assert_eq!(child_debug.align_self, Some(SerializableAlignSelf::Center));
     }
 
     #[test]

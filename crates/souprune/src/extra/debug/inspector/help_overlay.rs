@@ -53,6 +53,7 @@ pub(super) fn setup_debug_help_text_system(mut commands: Commands) {
                 "Debug Camera: [F8]",
                 "Restart Game: [F9]",
                 "Image Diff: [F10]",
+                "View Layout Observer: [F11] [Shift+F11] [Ctrl+F11]",
                 "Toggle this help: [F12]",
             ];
 

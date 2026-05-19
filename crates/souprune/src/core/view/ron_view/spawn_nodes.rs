@@ -514,6 +514,13 @@ fn insert_layout_slot_components(
     if let Some(slot) = layout_slot {
         entity_commands.try_insert(ViewLayoutRect::from(slot));
     }
+    #[cfg(feature = "debug")]
+    if let Some(debug_metadata) = layout_slots
+        .and_then(|slots| slots.debug_metadata(node_path))
+        .cloned()
+    {
+        entity_commands.try_insert(debug_metadata);
+    }
     if let Some(clip_rect) = layout_slots
         .and_then(|slots| slots.clip_rect(node_path))
         .copied()

@@ -14,6 +14,8 @@
 //! 本模块处理简单 RON 数据类型（如 `SerializableColor`）与 Bevy 运行时类型（如 `Color`, `Val`）之间的转换。
 
 use bevy::prelude::*;
+#[cfg(feature = "debug")]
+use bevy::reflect::Reflect;
 use bevy::ui::Val as BevyVal;
 use bevy::ui::{
     AlignItems, AlignSelf, Display as BevyDisplay, FlexDirection, JustifyContent, PositionType,
@@ -26,6 +28,7 @@ pub use crate::core::sequencer::chapter_schema::{ColorTuple, Value, Vec2Tuple, V
 pub type FloatOrExpr = Value<f32>;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
 pub enum UiFlexDirection {
     #[default]
     Row,
@@ -46,6 +49,7 @@ impl From<UiFlexDirection> for FlexDirection {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
 pub enum SerializableVal {
     Auto,
     Px(f32),
@@ -165,6 +169,7 @@ pub enum ViewSizingDef {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
 pub enum SerializablePositionType {
     Relative,
     Absolute,
@@ -180,6 +185,7 @@ impl From<SerializablePositionType> for PositionType {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
 pub enum SerializableJustifyContent {
     Start,
     End,
@@ -203,6 +209,7 @@ impl From<SerializableJustifyContent> for JustifyContent {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
 pub enum SerializableAlignItems {
     Start,
     End,
@@ -227,6 +234,7 @@ impl From<SerializableAlignItems> for AlignItems {
 ///
 /// 父布局内的单节点对齐覆盖。
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
 pub enum SerializableAlignSelf {
     /// Use the parent alignment.
     ///
@@ -271,6 +279,7 @@ impl From<SerializableAlignSelf> for AlignSelf {
 ///
 /// 布局显示模式。
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
 pub enum SerializableDisplay {
     /// Participate in flex layout.
     ///
