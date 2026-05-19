@@ -10,6 +10,10 @@ use souprune_schema::view::ViewLayoutAsset;
 use std::fs;
 use std::path::Path;
 
+fn event_is(rule: &souprune_schema::fre::RuleDef, expected: &str) -> bool {
+    matches!(&rule.event, RuleEventDef::Event(event) if event == expected)
+}
+
 #[test]
 fn demo_turn_narration_targets_battle_narration_channel() {
     let sequence = read_fixture_sequence(
@@ -63,16 +67,11 @@ fn narrative_dialogue_rules_advance_enemy_speech_channel() {
     let rules = read_fixture_fre("undertale_preset", "narrative/dialogue.fre.ron");
 
     let has_enemy_advance = rules.rules.iter().any(|rule| {
-        matches!(
-            &rule.event,
-            RuleEventDef::ActionEvent {
-                action,
-                kind: souprune_schema::fre::ActionEventKind::JustPressed,
-            } if action == "Confirm"
-        ) && rule
-            .conditions
-            .iter()
-            .any(|condition| condition == "$dialogue:battle_enemy_speech:has_focus == true")
+        event_is(rule, "input:confirm")
+            && rule
+                .conditions
+                .iter()
+                .any(|condition| condition == "$dialogue:battle_enemy_speech:has_focus == true")
             && rule.conditions.iter().any(|condition| {
                 condition == "$dialogue:battle_enemy_speech:typewriter_playing == false"
             })
@@ -83,16 +82,11 @@ fn narrative_dialogue_rules_advance_enemy_speech_channel() {
     });
 
     let has_enemy_skip = rules.rules.iter().any(|rule| {
-        matches!(
-            &rule.event,
-            RuleEventDef::ActionEvent {
-                action,
-                kind: souprune_schema::fre::ActionEventKind::JustPressed,
-            } if action == "Cancel"
-        ) && rule
-            .conditions
-            .iter()
-            .any(|condition| condition == "$dialogue:battle_enemy_speech:has_focus == true")
+        event_is(rule, "input:cancel")
+            && rule
+                .conditions
+                .iter()
+                .any(|condition| condition == "$dialogue:battle_enemy_speech:has_focus == true")
             && rule.conditions.iter().any(|condition| {
                 condition == "$dialogue:battle_enemy_speech:typewriter_playing == true"
             })
@@ -111,16 +105,11 @@ fn narrative_dialogue_rules_advance_default_dialogue_channel() {
     let rules = read_fixture_fre("undertale_preset", "narrative/dialogue.fre.ron");
 
     let has_default_advance = rules.rules.iter().any(|rule| {
-        matches!(
-            &rule.event,
-            RuleEventDef::ActionEvent {
-                action,
-                kind: souprune_schema::fre::ActionEventKind::JustPressed,
-            } if action == "Confirm"
-        ) && rule
-            .conditions
-            .iter()
-            .any(|condition| condition == "$dialogue:has_focus == true")
+        event_is(rule, "input:confirm")
+            && rule
+                .conditions
+                .iter()
+                .any(|condition| condition == "$dialogue:has_focus == true")
             && rule
                 .conditions
                 .iter()
@@ -132,16 +121,11 @@ fn narrative_dialogue_rules_advance_default_dialogue_channel() {
     });
 
     let has_default_confirm_skip = rules.rules.iter().any(|rule| {
-        matches!(
-            &rule.event,
-            RuleEventDef::ActionEvent {
-                action,
-                kind: souprune_schema::fre::ActionEventKind::JustPressed,
-            } if action == "Confirm"
-        ) && rule
-            .conditions
-            .iter()
-            .any(|condition| condition == "$dialogue:has_focus == true")
+        event_is(rule, "input:confirm")
+            && rule
+                .conditions
+                .iter()
+                .any(|condition| condition == "$dialogue:has_focus == true")
             && rule
                 .conditions
                 .iter()
@@ -153,16 +137,11 @@ fn narrative_dialogue_rules_advance_default_dialogue_channel() {
     });
 
     let has_default_cancel_skip = rules.rules.iter().any(|rule| {
-        matches!(
-            &rule.event,
-            RuleEventDef::ActionEvent {
-                action,
-                kind: souprune_schema::fre::ActionEventKind::JustPressed,
-            } if action == "Cancel"
-        ) && rule
-            .conditions
-            .iter()
-            .any(|condition| condition == "$dialogue:has_focus == true")
+        event_is(rule, "input:cancel")
+            && rule
+                .conditions
+                .iter()
+                .any(|condition| condition == "$dialogue:has_focus == true")
             && rule
                 .conditions
                 .iter()
@@ -183,16 +162,11 @@ fn enemy_speech_confirm_skips_typewriter_before_advancing() {
     let rules = read_fixture_fre("undertale_preset", "narrative/dialogue.fre.ron");
 
     let has_enemy_confirm_skip = rules.rules.iter().any(|rule| {
-        matches!(
-            &rule.event,
-            RuleEventDef::ActionEvent {
-                action,
-                kind: souprune_schema::fre::ActionEventKind::JustPressed,
-            } if action == "Confirm"
-        ) && rule
-            .conditions
-            .iter()
-            .any(|condition| condition == "$dialogue:battle_enemy_speech:has_focus == true")
+        event_is(rule, "input:confirm")
+            && rule
+                .conditions
+                .iter()
+                .any(|condition| condition == "$dialogue:battle_enemy_speech:has_focus == true")
             && rule.conditions.iter().any(|condition| {
                 condition == "$dialogue:battle_enemy_speech:typewriter_playing == true"
             })

@@ -16,26 +16,12 @@ use bevy::prelude::*;
 use super::super::SequenceAsset;
 use super::super::context::{CurrentSequenceFlow, SequenceContext, SequenceRulesHandle};
 
-/// System to load the default chapter resource.
-///
-/// 加载默认章节资源的系统。
-pub fn load_default_chapter_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    souprune_config: Res<crate::config::SoupruneConfig>,
-) {
-    let chapter_path = &souprune_config.game.initial_battle_path;
-    let handle = asset_server.load::<SequenceAsset>(chapter_path);
-    commands.insert_resource(CurrentSequenceFlow(handle));
-    info!("Loading default sequence flow: {}", chapter_path);
-}
-
-/// System to sync battle flow when asset is loaded.
+/// System to sync the active sequence flow when its asset is loaded.
 /// Also loads sequence-specific FRE rules if specified.
 ///
-/// 当资源加载完成时同步战斗流程的系统。
+/// 当资源加载完成时同步当前 sequence flow 的系统。
 /// 如果指定了规则文件，也会加载序列特定的 FRE 规则。
-pub fn sync_battle_flow_system(
+pub fn sync_sequence_flow_system(
     mut commands: Commands,
     flow_handle: Option<Res<CurrentSequenceFlow>>,
     mut context: ResMut<SequenceContext>,

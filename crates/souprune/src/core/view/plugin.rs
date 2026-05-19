@@ -24,8 +24,9 @@ use super::components::state_sprite::{
 use super::fact_toggle_color::update_fact_toggle_sdf_colors_system;
 use super::layout::ViewLayoutAsset;
 use super::lifecycle::{
-    StateTransitionTracker, UIInteractiveStateTracker, backpack_state_transition_system,
-    cleanup_view_rules_system, process_pending_view_rules_system, state_transition_sound_system,
+    StateTransitionTracker, StateViewTransitionSet, UIInteractiveStateTracker,
+    backpack_state_transition_system, cleanup_view_rules_system, process_pending_view_rules_system,
+    state_transition_sound_system,
 };
 use super::messages::{
     DespawnViewRequest, SpawnViewRequest, handle_despawn_view_request_system,
@@ -39,7 +40,8 @@ use super::visible_when::evaluate_visible_when_system;
 #[cfg(feature = "debug")]
 use super::{ElementState, ViewBox, ViewElementHistory, ViewRoot};
 use super::{PixelOutlineMaterial, SdfStructureAsset, ViewUpdate};
-use crate::core::mode::is_mode;
+use crate::config::ModePrimitiveConfig;
+use crate::core::mode::current_mode_has_primitive;
 use crate::core::ron_loader::RonAssetLoader;
 
 /// Asset loader for ViewLayoutAsset that applies coordinate system preprocessing.
@@ -110,13 +112,15 @@ impl Plugin for CoreViewPlugin {
                     .before(ron_view::spawn_dynamic_view_system),
             )
             .add_systems(schedule, handle_despawn_view_request_system)
+            .configure_sets(schedule, StateViewTransitionSet)
             .add_systems(
                 schedule,
                 (
                     backpack_state_transition_system,
                     state_transition_sound_system,
                 )
-                    .run_if(is_mode("overworld")),
+                    .in_set(StateViewTransitionSet)
+                    .run_if(current_mode_has_primitive(ModePrimitiveConfig::ViewRuntime)),
             )
             .add_systems(
                 PostUpdate,
@@ -146,6 +150,12 @@ impl Plugin for CoreViewPlugin {
             .add_systems(
                 schedule,
                 ron_view::reload::validate_map_properties_system.in_set(ViewUpdate),
+            )
+            .add_systems(
+                schedule,
+                super::input::dispatch_view_input_system
+                    .after(crate::core::input::InputTransactionSet)
+                    .before(crate::core::fre_bridge::process_view_actions_system),
             )
             .add_systems(
                 schedule,

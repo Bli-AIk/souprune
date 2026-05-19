@@ -4,7 +4,7 @@
 //!
 //! Core danmaku (bullet hell) system - generic and state-agnostic.
 //! This module provides the foundation for bullet pattern systems that can be
-//! used in both Battle and Overworld states.
+//! used in both project modes states.
 //!
 //! ## 模块概述
 //!
@@ -29,10 +29,10 @@ use bevy::prelude::*;
 use crate::core::ron_loader::RonAssetLoader;
 
 /// System set for danmaku updates.
-/// This set can be included in both BattleUpdate and OverworldUpdate.
+/// This set can be included in both FixedSceneUpdate and TopDownUpdate.
 ///
 /// 弹幕更新的系统集。
-/// 此集合可以包含在 BattleUpdate 和 OverworldUpdate 中。
+/// 此集合可以包含在 FixedSceneUpdate 和 TopDownUpdate 中。
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DanmakuUpdate;
 
@@ -40,7 +40,7 @@ pub struct DanmakuUpdate;
 /// Determines which mode marker to add to spawned bullets via ModeScoped.
 #[derive(Resource, Debug, Clone, Default)]
 pub struct DanmakuSpawnContext {
-    /// The current mode for entity marking (e.g. "battle", "overworld")
+    /// The current mode for entity marking (e.g. "battle", "top_down")
     pub mode: Option<String>,
 }
 

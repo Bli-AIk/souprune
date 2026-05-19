@@ -4,7 +4,7 @@
 //! - `input.ron` — InputConfig
 //! - `flow.ron` — StateConfig
 //! - `touch_layout.ron` — TouchLayoutDef
-//! - `alight_motion_config.ron` — AlightMotionBattleConfig
+//! - `alight_motion_config.ron` — AlightMotionSceneConfig
 //!
 //! 各种 RON 配置文件的 Schema 类型。
 
@@ -15,10 +15,122 @@ use std::collections::HashMap;
 // Input Configuration (input.ron)
 // ============================================================================
 
+/// Keyboard key used by an input binding.
+///
+/// 输入绑定使用的键盘按键。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+pub enum KeyboardKey {
+    ArrowUp,
+    ArrowDown,
+    ArrowLeft,
+    ArrowRight,
+    KeyA,
+    KeyB,
+    KeyC,
+    KeyD,
+    KeyE,
+    KeyF,
+    KeyG,
+    KeyH,
+    KeyI,
+    KeyJ,
+    KeyK,
+    KeyL,
+    KeyM,
+    KeyN,
+    KeyO,
+    KeyP,
+    KeyQ,
+    KeyR,
+    KeyS,
+    KeyT,
+    KeyU,
+    KeyV,
+    KeyW,
+    KeyX,
+    KeyY,
+    KeyZ,
+    Digit0,
+    Digit1,
+    Digit2,
+    Digit3,
+    Digit4,
+    Digit5,
+    Digit6,
+    Digit7,
+    Digit8,
+    Digit9,
+    Numpad0,
+    Numpad1,
+    Numpad2,
+    Numpad3,
+    Numpad4,
+    Numpad5,
+    Numpad6,
+    Numpad7,
+    Numpad8,
+    Numpad9,
+    NumpadAdd,
+    NumpadSubtract,
+    NumpadMultiply,
+    NumpadDivide,
+    NumpadDecimal,
+    NumpadEnter,
+    F1,
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
+    F10,
+    F11,
+    F12,
+    Insert,
+    Delete,
+    Home,
+    End,
+    PageUp,
+    PageDown,
+    Enter,
+    Escape,
+    Space,
+    Tab,
+    Backspace,
+    CapsLock,
+    NumLock,
+    ScrollLock,
+    Pause,
+    PrintScreen,
+    ShiftLeft,
+    ShiftRight,
+    ControlLeft,
+    ControlRight,
+    AltLeft,
+    AltRight,
+    SuperLeft,
+    SuperRight,
+    Minus,
+    Equal,
+    BracketLeft,
+    BracketRight,
+    Backslash,
+    Semicolon,
+    Quote,
+    Backquote,
+    Comma,
+    Period,
+    Slash,
+}
+
 /// Input binding.
+///
+/// 输入绑定。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum InputBinding {
-    Key(String),
+    Key(KeyboardKey),
     Gamepad(String),
     Touch(String),
 }
@@ -60,7 +172,9 @@ pub struct TouchOverlayConfig {
     pub scale: Option<f32>,
 }
 
-/// Input configuration — top-level `input.ron` schema.
+/// Input configuration - top-level `input.ron` schema.
+///
+/// 输入配置 - 顶层 `input.ron` schema。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct InputConfig {
     #[serde(serialize_with = "crate::ordered_map::serialize_ordered_map")]
@@ -76,6 +190,28 @@ pub struct InputConfig {
 // ============================================================================
 // State Configuration (flow.ron)
 // ============================================================================
+
+/// Screen-space fact projection owned by a state.
+///
+/// 由状态拥有的屏幕空间 fact 投影配置。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ScreenFactProjectionDef {
+    /// Fact key receiving the player screen-space X coordinate.
+    ///
+    /// 接收玩家屏幕空间 X 坐标的 fact key。
+    #[serde(default)]
+    pub player_x_fact: Option<String>,
+    /// Fact key receiving the player screen-space Y coordinate.
+    ///
+    /// 接收玩家屏幕空间 Y 坐标的 fact key。
+    #[serde(default)]
+    pub player_y_fact: Option<String>,
+    /// FRE event emitted after projection facts are refreshed.
+    ///
+    /// 投影 facts 刷新后发出的 FRE 事件。
+    #[serde(default)]
+    pub updated_event: Option<String>,
+}
 
 /// Definition of a single state's configuration.
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -95,6 +231,11 @@ pub struct StateDefinition {
     /// 生成此状态的 View 前要先应用的 FRE 事件。
     #[serde(default)]
     pub pre_spawn_events: Vec<String>,
+    /// Screen-space facts to synchronize while this state is active.
+    ///
+    /// 当前状态激活时需要同步的屏幕空间 facts。
+    #[serde(default)]
+    pub screen_fact_projection: Option<ScreenFactProjectionDef>,
     #[serde(default)]
     pub initial_layer: Option<String>,
     #[serde(default)]
@@ -114,6 +255,7 @@ impl Default for StateDefinition {
             camera_follow_player: true,
             view_layout: None,
             pre_spawn_events: Vec::new(),
+            screen_fact_projection: None,
             initial_layer: None,
             on_enter_sound: None,
             on_exit_sound: None,
@@ -195,35 +337,35 @@ pub struct TouchLayoutDef {
 }
 
 // ============================================================================
-// AM Battle Configuration (alight_motion_config.ron)
+// AM Scene Configuration (alight_motion_config.ron)
 // ============================================================================
 
-/// AM battle configuration — top-level `alight_motion_config.ron` schema.
+/// AM scene configuration — top-level `alight_motion_config.ron` schema.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
-pub struct AlightMotionBattleConfig {
+pub struct AlightMotionSceneConfig {
     pub scale: f32,
     pub offset: (f32, f32),
     pub bullet_pattern: String,
-    pub battle_box_pattern: String,
+    pub boundary_pattern: String,
     pub hidden_pattern: String,
     pub bullet_damage: f32,
     pub collision_scale: f32,
-    #[serde(default = "default_battle_box_size")]
-    pub default_battle_box_size: (f32, f32),
+    #[serde(default = "default_boundary_size")]
+    pub default_boundary_size: (f32, f32),
 }
 
-impl Default for AlightMotionBattleConfig {
+impl Default for AlightMotionSceneConfig {
     fn default() -> Self {
         Self {
             scale: 1.0,
             offset: (0.0, 0.0),
             bullet_pattern: "^#B".to_string(),
-            battle_box_pattern: "^#C".to_string(),
+            boundary_pattern: "^#C".to_string(),
             hidden_pattern: String::new(),
             bullet_damage: 1.0,
             collision_scale: 0.05,
-            default_battle_box_size: default_battle_box_size(),
+            default_boundary_size: default_boundary_size(),
         }
     }
 }
@@ -256,7 +398,7 @@ fn default_mobile_scale() -> f32 {
     0.75
 }
 
-fn default_battle_box_size() -> (f32, f32) {
+fn default_boundary_size() -> (f32, f32) {
     (566.0, 130.0)
 }
 

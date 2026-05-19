@@ -2,7 +2,7 @@
 //!
 //! SoupRune 的 FRE 动作定义。
 //!
-//! 只包含框架核心动作。游戏特定动作（如 UseItem、CheckItem、DropItem）
+//! 只包含框架核心动作。项目特定动作
 //! 通过 `Custom` 变体 + [`ViewActionExtensions`] 分发机制处理，
 //! 不再作为枚举变体出现在此处。
 //!
@@ -14,7 +14,7 @@ use std::collections::HashMap;
 
 /// Core FRE action definitions.
 ///
-/// Game-specific actions use the `Custom` variant with a registered
+/// Project-specific actions use the `Custom` variant with a registered
 /// handler in `ViewActionExtensions`.
 #[derive(Debug, Clone, Serialize, Deserialize, bevy::reflect::TypePath)]
 pub enum GameActionDef {

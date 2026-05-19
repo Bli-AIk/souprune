@@ -1,23 +1,20 @@
 //! This is the public library entry point for SoupRune. It ties together the
 //! high-level application state modules, the reusable `core`
-//! infrastructure, the editor-facing facade, and the bootstrap helpers that turn
-//! those pieces into a runnable Bevy app. Downstream code should treat this file
-//! as the stable surface of the main crate rather than reaching into bootstrap
-//! internals directly.
+//! infrastructure, and the bootstrap helpers that turn those pieces into a
+//! runnable Bevy app. Downstream code should treat this file as the stable
+//! surface of the main crate rather than reaching into bootstrap internals
+//! directly.
 //!
 //! 这是 SoupRune 的公开库入口。它把高层应用状态模块、可复用的 `core`
-//! 基础设施、面向编辑器的门面 API，以及把这些部件组装成可运行 Bevy 应用的
-//! bootstrap 辅助函数接到一起。下游代码应把这个文件视为主 crate 的稳定表面，
-//! 而不是直接深入 bootstrap 内部路径。
+//! 基础设施，以及把这些部件组装成可运行 Bevy 应用的 bootstrap 辅助函数接到一起。
+//! 下游代码应把这个文件视为主 crate 的稳定表面，而不是直接深入 bootstrap 内部路径。
 #![allow(dead_code, unexpected_cfgs)]
 
 pub mod app_state;
 mod bootstrap;
 pub mod config;
 pub mod core;
-pub mod editor_api;
 pub mod extra;
-pub mod preset;
 
 pub use crate::bootstrap::{
     get_file_importer_plugins, get_game_plugins, get_third_plugins, insert_font_resources,
@@ -27,13 +24,13 @@ pub use crate::core::basic_components::Direction;
 pub use crate::core::character_asset::{
     AnimationConfigAsset, CharacterAsset, StateAnimationMapping,
 };
+pub use crate::core::content::enemy::{ActionOption, EnemyDef, EnemyRegistry};
+pub use crate::core::content::item::{Item, ItemEffect, ItemListAsset, ItemRegistry, ItemType};
 pub use crate::core::input::actions::Action;
+pub use crate::core::top_down::player::config::PlayerBehavior;
 pub use crate::core::view::layout::{
     FloatOrExpr, SerializableVec3, ViewBoxLogicDef, ViewLayoutAsset, ViewNodeDef,
 };
-pub use crate::preset::enemy::{ActionOption, EnemyDef, EnemyRegistry};
-pub use crate::preset::item::{Item, ItemEffect, ItemListAsset, ItemRegistry, ItemType};
-pub use crate::preset::overworld::player::config::PlayerBehavior;
 pub use souprune_schema::enemy::{CombatStats, LocaleInfo};
 
 use std::default::Default;
@@ -43,8 +40,12 @@ use bevy::prelude::*;
 
 /// 游戏逻辑系统的目标调度器。
 ///
-/// 游戏本体使用 `Update`，编辑器使用 `GameSchedule`（由 bevy_workbench 控制执行时机）。
-/// 所有游戏 Plugin 在 `build()` 中读取此资源，将系统注册到指定的调度器。
+/// Standalone games use `Update` by default; tests and custom hosts may insert
+/// this resource before plugin registration to route runtime systems into a
+/// different schedule.
+///
+/// 独立游戏默认使用 `Update`；测试和自定义宿主可以在注册插件前插入此资源，
+/// 把运行时系统路由到其他调度器。
 #[derive(Resource, Clone)]
 pub struct GameUpdateSchedule(pub InternedScheduleLabel);
 
@@ -66,7 +67,7 @@ pub fn game_schedule(app: &App) -> InternedScheduleLabel {
 ///
 /// 注册 AppState、SequenceSubState、SequenceMode、ModeChanged，
 /// 以及 ViewUpdate / SequencerUpdate 系统集的 run_if 条件。
-/// 游戏本体和编辑器共用此函数，避免重复初始化代码。
+/// 游戏本体和自定义宿主共用此函数，避免重复初始化代码。
 pub fn init_game_state(app: &mut App) {
     let schedule = game_schedule(app);
     app.init_state::<app_state::AppState>()

@@ -94,7 +94,6 @@ tokei-check:
 # 架构边界检查
 arch-check:
     @bash ./scripts/check_core_boundaries.sh
-    @bash ./scripts/check_editor_boundaries.sh
 
 alias line := tokei-check
 
@@ -138,7 +137,7 @@ test_local:
 test-mods:
     @for toml in $(find projects -mindepth 2 -maxdepth 3 -name Cargo.toml | sort); do \
         crate_id=$(echo "$toml" | sed 's#^projects/##; s#/Cargo.toml$##; s#/#-#g'); \
-        cargo nextest run --manifest-path "$toml" --target-dir "{{workspace_root}}/target/mod-tests/$crate_id" || exit $?; \
+        cargo nextest run --manifest-path "$toml" --target-dir "{{workspace_root}}/target/mod-tests/$crate_id" --no-tests pass || exit $?; \
     done
     @echo "Tested all mods"
 
@@ -173,12 +172,9 @@ bevy_debug_tracy: prepare-assets-release
 soup_debug_tracy: prepare-assets-release
     cargo run -p {{project}} --release --features "trace_tracy,debug"
 
-editor:
-    cargo run --manifest-path crates/souprune_editor/Cargo.toml
-
 # WASM Mod 构建（编译测试 mod 为 WASM 组件）
 wasm-build:
-    cargo build -p souprune_mod_test --target wasm32-wasip2
+    CARGO_TARGET_DIR={{workspace_root}}/target cargo build --manifest-path crates/souprune_mod_test/Cargo.toml --target wasm32-wasip2
 
 # WASM Mod 测试（用 mock host 加载运行）
 wasm-test: wasm-build

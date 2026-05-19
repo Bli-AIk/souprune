@@ -227,9 +227,9 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
         FactValue::String(String::new()),
     );
 
-    // NOTE: dialogue_text is now managed by View's local_facts, not LayeredFactDatabase.
+    // NOTE: dialogue_text is managed by View LocalState, not LayeredFactDatabase.
     // Views that use {{dialogue_text}} should define it in their `facts:` section.
-    // 注意：dialogue_text 现在由 View 的 local_facts 管理，而非 LayeredFactDatabase。
+    // 注意：dialogue_text 由 View LocalState 管理，而非 LayeredFactDatabase。
     // 使用 {{dialogue_text}} 的 View 应在其 `facts:` 部分中定义它。
 
     // Pending dialogue configuration (set via FRE rules to trigger dialogue startup)

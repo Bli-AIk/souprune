@@ -20,7 +20,7 @@ mod timeline_ui;
 mod wasm_ui;
 
 use crate::core::input::Action;
-use crate::preset::overworld::character::components::PlayerControlled;
+use crate::core::top_down::character::components::PlayerControlled;
 use bevy::camera::RenderTarget;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
@@ -85,7 +85,7 @@ struct FREPanelState {
 enum FREPanelTab {
     #[default]
     Facts,
-    ViewFacts,
+    ViewState,
     Rules,
     EventHistory,
     States,
@@ -374,7 +374,7 @@ fn fre_panel_ui_system(world: &mut World) {
 
         match current_tab {
             FREPanelTab::Facts => facts_ui::render_facts_tab(ui, world),
-            FREPanelTab::ViewFacts => facts_ui::render_view_facts_tab(ui, world),
+            FREPanelTab::ViewState => facts_ui::render_view_state_tab(ui, world),
             FREPanelTab::Rules => rules_ui::render_rules_tab(ui, world),
             FREPanelTab::EventHistory => facts_ui::render_events_tab(ui, world),
             FREPanelTab::States => states_ui::render_states_tab(ui, world),
@@ -396,10 +396,10 @@ fn render_tab_bar(ui: &mut egui::Ui, world: &mut World, current_tab: FREPanelTab
             new_tab = FREPanelTab::Facts;
         }
         if ui
-            .selectable_label(current_tab == FREPanelTab::ViewFacts, "🖼 View")
+            .selectable_label(current_tab == FREPanelTab::ViewState, "🖼 View")
             .clicked()
         {
-            new_tab = FREPanelTab::ViewFacts;
+            new_tab = FREPanelTab::ViewState;
         }
         if ui
             .selectable_label(current_tab == FREPanelTab::Rules, "📜 Rules")

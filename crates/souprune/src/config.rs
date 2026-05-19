@@ -19,7 +19,12 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
-use tracing::{error, info};
+use tracing::error;
+
+mod mod_file;
+#[cfg(test)]
+use mod_file::ModConfigFile;
+use mod_file::{apply_mod_config, read_mod_config, resolve_dependencies};
 
 #[derive(Clone, Deserialize, Resource)]
 pub struct SoupruneConfig {
@@ -149,22 +154,6 @@ pub struct GameConfig {
     /// 包含初始玩家数据和游戏全局事实。
     pub global_rules: String,
 
-    /// Initial sequence path for the Battle state.
-    /// When set and `initial_sequence_path` is absent, the game starts directly in Battle mode.
-    ///
-    /// 战斗状态的初始序列路径。
-    /// 当设置此项且 `initial_sequence_path` 未设置时，游戏直接以 Battle 模式启动。
-    pub initial_battle_path: String,
-
-    /// Optional sequence path to load when entering Overworld.
-    /// When set, the Overworld initialization is driven by this sequence
-    /// instead of hardcoded OnEnter systems.
-    ///
-    /// 进入 Overworld 时加载的可选序列路径。
-    /// 设置后，Overworld 的初始化由此序列驱动，而非硬编码的 OnEnter 系统。
-    #[serde(default)]
-    pub initial_sequence_path: Option<String>,
-
     /// Path to player behavior configuration file.
     ///
     /// 玩家行为配置文件路径。
@@ -233,29 +222,18 @@ pub struct GameConfig {
     pub hidden_layer_keywords: Vec<String>,
 
     /// Initial mode to enter after loading completes.
-    /// Determined from config: if `initial_sequence_path` is set, the mode is
-    /// inferred from the sequence; otherwise falls back to this value.
     ///
     /// 加载完成后进入的初始模式。
-    /// 若 `initial_sequence_path` 已设置，模式从序列中推导；否则使用此值。
     #[serde(default = "default_initial_mode")]
     pub initial_mode: String,
 
-    /// FRE rule files loaded for overworld state (accumulated from dependency chain).
-    /// Rules from dependency mods come first, main mod's rules last.
+    /// Runtime mode declarations owned by project configuration.
+    /// Dependency modes are merged before the main project.
     ///
-    /// Overworld 状态加载的 FRE 规则文件（从依赖链累积）。
-    /// 依赖 mod 的规则在前，主 mod 的规则在后。
+    /// 项目配置拥有的运行模式声明。
+    /// 依赖项目的 mode 先合并，主项目随后覆盖或扩展。
     #[serde(default)]
-    pub overworld_rules: Vec<String>,
-
-    /// Camera zoom level applied immediately when entering battle mode.
-    /// This avoids the visual delay of setting zoom through the sequencer.
-    ///
-    /// 进入战斗模式时立即应用的摄像机缩放级别。
-    /// 避免通过序列器设置缩放产生的视觉延迟。
-    #[serde(default = "default_battle_camera_zoom")]
-    pub battle_camera_zoom: f32,
+    pub modes: HashMap<String, ModeConfig>,
 
     /// Optional fixed RNG seed for deterministic behavior.
     /// When set, all random operations (enemy turns, RandomPick, etc.) produce
@@ -268,20 +246,14 @@ pub struct GameConfig {
     pub rng_seed: Option<u64>,
 }
 
-fn default_battle_camera_zoom() -> f32 {
-    2.0
-}
-
 fn default_initial_mode() -> String {
-    "overworld".to_string()
+    "main".to_string()
 }
 
 impl Default for GameConfig {
     fn default() -> Self {
         Self {
             global_rules: String::new(),
-            initial_battle_path: String::new(),
-            initial_sequence_path: None,
             player_behavior_path: String::new(),
             input_config_path: "app/input.ron".to_string(),
             flow_config_path: "app/flow.ron".to_string(),
@@ -292,13 +264,74 @@ impl Default for GameConfig {
             enemy_directory: "actors/enemies".to_string(),
             item_directory: "actors/items".to_string(),
             locales_directory: "assets/locales".to_string(),
-            required_modules: vec!["overworld".to_string(), "common".to_string()],
+            required_modules: Vec::new(),
             hidden_layer_keywords: vec!["prototype".to_string(), "collision".to_string()],
             initial_mode: default_initial_mode(),
-            overworld_rules: Vec::new(),
-            battle_camera_zoom: default_battle_camera_zoom(),
+            modes: HashMap::new(),
             rng_seed: None,
         }
+    }
+}
+
+/// Core primitive that a project mode can enable.
+///
+/// 项目 mode 可启用的 core 原子能力。
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum ModePrimitiveConfig {
+    FixedScene,
+    TopDownMap,
+    TopDownPlayer,
+    InteractionZones,
+    ViewRuntime,
+    FreRules,
+    Sequencer,
+    Danmaku,
+    Chase,
+    AlightMotion,
+    SpeechBubble,
+    MenuProjection,
+}
+
+/// Project-owned runtime mode declaration.
+///
+/// 项目拥有的运行模式声明。
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct ModeConfig {
+    /// Core primitives enabled while this mode is active.
+    ///
+    /// 此 mode 激活时启用的 core 原子能力。
+    pub primitives: Vec<ModePrimitiveConfig>,
+
+    /// Sequence loaded when entering this mode.
+    ///
+    /// 进入此 mode 时加载的 sequence。
+    pub entry_sequence: Option<String>,
+
+    /// FRE rules loaded while this mode is active.
+    ///
+    /// 此 mode 激活时加载的 FRE 规则。
+    pub rules: Vec<String>,
+
+    /// Zoom for fixed-camera scene primitives.
+    ///
+    /// fixed-camera scene primitive 使用的缩放。
+    pub fixed_camera_zoom: Option<f32>,
+
+    /// Optional mode-scoped Alight Motion runtime configuration path.
+    ///
+    /// 可选的 mode 作用域 Alight Motion 运行时配置路径。
+    pub alight_motion_config: Option<String>,
+}
+
+impl ModeConfig {
+    pub fn has_primitive(&self, primitive: ModePrimitiveConfig) -> bool {
+        self.primitives.contains(&primitive)
+    }
+
+    pub fn fixed_camera_zoom(&self) -> f32 {
+        self.fixed_camera_zoom.unwrap_or(2.0)
     }
 }
 
@@ -477,225 +510,6 @@ pub struct ResourcePaths {
     ///
     /// 字体目录路径，相对于 mod 根目录。
     pub fonts: String,
-}
-
-#[derive(Deserialize)]
-struct ModConfigFile {
-    game: Option<ModGameConfig>,
-    #[serde(default)]
-    resources: Option<ResourcePathsPartial>,
-    #[serde(default)]
-    font_layout: Option<HashMap<String, FontLayoutConfig>>,
-    #[serde(default)]
-    mod_library: Option<ModLibraryConfigPartial>,
-    #[serde(default)]
-    content_library: Option<ContentLibraryConfigPartial>,
-    #[serde(default)]
-    dependencies: HashMap<String, String>,
-}
-
-#[derive(Deserialize, Default)]
-struct ModLibraryConfigPartial {
-    wasm: Option<String>,
-}
-
-#[derive(Deserialize, Default)]
-struct ContentLibraryConfigPartial {
-    wasm: Option<String>,
-    generated_file_header: Option<String>,
-}
-
-#[derive(Deserialize, Default)]
-struct ResourcePathsPartial {
-    textures: Option<String>,
-    audios: Option<String>,
-    fonts: Option<String>,
-}
-
-/// Overlay struct for `[game]` in `mod.toml`.
-/// All fields are `Option` so that missing entries do not overwrite runtime defaults.
-///
-/// `mod.toml` 中 `[game]` 节的覆盖结构体。
-/// 所有字段均为 `Option`，缺失项不会覆盖运行时默认值。
-#[derive(Deserialize, Default)]
-#[serde(default)]
-struct ModGameConfig {
-    global_rules: Option<String>,
-    initial_battle_path: Option<String>,
-    initial_sequence_path: Option<String>,
-    player_behavior_path: Option<String>,
-    input_config_path: Option<String>,
-    flow_config_path: Option<String>,
-    dialogue_config_path: Option<String>,
-    chase_config: Option<String>,
-    dialogue_view_default: Option<String>,
-    dialogue_voice_default: Option<String>,
-    enemy_directory: Option<String>,
-    item_directory: Option<String>,
-    locales_directory: Option<String>,
-    required_modules: Option<Vec<String>>,
-    hidden_layer_keywords: Option<Vec<String>>,
-    initial_mode: Option<String>,
-    overworld_rules: Option<Vec<String>>,
-    battle_camera_zoom: Option<f32>,
-    rng_seed: Option<u64>,
-}
-
-fn read_mod_config<P: AsRef<Path>>(path: P) -> Result<ModConfigFile> {
-    let path_ref = path.as_ref();
-    let contents = fs::read_to_string(path_ref)
-        .with_context(|| format!("Failed to read mod config file at {}", path_ref.display()))?;
-
-    toml::from_str(&contents)
-        .with_context(|| format!("Failed to parse mod config file at {}", path_ref.display()))
-}
-
-/// Apply parsed mod config onto the main config, merging partial fields.
-fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
-    #[cfg(target_os = "android")]
-    eprintln!(
-        "[SoupRune] mod.toml parsed, game section: {:?}",
-        mod_cfg.game.is_some()
-    );
-
-    if let Some(g) = mod_cfg.game {
-        #[cfg(target_os = "android")]
-        eprintln!(
-            "[SoupRune] game_partial.input_config_path: {:?}",
-            g.input_config_path
-        );
-        macro_rules! merge {
-            ($field:ident) => {
-                if let Some(val) = g.$field {
-                    config.game.$field = val;
-                }
-            };
-        }
-        merge!(global_rules);
-        merge!(initial_battle_path);
-        merge!(player_behavior_path);
-        merge!(input_config_path);
-        merge!(flow_config_path);
-        merge!(dialogue_config_path);
-        merge!(dialogue_view_default);
-        merge!(dialogue_voice_default);
-        merge!(enemy_directory);
-        merge!(item_directory);
-        merge!(locales_directory);
-        merge!(required_modules);
-        merge!(hidden_layer_keywords);
-        merge!(initial_mode);
-        merge!(battle_camera_zoom);
-        // overworld_rules: extend rather than overwrite (dependency chain accumulation)
-        if let Some(val) = g.overworld_rules {
-            config.game.overworld_rules.extend(val);
-        }
-        // Option<T> fields: wrap in Some
-        if let Some(val) = g.initial_sequence_path {
-            config.game.initial_sequence_path = Some(val);
-        }
-        if let Some(val) = g.chase_config {
-            config.game.chase_config = Some(val);
-        }
-        if let Some(val) = g.rng_seed {
-            config.game.rng_seed = Some(val);
-        }
-    }
-    // Load resource paths from [resources] section (required)
-    if let Some(res_partial) = mod_cfg.resources {
-        if let Some(val) = res_partial.textures {
-            config.resources.textures = val;
-        }
-        if let Some(val) = res_partial.audios {
-            config.resources.audios = val;
-        }
-        if let Some(val) = res_partial.fonts {
-            config.resources.fonts = val;
-        }
-    }
-    if let Some(font_layout) = mod_cfg.font_layout {
-        config.font_layout.extend(font_layout);
-    }
-    // Load mod library configuration from [mod_library] section
-    if let Some(lib_partial) = mod_cfg.mod_library
-        && let Some(val) = lib_partial.wasm
-    {
-        config.mod_library.wasm = val;
-    }
-    if let Some(content_partial) = mod_cfg.content_library {
-        if let Some(val) = content_partial.wasm {
-            config.content_library.wasm = val;
-        }
-        if let Some(val) = content_partial.generated_file_header {
-            config.content_library.generated_file_header = Some(val);
-        }
-    }
-
-    // Validate required resource paths
-    if config.resources.textures.is_empty() {
-        error!("mod.toml: [resources].textures is required");
-    }
-    if config.resources.audios.is_empty() {
-        error!("mod.toml: [resources].audios is required");
-    }
-    // Fonts default to "assets/fonts" when not specified
-    if config.resources.fonts.is_empty() {
-        config.resources.fonts = "assets/fonts".to_string();
-    }
-}
-
-/// Resolve mod dependencies by reading each dependency's mod.toml.
-/// Returns a flat list of dependencies (no transitive resolution yet).
-///
-/// 通过读取每个依赖的 mod.toml 解析 mod 依赖。
-/// 返回扁平的依赖列表（暂无传递依赖解析）。
-fn resolve_dependencies(
-    dependencies: &HashMap<String, String>,
-    projects_base: &Path,
-) -> (Vec<ResolvedDependency>, Vec<ModConfigFile>) {
-    let mut resolved = Vec::new();
-    let mut dep_configs = Vec::new();
-
-    for (dep_name, dep_version) in dependencies {
-        let dep_dir = projects_base.join(dep_name);
-        let dep_mod_toml = dep_dir.join("mod.toml");
-
-        if !dep_mod_toml.exists() {
-            error!(
-                "Dependency '{}' v{} not found at {}",
-                dep_name,
-                dep_version,
-                dep_mod_toml.display()
-            );
-            continue;
-        }
-
-        match read_mod_config(&dep_mod_toml) {
-            Ok(dep_cfg) => {
-                let wasm = dep_cfg
-                    .mod_library
-                    .as_ref()
-                    .and_then(|lib| lib.wasm.clone())
-                    .unwrap_or_else(|| format!("{dep_name}.wasm"));
-
-                info!(
-                    "Resolved dependency: {} v{} (wasm: {})",
-                    dep_name, dep_version, wasm
-                );
-                resolved.push(ResolvedDependency {
-                    name: dep_name.clone(),
-                    wasm,
-                });
-                dep_configs.push(dep_cfg);
-            }
-            Err(e) => {
-                error!("Failed to read dependency '{}' mod.toml: {}", dep_name, e);
-                continue;
-            }
-        };
-    }
-
-    (resolved, dep_configs)
 }
 
 fn read_config_from_disk<P: AsRef<Path>>(path: P) -> Result<SoupruneConfig> {

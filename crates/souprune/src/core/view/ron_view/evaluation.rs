@@ -647,11 +647,12 @@ pub fn resolve_val_bool(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy_fact_rule_event::{FactDatabase, FactValue, LayeredFactDatabase};
+    use crate::core::view::components::LocalState;
+    use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 
-    fn make_player_data_with_names(names: Vec<&str>) -> (LayeredFactDatabase, FactDatabase) {
+    fn make_player_data_with_names(names: Vec<&str>) -> (LayeredFactDatabase, LocalState) {
         let mut layered = LayeredFactDatabase::default();
-        let local = FactDatabase::default();
+        let local = LocalState::default();
         layered.set(
             "enemy_names",
             FactValue::StringList(names.into_iter().map(|s| s.to_string()).collect()),
@@ -675,29 +676,29 @@ mod tests {
     #[test]
     fn test_max_strlen_basic() {
         let (layered, local) = make_player_data_with_names(vec!["Mush", "Froggit", "Soup"]);
-        let pv = PlayerDataView::with_local_facts(&layered, &local);
+        let pv = PlayerDataView::with_local_state(&layered, &local);
         assert_eq!(compute_max_strlen(&pv, "enemy_names"), 7.0);
     }
 
     #[test]
     fn test_max_strlen_empty_list() {
         let (layered, local) = make_player_data_with_names(vec![]);
-        let pv = PlayerDataView::with_local_facts(&layered, &local);
+        let pv = PlayerDataView::with_local_state(&layered, &local);
         assert_eq!(compute_max_strlen(&pv, "enemy_names"), 0.0);
     }
 
     #[test]
     fn test_max_strlen_missing_fact() {
         let layered = LayeredFactDatabase::default();
-        let local = FactDatabase::default();
-        let pv = PlayerDataView::with_local_facts(&layered, &local);
+        let local = LocalState::default();
+        let pv = PlayerDataView::with_local_state(&layered, &local);
         assert_eq!(compute_max_strlen(&pv, "nonexistent"), 0.0);
     }
 
     #[test]
     fn test_max_strlen_preprocessing() {
         let (layered, local) = make_player_data_with_names(vec!["Mush", "Froggit"]);
-        let pv = PlayerDataView::with_local_facts(&layered, &local);
+        let pv = PlayerDataView::with_local_state(&layered, &local);
         let result = preprocess_list_aggregates("max_strlen($enemy_names)", &pv);
         assert_eq!(result, "7");
     }
@@ -705,9 +706,23 @@ mod tests {
     #[test]
     fn test_max_strlen_in_expression() {
         let (layered, local) = make_player_data_with_names(vec!["Hello", "Hi"]);
-        let pv = PlayerDataView::with_local_facts(&layered, &local);
+        let pv = PlayerDataView::with_local_state(&layered, &local);
         // "Hello" = 5 chars, 15 * 5 - 125 = -50
         let result = preprocess_fact_expressions("15 * max_strlen($enemy_names) - 125", &pv);
         assert_eq!(result, "15 * 5 - 125");
+    }
+
+    #[test]
+    fn player_data_view_prefers_local_state_over_global_facts() {
+        let mut layered = LayeredFactDatabase::default();
+        layered.set("selection", FactValue::Int(1));
+
+        let mut local = LocalState::default();
+        local.set("selection", FactValue::Int(3));
+
+        let pv = PlayerDataView::with_local_state(&layered, &local);
+
+        assert_eq!(pv.get_fact_int("selection"), Some(3));
+        assert_eq!(preprocess_fact_expressions("$selection + 1", &pv), "3 + 1");
     }
 }

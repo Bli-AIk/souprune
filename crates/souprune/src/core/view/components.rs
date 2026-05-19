@@ -1,6 +1,6 @@
-//! Overworld UI components used by the overworld app state.
+//! top-down UI components used by the top_down app state.
 //!
-//! 用于 overworld 应用状态的 UI 组件。
+//! 用于 top_down 应用状态的 UI 组件。
 //!
 //! This module has been refactored into submodules for better organization.
 //!
@@ -25,6 +25,7 @@ pub(crate) use text::{
 // Public exports (used outside core::ui)
 pub use hpbar::{DynamicViewElement, TimeDependentTransform};
 pub use view_element::{
-    ActiveView, ElementState, PendingViewData, PendingViewRules, ViewElement, ViewElementHistory,
-    ViewNodeTags, ViewRoot, VisibleWhen, find_element_by_full_name, find_elements_by_tag,
+    ActiveView, ElementState, LocalState, PendingViewData, PendingViewRules, ViewElement,
+    ViewElementHistory, ViewNodeTags, ViewRoot, VisibleWhen, find_element_by_full_name,
+    find_elements_by_tag,
 };

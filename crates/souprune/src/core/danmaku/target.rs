@@ -13,12 +13,12 @@
 use bevy::prelude::*;
 
 /// Marker component for entities that can be targeted by bullets.
-/// Add this to any entity (BattlePlayer, OverworldPlayer, etc.) that
+/// Add this to any player-controlled or scripted entity that
 /// should be tracked by aimed/homing behaviors.
 ///
 /// 可被弹幕追踪的实体标记组件。
 /// 将此组件添加到任何需要被自机狙/追踪行为追踪的实体
-/// （战斗玩家、Overworld玩家等）。
+/// （例如玩家控制实体或脚本控制实体）。
 #[derive(Component, Debug, Default, Clone)]
 pub struct BulletTarget {
     /// Optional priority for targeting (higher = more likely to be targeted)

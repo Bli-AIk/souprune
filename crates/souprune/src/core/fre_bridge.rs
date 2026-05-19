@@ -15,6 +15,7 @@ mod collision_bridge;
 mod custom_dispatch;
 pub(crate) mod eval;
 pub mod extensions;
+mod input;
 mod state_sync;
 mod view_actions;
 
@@ -38,6 +39,14 @@ use std::collections::HashMap;
 pub struct FreCustomActionEvent {
     pub action_type: String,
     pub params: HashMap<String, String>,
+    /// View `LocalState` values captured when a view-scoped rule emitted this action.
+    ///
+    /// View 作用域规则发出该 action 时捕获的 View `LocalState` 值。
+    pub local_state_snapshot: HashMap<String, bevy_fact_rule_event::FactValue>,
+    /// Whether plain WASM fact mutations should write back to the active View.
+    ///
+    /// 普通 WASM fact mutation 是否应写回当前活跃 View。
+    pub targets_view_local_state: bool,
 }
 
 /// Plugin for FRE-View bridge systems.
@@ -58,7 +67,7 @@ impl Plugin for FREBridgePlugin {
                 (
                     state_sync::sync_state_to_facts_system
                         .run_if(state_sync::state_facts_need_sync),
-                    state_sync::action_to_fre_event_system,
+                    input::dispatch_fre_input_system,
                     state_sync::mode_change_to_fre_event_system,
                     collision_bridge::collision_to_fact_bridge_system,
                     view_actions::process_view_actions_system,
@@ -66,6 +75,7 @@ impl Plugin for FREBridgePlugin {
                     view_actions::handle_switch_state_system,
                 )
                     .chain()
+                    .after(crate::core::input::InputTransactionSet)
                     .after(FRESystemSet::EmitEvents)
                     .before(FRESystemSet::ProcessRules),
             );

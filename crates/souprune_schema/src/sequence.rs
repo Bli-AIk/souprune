@@ -47,7 +47,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn rejects_split_battle_box_with_legacy_easing_alias() {
+    fn rejects_battle_box_chapters_in_generic_sequence_schema() {
         let ron = r#"SplitBattleBox(
             source: "main",
             result: ("left", "right"),
@@ -59,78 +59,21 @@ mod tests {
             easing: OutCubic,
         )"#;
 
-        let error = ron::from_str::<Chapter>(ron).expect_err("legacy easing alias should fail");
+        let error = ron::from_str::<Chapter>(ron).expect_err("battle-specific chapter should fail");
         assert!(
-            error.to_string().contains("OutCubic"),
-            "error should mention rejected legacy alias: {error}",
+            error.to_string().contains("SplitBattleBox"),
+            "error should mention rejected chapter name: {error}",
         );
     }
 
     #[test]
-    fn parses_split_battle_box_with_canonical_easing_name() {
-        let ron = r#"SplitBattleBox(
-            source: "main",
-            result: ("left", "right"),
-            axis: Vertical,
-            position: 0.0,
-            gap: 20.0,
-            gap_policy: Expands,
-            duration: 0.3,
-            easing: CubicOut,
-        )"#;
-
-        let chapter: Chapter = ron::from_str(ron).expect("SplitBattleBox should parse");
-        match chapter {
-            Chapter::SplitBattleBox {
-                source,
-                result,
-                axis,
-                gap_policy,
-                easing,
-                ..
-            } => {
-                assert_eq!(source, "main");
-                assert_eq!(result, ("left".to_string(), "right".to_string()));
-                assert_eq!(axis, SplitAxis::Vertical);
-                assert_eq!(gap_policy, GapPolicy::Expands);
-                assert_eq!(easing, EaseKindRepr::CubicOut);
-            }
-            other => panic!("unexpected chapter parsed: {other:?}"),
-        }
-    }
-
-    #[test]
-    fn parses_merge_battle_boxes_and_log_chapters() {
-        let merge = r#"MergeBattleBoxes(
-            sources: ("left", "right"),
-            result: "main",
-            gap_policy: Includes,
-            duration: 0.5,
-            easing: CubicOut,
-        )"#;
+    fn parses_log_chapter() {
         let log = r#"Log(
             text: "hello",
             level: Warn,
         )"#;
 
-        let merge_chapter: Chapter = ron::from_str(merge).expect("MergeBattleBoxes should parse");
         let log_chapter: Chapter = ron::from_str(log).expect("Log should parse");
-
-        match merge_chapter {
-            Chapter::MergeBattleBoxes {
-                sources,
-                result,
-                gap_policy,
-                easing,
-                ..
-            } => {
-                assert_eq!(sources, ("left".to_string(), "right".to_string()));
-                assert_eq!(result, "main");
-                assert_eq!(gap_policy, GapPolicy::Includes);
-                assert_eq!(easing, EaseKindRepr::CubicOut);
-            }
-            other => panic!("unexpected chapter parsed: {other:?}"),
-        }
 
         match log_chapter {
             Chapter::Log { text, level } => {

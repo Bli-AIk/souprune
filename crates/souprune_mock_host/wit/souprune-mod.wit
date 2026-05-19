@@ -29,6 +29,30 @@ interface host-api {
         y: f32,
     }
 
+    /// Opaque handle for a host-owned entity primitive.
+    ///
+    /// 宿主拥有的实体 primitive 的不透明句柄。
+    type entity-handle = u64;
+
+    /// Opaque handle for a host-owned ViewBox primitive.
+    ///
+    /// 宿主拥有的 ViewBox primitive 的不透明句柄。
+    type view-box-handle = u64;
+
+    /// Collider shape used by host-side movement constraints.
+    ///
+    /// 宿主侧移动约束使用的碰撞体形状。
+    variant collider-shape {
+        /// Circle collider radius.
+        ///
+        /// 圆形碰撞体半径。
+        circle(f32),
+        /// Axis-aligned rectangle collider half size.
+        ///
+        /// 轴对齐矩形碰撞体半尺寸。
+        rectangle(vec2),
+    }
+
     /// Typed value for FRE facts.
     variant fact-value {
         int-val(s64),
@@ -48,6 +72,61 @@ interface host-api {
 
     /// Set the entity's velocity.
     set-velocity: func(velocity: vec2);
+
+    /// Create a host-owned collision region from center and half-size.
+    ///
+    /// 通过中心点和半尺寸创建宿主拥有的碰撞区域。
+    create-collision-region: func(center: vec2, half-size: vec2) -> u64;
+
+    /// Remove a host-owned collision region by handle.
+    ///
+    /// 按句柄移除宿主拥有的碰撞区域。
+    remove-collision-region: func(region: u64);
+
+    /// Update a host-owned collision region from center and half-size.
+    ///
+    /// 通过中心点和半尺寸更新宿主拥有的碰撞区域。
+    set-collision-region-bounds: func(region: u64, center: vec2, half-size: vec2);
+
+    /// Create a host-owned movement constraint for a region and collider.
+    ///
+    /// 为区域和碰撞体创建宿主拥有的移动约束。
+    create-movement-constraint: func(region: u64, collider: collider-shape) -> option<u64>;
+
+    /// Remove a host-owned movement constraint by handle.
+    ///
+    /// 按句柄移除宿主拥有的移动约束。
+    remove-movement-constraint: func(constraint: u64);
+
+    /// Constrain a target position through a host-owned movement constraint.
+    ///
+    /// 通过宿主拥有的移动约束限制目标位置。
+    constrain-movement: func(constraint: u64, position: vec2) -> option<vec2>;
+
+    /// Spawn a host-owned visible ViewBox primitive.
+    ///
+    /// 生成一个由宿主拥有的可见 ViewBox primitive。
+    spawn-view-box: func(center: vec2, size: vec2, border-width: f32) -> view-box-handle;
+
+    /// Update a host-owned ViewBox primitive's center and size.
+    ///
+    /// 更新宿主拥有的 ViewBox primitive 的中心点和尺寸。
+    set-view-box-bounds: func(handle: view-box-handle, center: vec2, size: vec2);
+
+    /// Tween a host-owned ViewBox primitive's center and size on the host.
+    ///
+    /// 在宿主侧对 ViewBox primitive 的中心点和尺寸执行 tween。
+    tween-view-box-bounds: func(handle: view-box-handle, center: vec2, size: vec2, duration-secs: f32);
+
+    /// Update a host-owned ViewBox primitive's visibility.
+    ///
+    /// 更新宿主拥有的 ViewBox primitive 的可见性。
+    set-view-box-visible: func(handle: view-box-handle, visible: bool);
+
+    /// Remove a host-owned entity primitive by handle.
+    ///
+    /// 按句柄移除宿主拥有的实体 primitive。
+    remove-entity: func(handle: entity-handle);
 
     /// Get the current entity's world position.
     get-entity-position: func() -> vec2;
@@ -101,10 +180,51 @@ interface host-api {
 interface behavior {
     use host-api.{vec2};
 
+    /// High-level input context kind.
+    ///
+    /// 高层输入上下文类别。
+    enum input-context-kind {
+        mode,
+        dialogue,
+        view,
+        custom,
+    }
+
+    /// High-level input context identifier. When kind is `mode`,
+    /// `custom-name` stores the project-declared mode name.
+    ///
+    /// 高层输入上下文标识。当 kind 为 `mode` 时，
+    /// `custom-name` 存储项目声明的 mode 名称。
+    record input-context-id {
+        kind: input-context-kind,
+        custom-name: option<string>,
+    }
+
+    /// Navigation direction used by input commands.
+    ///
+    /// 输入命令使用的导航方向。
+    enum direction {
+        up,
+        down,
+        left,
+        right,
+    }
+
+    /// Semantic input command delivered to a behavior.
+    ///
+    /// 传递给行为的语义输入命令。
+    variant input-command {
+        navigate(direction),
+        confirm,
+        cancel,
+        menu,
+    }
+
     /// Lifecycle callbacks for a single behavior instance.
     resource behavior-instance {
         constructor(id: string);
         on-enter: func();
+        on-input: func(context: input-context-id, command: input-command);
         on-update: func(delta-time: f32);
         on-exit: func();
     }
@@ -237,7 +357,7 @@ interface custom-action-handler {
 /// 模式生命周期接口 — 模组导出，响应模式切换。
 /// 当 SequenceMode 或 SequenceSubState 变化时，引擎调用这些回调。
 interface mode-lifecycle {
-    /// Called when the engine enters a new mode (e.g., "battle", "overworld").
+    /// Called when the engine enters a project-declared mode.
     on-mode-enter: func(mode: string);
 
     /// Called when the engine exits the current mode.

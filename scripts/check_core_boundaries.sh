@@ -19,9 +19,21 @@ if [ ! -f "$BASELINE_FILE" ]; then
     exit 1
 fi
 
+PYTHON_BIN="${PYTHON:-}"
+if [ -z "$PYTHON_BIN" ]; then
+    if command -v python3 >/dev/null 2>&1; then
+        PYTHON_BIN=python3
+    elif command -v python >/dev/null 2>&1; then
+        PYTHON_BIN=python
+    else
+        echo "Missing Python interpreter: expected python3 or python." >&2
+        exit 1
+    fi
+fi
+
 (
     cd "$ROOT_DIR"
-    python - <<'PY' > "$TMP_CURRENT"
+    "$PYTHON_BIN" - <<'PY' > "$TMP_CURRENT"
 import re
 import subprocess
 
@@ -72,3 +84,31 @@ if [ -n "$removed_hits" ]; then
 fi
 
 echo "Core boundary OK: no new core -> app_state dependencies."
+
+preset_hits="$(
+    cd "$ROOT_DIR"
+    rg -n "crate::preset(::|\b)|super::preset(::|\b)|crate::host_runtime(::|\b)|super::host_runtime(::|\b)" crates/souprune/src -g '*.rs' || true
+)"
+
+if [ -n "$preset_hits" ]; then
+    echo "Error: preset/host_runtime entrypoints are not allowed."
+    echo "The compiled framework no longer has a preset layer; move reusable code into core/ or project gameplay into project runtimes."
+    echo "$preset_hits"
+    exit 1
+fi
+
+echo "Core boundary OK: no preset/host_runtime entrypoints."
+
+battle_semantic_hits="$(
+    cd "$ROOT_DIR"
+    rg -n "BattleBox|BattlePlayer|BoundToBattleBox|battle_box_pattern|default_battle_box_size|AlightMotionBattleBoxMarker" crates/souprune/src/core -g '*.rs' || true
+)"
+
+if [ -n "$battle_semantic_hits" ]; then
+    echo "Error: battle gameplay abstractions are not allowed in core/."
+    echo "Core may provide generic primitives, but BattleBox/BattlePlayer semantics must live outside core."
+    echo "$battle_semantic_hits"
+    exit 1
+fi
+
+echo "Core boundary OK: no BattleBox/BattlePlayer gameplay abstractions in core."

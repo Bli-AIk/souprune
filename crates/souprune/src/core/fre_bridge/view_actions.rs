@@ -14,6 +14,7 @@
 
 use super::extensions::{ViewActionExecCtx, ViewActionExtensions};
 use super::{evaluate_conditions, evaluate_local_fact_value};
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy_fact_rule_event::{
     CombinedFactReader, EnumRegistry, FactEvent, FactValue, LayeredFactDatabase, PendingFactEvents,
@@ -21,10 +22,29 @@ use bevy_fact_rule_event::{
 
 use crate::config::SoupruneConfig;
 use crate::core::audio;
+use crate::core::fre_bridge::FreCustomActionEvent;
 use crate::core::fre_facts;
 use crate::core::game_action::{GameActionDef, GameRule, GameRuleRegistry};
 use crate::core::mode::SequenceSubState;
 use crate::core::view::components::{ActiveView, ViewRoot};
+
+#[derive(SystemParam)]
+pub struct ViewActionSystemParams<'w> {
+    audio: Res<'w, bevy_kira_audio::Audio>,
+    asset_server: Res<'w, AssetServer>,
+    audio_cache: ResMut<'w, audio::AudioSourceCache>,
+    global_facts: ResMut<'w, LayeredFactDatabase>,
+    pending_events: ResMut<'w, PendingFactEvents>,
+    trigger_history: Option<ResMut<'w, crate::extra::debug::RuleTriggerHistory>>,
+    time: Res<'w, Time>,
+    enum_registry: Res<'w, EnumRegistry>,
+    souprune_config: Res<'w, SoupruneConfig>,
+    event_trace: ResMut<'w, crate::core::trace::EventTraceLog>,
+    fact_history: ResMut<'w, crate::core::trace::FactChangeHistory>,
+    frame_count: Res<'w, bevy::diagnostic::FrameCount>,
+    extensions: Res<'w, ViewActionExtensions>,
+    custom_action_writer: MessageWriter<'w, FreCustomActionEvent>,
+}
 
 fn log_event_rule_matches(event: &FactEvent, rule_groups: &[Vec<&GameRule>]) {
     if !event.id.0.contains("Left") && !event.id.0.contains("Right") {
@@ -51,19 +71,19 @@ fn log_event_rule_matches(event: &FactEvent, rule_groups: &[Vec<&GameRule>]) {
 fn log_condition_not_met(rule: &GameRule, view_root: &ViewRoot) {
     if rule.id.contains("act") || rule.id.contains("depth_2") {
         debug!(
-            "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, menu_context={:?}, act_selection={:?}, act_count={:?}",
+            "FRE Bridge: Conditions not met for rule '{}', local_state: depth={:?}, menu_context={:?}, act_selection={:?}, act_count={:?}",
             rule.id,
-            view_root.local_facts.get_int("depth"),
-            view_root.local_facts.get_int("menu_context"),
-            view_root.local_facts.get_int("act_selection"),
-            view_root.local_facts.get_int("act_count")
+            view_root.local_state().get_int("depth"),
+            view_root.local_state().get_int("menu_context"),
+            view_root.local_state().get_int("act_selection"),
+            view_root.local_state().get_int("act_count")
         );
     } else {
         debug!(
-            "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, selection={:?}",
+            "FRE Bridge: Conditions not met for rule '{}', local_state: depth={:?}, selection={:?}",
             rule.id,
-            view_root.local_facts.get_int("depth"),
-            view_root.local_facts.get_int("selection")
+            view_root.local_state().get_int("depth"),
+            view_root.local_state().get_int("selection")
         );
     }
 }
@@ -85,6 +105,7 @@ fn process_event_view_actions(
     fact_history: &mut crate::core::trace::FactChangeHistory,
     frame_number: u64,
     extensions: &ViewActionExtensions,
+    custom_action_writer: &mut MessageWriter<FreCustomActionEvent>,
 ) {
     let rule_groups = rule_registry.get_matching_rules_grouped(event);
     log_event_rule_matches(event, &rule_groups);
@@ -96,7 +117,7 @@ fn process_event_view_actions(
                 continue;
             };
 
-            let combined = CombinedFactReader::new(&view_root.local_facts, global_facts);
+            let combined = CombinedFactReader::new(view_root.local_state(), global_facts);
             if !evaluate_conditions(&rule.condition_expressions, &combined, enum_registry) {
                 log_condition_not_met(rule, &view_root);
                 continue;
@@ -134,7 +155,7 @@ fn process_event_view_actions(
             for action in &rule.actions {
                 execute_action(
                     action,
-                    &mut view_root.local_facts,
+                    &mut view_root,
                     global_facts,
                     audio,
                     asset_server,
@@ -145,6 +166,7 @@ fn process_event_view_actions(
                     frame_number,
                     &rule.id,
                     extensions,
+                    custom_action_writer,
                 );
             }
 
@@ -163,25 +185,13 @@ pub fn process_view_actions_system(
     mut events: MessageReader<FactEvent>,
     rule_registry: Res<GameRuleRegistry>,
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
-    audio: Res<bevy_kira_audio::Audio>,
-    asset_server: Res<AssetServer>,
-    mut audio_cache: ResMut<audio::AudioSourceCache>,
-    mut global_facts: ResMut<LayeredFactDatabase>,
-    mut pending_events: ResMut<PendingFactEvents>,
-    mut trigger_history: Option<ResMut<crate::extra::debug::RuleTriggerHistory>>,
-    time: Res<Time>,
-    enum_registry: Res<EnumRegistry>,
-    souprune_config: Res<SoupruneConfig>,
-    mut event_trace: ResMut<crate::core::trace::EventTraceLog>,
-    mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
-    frame_count: Res<bevy::diagnostic::FrameCount>,
-    extensions: Res<ViewActionExtensions>,
+    mut params: ViewActionSystemParams,
 ) {
     let events_to_process: Vec<FactEvent> = events.read().cloned().collect();
 
     for event in &events_to_process {
-        let ts = time.elapsed_secs_f64();
-        event_trace.record(
+        let ts = params.time.elapsed_secs_f64();
+        params.event_trace.record(
             crate::core::trace::EventPhase::Logic,
             "FactEvent",
             format!("event '{}'", event.id.0),
@@ -193,26 +203,27 @@ pub fn process_view_actions_system(
             event,
             &rule_registry,
             &mut active_view_query,
-            &audio,
-            &asset_server,
-            &mut audio_cache,
-            &mut global_facts,
-            &mut pending_events,
-            &mut trigger_history,
-            &time,
-            &enum_registry,
-            &souprune_config,
-            &mut event_trace,
-            &mut fact_history,
-            frame_count.0 as u64,
-            &extensions,
+            &params.audio,
+            &params.asset_server,
+            &mut params.audio_cache,
+            &mut params.global_facts,
+            &mut params.pending_events,
+            &mut params.trigger_history,
+            &params.time,
+            &params.enum_registry,
+            &params.souprune_config,
+            &mut params.event_trace,
+            &mut params.fact_history,
+            params.frame_count.0 as u64,
+            &params.extensions,
+            &mut params.custom_action_writer,
         );
     }
 }
 
 fn execute_action(
     action: &GameActionDef,
-    local_facts: &mut bevy_fact_rule_event::FactDatabase,
+    view_root: &mut ViewRoot,
     global_facts: &mut LayeredFactDatabase,
     audio: &bevy_kira_audio::Audio,
     asset_server: &AssetServer,
@@ -223,7 +234,22 @@ fn execute_action(
     frame_number: u64,
     rule_id: &str,
     extensions: &ViewActionExtensions,
+    custom_action_writer: &mut MessageWriter<FreCustomActionEvent>,
 ) {
+    if execute_view_state_action(
+        action,
+        view_root,
+        global_facts,
+        enum_registry,
+        fact_history,
+        frame_number,
+        rule_id,
+    )
+    .is_some()
+    {
+        return;
+    }
+
     match action {
         GameActionDef::PlaySound(sound_name) => {
             debug!("FRE Bridge: PlaySound({})", sound_name);
@@ -233,31 +259,9 @@ fn execute_action(
             debug!("FRE Bridge: PlaySoundFullPath({})", path);
             audio::play_sound_full_path(audio, asset_server, audio_cache, path);
         }
-        GameActionDef::SetLocalFact(key, value) => {
-            let combined = CombinedFactReader::new(local_facts, global_facts);
-            let fact_value = evaluate_local_fact_value(key, value, &combined, enum_registry);
-            let old = local_facts.get_by_str(key).cloned();
-            fact_history.record(
-                format!("local:{key}"),
-                old,
-                fact_value.clone(),
-                rule_id,
-                frame_number,
-            );
-            info!("FRE Bridge: SetLocalFact({}, {:?})", key, fact_value);
-            local_facts.set(key.as_str(), fact_value);
-        }
-        GameActionDef::CloseView => {
-            debug!("FRE Bridge: CloseView");
-            local_facts.set(fre_facts::VIEW_CLOSE_REQUESTED, FactValue::Bool(true));
-        }
-        GameActionDef::SwitchState(state_name) => {
-            debug!("FRE Bridge: SwitchState({})", state_name);
-            local_facts.set(
-                fre_facts::VIEW_SWITCH_STATE,
-                FactValue::String(state_name.clone()),
-            );
-        }
+        GameActionDef::SetLocalFact(_, _)
+        | GameActionDef::CloseView
+        | GameActionDef::SwitchState(_) => {}
         GameActionDef::EmitEvent(event_id) => {
             debug!("FRE Bridge: EmitEvent({})", event_id);
         }
@@ -269,8 +273,16 @@ fn execute_action(
             action_type,
             params,
         } => {
+            let local_state_snapshot = view_root
+                .local_state()
+                .iter()
+                .map(|(key, value)| (key.clone(), value.clone()))
+                .collect();
+            let local_state = view_root
+                .local_state_mut_for_owner()
+                .as_facts_mut_for_owner();
             let mut ctx = ViewActionExecCtx {
-                local_facts,
+                local_state,
                 global_facts,
                 audio,
                 asset_server,
@@ -286,11 +298,56 @@ fn execute_action(
                     "FRE Bridge: Unhandled custom action '{}' with params {:?}",
                     action_type, params
                 );
+                custom_action_writer.write(FreCustomActionEvent {
+                    action_type: action_type.clone(),
+                    params: params.clone(),
+                    local_state_snapshot,
+                    targets_view_local_state: true,
+                });
             }
         }
         GameActionDef::Log { message } => {
             info!("FRE Bridge: Log: {}", message);
         }
+    }
+}
+
+fn execute_view_state_action(
+    action: &GameActionDef,
+    view_root: &mut ViewRoot,
+    global_facts: &LayeredFactDatabase,
+    enum_registry: &EnumRegistry,
+    fact_history: &mut crate::core::trace::FactChangeHistory,
+    frame_number: u64,
+    rule_id: &str,
+) -> Option<()> {
+    match action {
+        GameActionDef::SetLocalFact(key, value) => {
+            let combined = CombinedFactReader::new(view_root.local_state(), global_facts);
+            let fact_value = evaluate_local_fact_value(key, value, &combined, enum_registry);
+            let old = view_root.local_state().get_by_str(key).cloned();
+            fact_history.record(
+                format!("local:{key}"),
+                old,
+                fact_value.clone(),
+                rule_id,
+                frame_number,
+            );
+            info!("FRE Bridge: SetLocalFact({}, {:?})", key, fact_value);
+            view_root.set_local_value(key.as_str(), fact_value);
+            Some(())
+        }
+        GameActionDef::CloseView => {
+            debug!("FRE Bridge: CloseView");
+            view_root.request_close();
+            Some(())
+        }
+        GameActionDef::SwitchState(state_name) => {
+            debug!("FRE Bridge: SwitchState({})", state_name);
+            view_root.switch_state(state_name.clone());
+            Some(())
+        }
+        _ => None,
     }
 }
 
@@ -300,13 +357,44 @@ pub fn handle_switch_state_system(
 ) {
     for mut view_root in active_view_query.iter_mut() {
         if let Some(FactValue::String(state_name)) = view_root
-            .local_facts
+            .local_state()
             .get_by_str(fre_facts::VIEW_SWITCH_STATE)
         {
             let state_name = state_name.clone();
             info!("FRE Bridge: Switching to state '{}'", state_name);
             next_state.set(SequenceSubState::new(&state_name));
-            view_root.local_facts.remove(fre_facts::VIEW_SWITCH_STATE);
+            view_root.remove_local_value(fre_facts::VIEW_SWITCH_STATE);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy_fact_rule_event::{EnumRegistry, LayeredFactDatabase, LocalFactValue};
+
+    #[test]
+    fn set_local_fact_updates_active_view_through_controlled_write() {
+        let mut view_root = ViewRoot::new("tests/menu.view.ron".to_string());
+        view_root.set_local_value("selection", FactValue::Int(0));
+        let global_facts = LayeredFactDatabase::new();
+        let enum_registry = EnumRegistry::default();
+        let mut fact_history = crate::core::trace::FactChangeHistory::default();
+
+        execute_view_state_action(
+            &GameActionDef::SetLocalFact(
+                "selection".to_string(),
+                LocalFactValue::Expr("$selection + 1".to_string()),
+            ),
+            &mut view_root,
+            &global_facts,
+            &enum_registry,
+            &mut fact_history,
+            1,
+            "test_rule",
+        )
+        .expect("SetLocalFact should be a view-state action");
+
+        assert_eq!(view_root.local_state().get_int("selection"), Some(1));
     }
 }

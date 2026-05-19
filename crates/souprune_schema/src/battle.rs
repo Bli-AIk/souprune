@@ -1,53 +1,10 @@
 //! # battle.rs
 //!
-//! BattlePlayerConfig schema types for `.battle_player.ron` files.
-//! Mirrors `souprune::app_state::battle::player_config_schema` without Bevy dependency.
+//! Battle-specific shared data schema types.
 //!
-//! `.battle_player.ron` 文件的战斗玩家配置 Schema 类型。
+//! 战斗相关共享数据 Schema 类型。
 
-use crate::bevy_types::BevyColor;
 use serde::{Deserialize, Serialize};
-
-/// Collider shape for battle entities.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum BattleColliderShape {
-    Circle { radius: f32 },
-    Box { half_size: (f32, f32) },
-}
-
-/// Collider configuration with debug visualization offset.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ColliderConfig {
-    pub shape: BattleColliderShape,
-    pub debug_z_offset: f32,
-}
-
-/// Invincibility configuration for battle damage behavior.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct BattleInvincibilityConfig {
-    #[serde(default = "default_invincibility_duration")]
-    pub duration: f32,
-    #[serde(default = "default_flash_interval")]
-    pub flash_interval: f32,
-    #[serde(default = "default_normal_color")]
-    pub normal_color: BevyColor,
-    #[serde(default = "default_flash_color")]
-    pub flash_color: BevyColor,
-    #[serde(default)]
-    pub damage_sound: Option<String>,
-}
-
-impl Default for BattleInvincibilityConfig {
-    fn default() -> Self {
-        Self {
-            duration: default_invincibility_duration(),
-            flash_interval: default_flash_interval(),
-            normal_color: default_normal_color(),
-            flash_color: default_flash_color(),
-            damage_sound: None,
-        }
-    }
-}
 
 /// Battle enemy speech bubble request data.
 ///
@@ -132,57 +89,6 @@ pub enum BattleSpeechBubbleAdvance {
     },
 }
 
-/// Battle player configuration — top-level `.battle_player.ron` schema.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct BattlePlayerConfig {
-    pub sprite_path: String,
-    pub color: BevyColor,
-    pub physics_collider: ColliderConfig,
-    pub damage_trigger: ColliderConfig,
-    pub z_position: f32,
-    pub default_mode_id: String,
-    pub speed: f32,
-    pub focus_speed_ratio: f32,
-    #[serde(default = "default_box_id")]
-    pub default_box: String,
-    #[serde(default)]
-    pub invincibility: BattleInvincibilityConfig,
-}
-
-// ============================================================================
-// Default helpers
-// ============================================================================
-
-fn default_invincibility_duration() -> f32 {
-    1.0
-}
-
-fn default_flash_interval() -> f32 {
-    0.25
-}
-
-fn default_normal_color() -> BevyColor {
-    BevyColor::Srgba(crate::bevy_types::SrgbaColor {
-        red: 1.0,
-        green: 0.0,
-        blue: 0.0,
-        alpha: 1.0,
-    })
-}
-
-fn default_flash_color() -> BevyColor {
-    BevyColor::Srgba(crate::bevy_types::SrgbaColor {
-        red: 0.5,
-        green: 0.0,
-        blue: 0.0,
-        alpha: 1.0,
-    })
-}
-
-fn default_box_id() -> String {
-    "main".to_string()
-}
-
 fn default_enemy_speech_channel() -> String {
     "battle_enemy_speech".to_string()
 }
@@ -194,34 +100,6 @@ fn default_true() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn parses_battle_player_config_with_default_box() {
-        let ron = r#"(
-            sprite_path: "assets/textures/common/view/heart.png",
-            color: Srgba((red: 1.0, green: 0.0, blue: 0.0, alpha: 1.0)),
-            physics_collider: (
-                shape: Circle(radius: 8.0),
-                debug_z_offset: 10.0,
-            ),
-            damage_trigger: (
-                shape: Box(half_size: (2.0, 2.0)),
-                debug_z_offset: 12.0,
-            ),
-            z_position: 10.0,
-            default_mode_id: "soul_red",
-            speed: 150.0,
-            focus_speed_ratio: 0.5,
-        )"#;
-
-        let config: BattlePlayerConfig = ron::from_str(ron).expect("battle player config");
-
-        assert_eq!(config.default_box, "main");
-        match config.damage_trigger.shape {
-            BattleColliderShape::Box { half_size } => assert_eq!(half_size, (2.0, 2.0)),
-            other => panic!("unexpected collider parsed: {other:?}"),
-        }
-    }
 
     #[test]
     fn parses_battle_speech_bubble_with_manual_advance() {

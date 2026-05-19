@@ -58,7 +58,7 @@ pub fn process_run_sequence_system(
         } else if let Some(fact_key) = path_fact {
             let local_path = view_roots.iter().next().and_then(|view_root| {
                 view_root
-                    .local_facts
+                    .local_state()
                     .get_string(fact_key)
                     .map(ToString::to_string)
             });

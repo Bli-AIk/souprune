@@ -130,13 +130,13 @@ fn process_interface_requirement(
             );
         }
         crate::core::sequencer::chapter_schema::DataBinding::LocalLayer => {
-            // Copy facts from LOCAL layer to view's local_facts.
+            // Copy facts from LOCAL layer to the View's LocalState.
             // Skip dialogue:* facts — they are system-managed and updated
             // every frame in LayeredFactDatabase. Copying them here would
             // create stale snapshots that shadow the live values during
-            // condition evaluation (which checks local_facts first).
+            // condition evaluation (which checks LocalState first).
             //
-            // 从 LOCAL 层复制 facts 到 view 的 local_facts。
+            // 从 LOCAL 层复制 facts 到 View 的 LocalState。
             // 跳过 dialogue:* facts —— 它们由系统管理并每帧更新。
             for (key, value) in layered_db.iter_local() {
                 if key.starts_with("dialogue:") {
@@ -147,17 +147,17 @@ fn process_interface_requirement(
                 match value {
                     bevy_fact_rule_event::FactValue::String(s) => {
                         let resolved = resolve_simple_localization(s, mortar_strings);
-                        view_root.local_facts.set(key.clone(), resolved);
+                        view_root.set_local_value(key.clone(), resolved);
                     }
                     bevy_fact_rule_event::FactValue::StringList(list) => {
                         let resolved_list: Vec<String> = list
                             .iter()
                             .map(|s| resolve_simple_localization(s, mortar_strings))
                             .collect();
-                        view_root.local_facts.set(key.clone(), resolved_list);
+                        view_root.set_local_value(key.clone(), resolved_list);
                     }
                     _ => {
-                        view_root.local_facts.set(key.clone(), value.clone());
+                        view_root.set_local_value(key.clone(), value.clone());
                     }
                 }
             }
@@ -198,7 +198,7 @@ pub fn spawn_ron_view_for_entity(
     // 从布局路径生成命名空间
     let namespace = crate::core::view::components::ViewRoot::namespace_from_path(layout_path);
 
-    // Create ViewRoot with local facts initialized from layout
+    // Create ViewRoot with LocalState initialized from layout.
     // 创建带有从布局初始化的局部事实的 ViewRoot
     let mut view_root = crate::core::view::components::ViewRoot::new(layout_path.to_string());
 
@@ -263,16 +263,16 @@ pub fn spawn_ron_view_for_entity(
         }
     }
 
-    // Initialize local_facts from inline facts in layout
-    // 从布局中的内联 facts 初始化 local_facts
+    // Initialize LocalState from inline facts in layout.
+    // 从布局中的内联 facts 初始化 LocalState。
     if let Some(facts) = &view_layout.facts {
         for (key, value) in facts {
             use crate::core::view::layout::InitialFactValue;
             match value {
-                InitialFactValue::Int(i) => view_root.local_facts.set(key.clone(), *i),
-                InitialFactValue::Float(f) => view_root.local_facts.set(key.clone(), *f),
-                InitialFactValue::Bool(b) => view_root.local_facts.set(key.clone(), *b),
-                InitialFactValue::String(s) => view_root.local_facts.set(key.clone(), s.clone()),
+                InitialFactValue::Int(i) => view_root.set_local_value(key.clone(), *i),
+                InitialFactValue::Float(f) => view_root.set_local_value(key.clone(), *f),
+                InitialFactValue::Bool(b) => view_root.set_local_value(key.clone(), *b),
+                InitialFactValue::String(s) => view_root.set_local_value(key.clone(), s.clone()),
                 InitialFactValue::StringList(list) => {
                     // Resolve localization references in string list items
                     // 解析字符串列表项中的本地化引用
@@ -280,10 +280,10 @@ pub fn spawn_ron_view_for_entity(
                         .iter()
                         .map(|s| resolve_simple_localization(s, mortar_strings))
                         .collect();
-                    view_root.local_facts.set(key.clone(), resolved_list)
+                    view_root.set_local_value(key.clone(), resolved_list)
                 }
                 InitialFactValue::IntList(list) => {
-                    view_root.local_facts.set(key.clone(), list.clone())
+                    view_root.set_local_value(key.clone(), list.clone())
                 }
             }
         }
@@ -302,13 +302,13 @@ pub fn spawn_ron_view_for_entity(
         enum_registry,
     );
 
-    // Spawn view nodes BEFORE attaching ViewRoot, using a player_data with local_facts
-    // 在附加 ViewRoot 之前生成视图节点，使用带有 local_facts 的 player_data
+    // Spawn view nodes BEFORE attaching ViewRoot, using player_data with LocalState.
+    // 在附加 ViewRoot 之前生成视图节点，使用带有 LocalState 的 player_data。
     {
-        // Create player_data with local_facts for spawning children
-        // 使用 local_facts 创建 player_data 以生成子节点
+        // Create player_data with LocalState for spawning children.
+        // 使用 LocalState 创建 player_data 以生成子节点。
         let player_data_with_locals =
-            PlayerDataView::with_local_facts(player_data.db(), &view_root.local_facts);
+            PlayerDataView::with_local_state(player_data.db(), view_root.local_state());
 
         for root in &view_layout.roots {
             spawn_view_node(

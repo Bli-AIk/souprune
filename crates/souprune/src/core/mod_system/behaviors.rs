@@ -8,12 +8,17 @@ use souprune_api::Action;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::audio_effects::PendingAudioEffects;
 use super::custom_actions::{apply_pending_side_effects, build_fact_snapshot};
-use super::{BehaviorRegistry, LoadedMods};
+use super::host_entities::PendingHostEntityEffects;
+use super::{BehaviorRegistry, LoadedMods, wasm_runtime};
+use crate::core::input::{
+    Direction, InputCommand, InputContextId, InputEnvelope, InputEnvelopeEvent, InputTarget,
+};
 
 /// Which game context a WASM behavior is allowed to run in.
 /// An empty string means "any mode". Otherwise, the tag is matched against
-/// the current `SequenceMode` name (e.g. `"battle"`, `"overworld"`).
+/// the current project-declared `SequenceMode` name.
 ///
 /// WASM 行为允许运行的游戏上下文。
 /// 空字符串表示"任何模式"。否则标签与当前 `SequenceMode` 名称匹配。
@@ -60,6 +65,7 @@ pub struct BehaviorVelocity(pub Vec2);
 /// Active WASM behavior instance, holding a resource handle inside the WASM store.
 #[derive(Component)]
 pub struct ActiveBehavior {
+    behavior_id: String,
     mod_index: usize,
     resource_handle: wasmtime::component::ResourceAny,
 }
@@ -72,7 +78,12 @@ pub(super) fn init_behaviors_system(
     query: Query<(Entity, &BehaviorParams), Added<BehaviorParams>>,
     behavior_registry: Res<BehaviorRegistry>,
     mut loaded_mods: NonSendMut<LoadedMods>,
-    fact_db: Res<LayeredFactDatabase>,
+    mut fact_db: ResMut<LayeredFactDatabase>,
+    mut fact_writer: MessageWriter<FactEvent>,
+    mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
+    mut host_entity_effects: ResMut<PendingHostEntityEffects>,
+    mut audio_effects: ResMut<PendingAudioEffects>,
+    frame_count: Res<bevy::diagnostic::FrameCount>,
 ) {
     if query.is_empty() {
         return;
@@ -100,10 +111,10 @@ pub(super) fn init_behaviors_system(
                 {
                     let ctx = loaded.store.data_mut();
                     ctx.call_ctx.fact_snapshot = Arc::clone(&fact_snapshot);
-                    ctx.call_ctx.pending_fact_mutations.clear();
-                    ctx.call_ctx.pending_events.clear();
+                    ctx.call_ctx.clear_pending_side_effects();
                 }
 
+                let mod_name = loaded.name.clone();
                 if let Err(e) = behavior_iface
                     .behavior_instance()
                     .call_on_enter(&mut loaded.store, handle)
@@ -114,8 +125,24 @@ pub(super) fn init_behaviors_system(
                     );
                 }
 
+                let pending = loaded.store.data_mut().call_ctx.take_pending_side_effects();
+                if !pending.is_empty() {
+                    apply_pending_side_effects(
+                        pending,
+                        &mut fact_db,
+                        &mut fact_writer,
+                        &mut fact_history,
+                        &mut host_entity_effects,
+                        &mut audio_effects,
+                        None,
+                        frame_count.0 as u64,
+                        &format!("behavior-enter:{mod_name}"),
+                    );
+                }
+
                 commands.entity(entity).insert((
                     ActiveBehavior {
+                        behavior_id: params.behavior_id.clone(),
                         mod_index,
                         resource_handle: handle,
                     },
@@ -129,6 +156,135 @@ pub(super) fn init_behaviors_system(
     }
 }
 
+pub(super) fn dispatch_behavior_input_system(
+    mut events: MessageReader<InputEnvelopeEvent>,
+    query: Query<(
+        &BehaviorContext,
+        &ActiveBehavior,
+        Option<&BehaviorVelocity>,
+        &Transform,
+    )>,
+    mode: Res<crate::core::mode::SequenceMode>,
+    mut loaded_mods: NonSendMut<LoadedMods>,
+    mut fact_db: ResMut<LayeredFactDatabase>,
+    mut fact_writer: MessageWriter<FactEvent>,
+    mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
+    mut host_entity_effects: ResMut<PendingHostEntityEffects>,
+    mut audio_effects: ResMut<PendingAudioEffects>,
+    frame_count: Res<bevy::diagnostic::FrameCount>,
+    mut wasm_tracer: ResMut<crate::core::trace::WasmCallTracer>,
+) {
+    let events: Vec<InputEnvelopeEvent> = events.read().cloned().collect();
+    if events.is_empty() {
+        return;
+    }
+
+    let fact_snapshot = build_fact_snapshot(&fact_db);
+
+    for event in &events {
+        for (behavior_context, active, velocity, transform) in query.iter() {
+            if !behavior_context.matches(&mode)
+                || !input_envelope_targets_behavior(&event.envelope, &active.behavior_id)
+            {
+                continue;
+            }
+
+            let Some(loaded) = loaded_mods.mods.get_mut(active.mod_index) else {
+                continue;
+            };
+
+            {
+                let ctx = loaded.store.data_mut();
+                ctx.call_ctx.velocity = velocity.map_or(Vec2::ZERO, |v| v.0);
+                ctx.call_ctx.entity_position = transform.translation.truncate();
+                ctx.call_ctx.fact_snapshot = Arc::clone(&fact_snapshot);
+                ctx.call_ctx.clear_pending_side_effects();
+            }
+
+            let behavior_iface = loaded.bindings.souprune_plugin_behavior();
+            let wit_context = input_context_to_wit(&event.envelope.context);
+            let wit_command = input_command_to_wit(&event.envelope.command);
+            let start = std::time::Instant::now();
+            let result = behavior_iface.behavior_instance().call_on_input(
+                &mut loaded.store,
+                active.resource_handle,
+                &wit_context,
+                wit_command,
+            );
+            let elapsed = start.elapsed();
+            wasm_tracer.record(&loaded.name, "behavior", "on_input", elapsed);
+
+            if let Err(e) = result {
+                error!(
+                    "Behavior on_input failed for {}: {:?}",
+                    active.behavior_id, e
+                );
+                continue;
+            }
+
+            let mod_name = loaded.name.clone();
+            let pending = loaded.store.data_mut().call_ctx.take_pending_side_effects();
+            if !pending.is_empty() {
+                apply_pending_side_effects(
+                    pending,
+                    &mut fact_db,
+                    &mut fact_writer,
+                    &mut fact_history,
+                    &mut host_entity_effects,
+                    &mut audio_effects,
+                    None,
+                    frame_count.0 as u64,
+                    &format!("behavior-input:{mod_name}"),
+                );
+            }
+        }
+    }
+}
+
+fn input_envelope_targets_behavior(envelope: &InputEnvelope, behavior_id: &str) -> bool {
+    match &envelope.target {
+        InputTarget::Behavior(target_id) => target_id == behavior_id,
+        InputTarget::ActiveView | InputTarget::FreScope => true,
+    }
+}
+
+fn input_context_to_wit(
+    context: &InputContextId,
+) -> wasm_runtime::exports::souprune::plugin::behavior::InputContextId {
+    use wasm_runtime::exports::souprune::plugin::behavior::{
+        InputContextId as WitInputContextId, InputContextKind,
+    };
+
+    let (kind, custom_name) = match context {
+        InputContextId::Mode(name) => (InputContextKind::Mode, Some(name.clone())),
+        InputContextId::Dialogue => (InputContextKind::Dialogue, None),
+        InputContextId::View => (InputContextKind::View, None),
+        InputContextId::Custom(name) => (InputContextKind::Custom, Some(name.clone())),
+    };
+
+    WitInputContextId { kind, custom_name }
+}
+
+fn input_command_to_wit(
+    command: &InputCommand,
+) -> wasm_runtime::exports::souprune::plugin::behavior::InputCommand {
+    use wasm_runtime::exports::souprune::plugin::behavior::{
+        Direction as WitDirection, InputCommand as WitInputCommand,
+    };
+
+    match command {
+        InputCommand::Navigate(direction) => WitInputCommand::Navigate(match direction {
+            Direction::Up => WitDirection::Up,
+            Direction::Down => WitDirection::Down,
+            Direction::Left => WitDirection::Left,
+            Direction::Right => WitDirection::Right,
+        }),
+        InputCommand::Confirm => WitInputCommand::Confirm,
+        InputCommand::Cancel => WitInputCommand::Cancel,
+        InputCommand::Menu => WitInputCommand::Menu,
+    }
+}
+
 pub(super) fn update_behaviors_system(
     mut query: Query<(
         Entity,
@@ -139,7 +295,7 @@ pub(super) fn update_behaviors_system(
     )>,
     action_states: Query<
         &leafwing_input_manager::action_state::ActionState<crate::core::input::actions::Action>,
-        With<crate::core::battle_runtime::BattleInputManager>,
+        With<crate::core::fixed_scene::FixedSceneInputManager>,
     >,
     registry: Res<crate::core::input::actions::ActionRegistry>,
     time: Res<Time>,
@@ -148,6 +304,8 @@ pub(super) fn update_behaviors_system(
     mut fact_db: ResMut<LayeredFactDatabase>,
     mut fact_writer: MessageWriter<FactEvent>,
     mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
+    mut host_entity_effects: ResMut<PendingHostEntityEffects>,
+    mut audio_effects: ResMut<PendingAudioEffects>,
     frame_count: Res<bevy::diagnostic::FrameCount>,
     mut cached_snapshot: Local<Arc<HashMap<String, FactValue>>>,
 ) {
@@ -195,8 +353,7 @@ pub(super) fn update_behaviors_system(
             ctx.call_ctx.entity_position = transform.translation.truncate();
             ctx.call_ctx.delta_time = dt;
             ctx.call_ctx.fact_snapshot = Arc::clone(&cached_snapshot);
-            ctx.call_ctx.pending_fact_mutations.clear();
-            ctx.call_ctx.pending_events.clear();
+            ctx.call_ctx.clear_pending_side_effects();
         }
 
         let behavior_iface = loaded.bindings.souprune_plugin_behavior();
@@ -218,19 +375,85 @@ pub(super) fn update_behaviors_system(
 
         let mod_name = loaded.name.clone();
 
-        let mutations =
-            std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_fact_mutations);
-        let events = std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_events);
-        if !mutations.is_empty() || !events.is_empty() {
+        let pending = loaded.store.data_mut().call_ctx.take_pending_side_effects();
+        if !pending.is_empty() {
             apply_pending_side_effects(
-                mutations,
-                events,
+                pending,
                 &mut fact_db,
                 &mut fact_writer,
                 &mut fact_history,
+                &mut host_entity_effects,
+                &mut audio_effects,
+                None,
                 frame_count.0 as u64,
                 &format!("behavior:{mod_name}"),
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wasm_runtime::exports::souprune::plugin::behavior::{
+        Direction as WitDirection, InputCommand as WitInputCommand, InputContextKind,
+    };
+
+    #[test]
+    fn behavior_target_only_matches_requested_behavior_id() {
+        let envelope = InputEnvelope::new(
+            InputContextId::Mode("battle".to_string()),
+            InputTarget::Behavior("menu".to_string()),
+            InputCommand::Confirm,
+            "Confirm",
+        );
+
+        assert!(input_envelope_targets_behavior(&envelope, "menu"));
+        assert!(!input_envelope_targets_behavior(&envelope, "soul"));
+    }
+
+    #[test]
+    fn side_channel_targets_reach_active_behaviors_for_phase_five() {
+        let fre_envelope = InputEnvelope::new(
+            InputContextId::Mode("battle".to_string()),
+            InputTarget::FreScope,
+            InputCommand::Confirm,
+            "Confirm",
+        );
+        let view_envelope = InputEnvelope::new(
+            InputContextId::Mode("battle".to_string()),
+            InputTarget::ActiveView,
+            InputCommand::Confirm,
+            "Confirm",
+        );
+
+        assert!(input_envelope_targets_behavior(&fre_envelope, "menu"));
+        assert!(input_envelope_targets_behavior(&view_envelope, "menu"));
+    }
+
+    #[test]
+    fn input_context_converts_declared_mode_to_wit_mode_context() {
+        let context = input_context_to_wit(&InputContextId::Mode("battle".to_string()));
+
+        assert!(matches!(context.kind, InputContextKind::Mode));
+        assert_eq!(context.custom_name.as_deref(), Some("battle"));
+    }
+
+    #[test]
+    fn input_context_converts_to_wit_custom_context() {
+        let context = input_context_to_wit(&InputContextId::Custom("pause".to_string()));
+
+        assert!(matches!(context.kind, InputContextKind::Custom));
+        assert_eq!(context.custom_name.as_deref(), Some("pause"));
+    }
+
+    #[test]
+    fn input_command_converts_to_wit_navigation_command() {
+        let command = input_command_to_wit(&InputCommand::Navigate(Direction::Left));
+
+        assert!(matches!(
+            command,
+            WitInputCommand::Navigate(WitDirection::Left)
+        ));
     }
 }

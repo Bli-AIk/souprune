@@ -4,10 +4,10 @@
 //!
 //! When a rule action is `Custom { action_type, params }`, the view action
 //! executor looks up the `action_type` in [`ViewActionExtensions`] and calls
-//! the registered handler with full view-level context (local facts, global
-//! facts, audio, etc.). This allows game-specific actions (like UseItem) to
+//! the registered handler with full view-level context (view local state, global
+//! facts, audio, etc.). This allows project-specific actions to
 //! be dispatched synchronously alongside core actions within the same rule,
-//! while keeping `GameActionDef` free of game-specific variants.
+//! while keeping `GameActionDef` free of project-specific variants.
 
 use bevy::prelude::*;
 use std::collections::HashMap;
@@ -15,10 +15,10 @@ use std::collections::HashMap;
 /// Execution context passed to extension handlers.
 ///
 /// Contains all the same resources available to built-in actions
-/// in `execute_action`, enabling extensions to modify view-local
-/// and global facts, play sounds, etc.
+/// in `execute_action`, enabling extensions to modify view `LocalState`, global
+/// facts, play sounds, etc.
 pub struct ViewActionExecCtx<'a> {
-    pub local_facts: &'a mut bevy_fact_rule_event::FactDatabase,
+    pub local_state: &'a mut bevy_fact_rule_event::FactDatabase,
     pub global_facts: &'a mut bevy_fact_rule_event::LayeredFactDatabase,
     pub audio: &'a bevy_kira_audio::Audio,
     pub asset_server: &'a AssetServer,

@@ -34,14 +34,15 @@ pub mod alight_motion_runtime;
 pub(crate) mod animation;
 pub(crate) mod audio;
 pub(crate) mod basic_components;
-pub mod battle_runtime;
 pub mod camera;
 pub(crate) mod character_asset;
 pub(crate) mod collision;
+pub mod content;
 pub mod danmaku;
 pub(crate) mod data;
 pub mod dialogue;
 pub mod event_phase;
+pub mod fixed_scene;
 pub mod fre_bridge;
 pub mod fre_facts;
 pub mod game_action;
@@ -56,10 +57,10 @@ pub mod sequencer;
 pub mod sprite;
 pub mod state_config;
 pub mod text_escape;
+pub mod top_down;
 pub mod trace;
 pub mod view;
 pub mod visual;
-pub mod wasm_runtime;
 
 use bevy::app::*;
 use bevy::asset::AssetApp;
@@ -105,6 +106,7 @@ impl Plugin for CorePlugin {
                 audio::AudioPlugin,
                 camera::CameraPlugin,
                 collision::CollisionPlugin,
+                content::ContentPlugin,
                 danmaku::CoreDanmakuPlugin,
                 data::DataPlugin,
                 dialogue::DialoguePlugin,
@@ -113,7 +115,12 @@ impl Plugin for CorePlugin {
                 input::InputPlugin,
                 sprite::SpritePlugin,
                 state_config::StateConfigPlugin,
-            ));
+            ))
+            .add_plugins((fixed_scene::FixedScenePlugin, top_down::TopDownPlugin));
+
+        app.world_mut()
+            .resource_mut::<mode::ModeRegistry>()
+            .set_modes(config.game.modes.clone());
     }
 }
 

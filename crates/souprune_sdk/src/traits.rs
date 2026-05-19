@@ -5,7 +5,10 @@
 //! 和 `SpawnPatternBehavior` trait。
 
 use crate::context::Context;
-use crate::{BulletContext, BulletOutput, SpawnContext, SpawnOutput, SpawnParam};
+use crate::{
+    BulletContext, BulletOutput, InputCommand, InputContextId, SpawnContext, SpawnOutput,
+    SpawnParam,
+};
 
 /// Player/entity behavior trait.
 ///
@@ -18,6 +21,13 @@ use crate::{BulletContext, BulletOutput, SpawnContext, SpawnOutput, SpawnParam};
 /// 速度是可选的 — 纯逻辑行为（如攻击条、UI 控制器）可省略 `kinematics()` 调用。
 pub trait Behavior {
     fn on_enter(&mut self, _context: &mut Context) {}
+    fn on_input(
+        &mut self,
+        _context: &mut Context,
+        _input_context: InputContextId,
+        _command: InputCommand,
+    ) {
+    }
     fn on_update(&mut self, context: &mut Context, dt: f32);
     fn on_exit(&mut self, _context: &mut Context) {}
 }
@@ -123,7 +133,7 @@ impl CustomActionHandler for NoopCustomActionHandler {
 
 /// Mode lifecycle trait — respond to mode transitions.
 ///
-/// Implement this to have your mod react to mode changes (e.g., entering battle mode).
+/// Implement this to have your mod react to project-declared mode changes.
 ///
 /// 模式生命周期 trait — 响应模式切换。
 /// 实现此 trait 让模组对模式变化做出响应（如进入战斗模式）。

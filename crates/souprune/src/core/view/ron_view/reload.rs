@@ -134,15 +134,15 @@ pub fn incremental_reload_system(
             continue;
         };
 
-        // Get namespace and local facts from ViewRoot
+        // Get namespace and LocalState from ViewRoot.
         let namespace = crate::core::view::components::ViewRoot::namespace_from_path(
             &hot_reload_root.layout_path,
         );
 
-        // Get local facts from ViewRoot if available
-        let local_facts = view_root_query
+        // Get local state from ViewRoot if available
+        let local_state = view_root_query
             .get(root_entity)
-            .map(|vr| &vr.local_facts)
+            .map(|vr| vr.local_state())
             .ok();
 
         info!(
@@ -158,8 +158,8 @@ pub fn incremental_reload_system(
         collect_node_defs(&namespace, &view_layout.roots, &mut node_defs_by_name);
 
         // Create player data view for expression evaluation
-        let player_data = if let Some(local_facts) = local_facts {
-            super::parsing::PlayerDataView::with_local_facts(&layered_db, local_facts)
+        let player_data = if let Some(local_state) = local_state {
+            super::parsing::PlayerDataView::with_local_state(&layered_db, local_state)
         } else {
             super::parsing::PlayerDataView::new(&layered_db)
         }

@@ -154,7 +154,7 @@ pub fn replay_typewriter_on_depth_resume_system(
     let current_depth = active_view_query
         .iter()
         .next()
-        .and_then(|view| view.local_facts.get_int("depth"));
+        .and_then(|view| view.local_state().get_int("depth"));
 
     if *prev_depth != current_depth {
         debug!(
@@ -192,7 +192,7 @@ pub fn replay_typewriter_on_depth_resume_system(
         .iter()
         .next()
         .map(|view| {
-            view.local_facts
+            view.local_state()
                 .get_bool(fre_facts::DIALOGUE_REPLAY_ON_RESUME)
                 .unwrap_or(false)
         })
@@ -219,9 +219,7 @@ pub fn replay_typewriter_on_depth_resume_system(
         }
 
         for mut view_root in active_view_query.iter_mut() {
-            view_root
-                .local_facts
-                .set("dialogue_text", FactValue::String(String::new()));
+            view_root.set_local_value("dialogue_text", FactValue::String(String::new()));
         }
     } else {
         for mut typewriter in typewriter_query.iter_mut() {

@@ -56,29 +56,3 @@ fn character_animation_configs_exist() {
         );
     }
 }
-
-/// Rehearse collider logic by ensuring each collider encloses the sprite origin horizontally and remains below vertically.
-///
-/// 通过确认碰撞箱水平包裹角色原点且整体位于角色下方，预演碰撞逻辑。
-#[test]
-fn character_collider_bounds_cover_origin() {
-    for relative in character_definition_files() {
-        let asset: CharacterAsset = test_support::parse_project_ron(&relative);
-        let half_x = asset.collider_size.x * 0.5;
-        let half_y = asset.collider_size.y * 0.5;
-        let min_x = asset.collider_offset.x - half_x;
-        let max_x = asset.collider_offset.x + half_x;
-        let max_y = asset.collider_offset.y + half_y;
-
-        assert!(
-            min_x <= 0.0 && max_x >= 0.0,
-            "collider must wrap X origin for {}",
-            relative
-        );
-        assert!(
-            max_y <= 0.0,
-            "collider should sit below sprite pivot for {}",
-            relative
-        );
-    }
-}

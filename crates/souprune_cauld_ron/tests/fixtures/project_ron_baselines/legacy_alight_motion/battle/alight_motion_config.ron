@@ -10,8 +10,8 @@
 // bullet_pattern: Regex pattern for bullet layers (default: "^#B")
 //                 弹幕图层的正则表达式模式
 //
-// battle_box_pattern: Regex pattern for battle box layers (default: "^#C")
-//                    战斗框图层的正则表达式模式
+// boundary_pattern: Regex pattern for boundary layers (default: "^#C")
+//                   边界图层的正则表达式模式
 //
 // hidden_pattern: Regex pattern for hidden layers (default: "")
 //                 隐藏图层的正则表达式模式（空字符串表示不隐藏任何图层）
@@ -30,7 +30,7 @@
     scale: 2.0,
     offset: (0.0, 0.0),
     bullet_pattern: "^#B",
-    battle_box_pattern: "^#C",
+    boundary_pattern: "^#C",
     hidden_pattern: "^#B",
     bullet_damage: 1.0,
     collision_scale: 0.05,

@@ -2,7 +2,7 @@
 //!
 //! 通用碰撞事件和帧内去重缓冲区。
 //!
-//! Collision systems (battle, overworld) report collisions into the
+//! Collision systems (battle, top_down) report collisions into the
 //! `CollisionEventBuffer`. At the end of the Physics phase, the buffer
 //! is drained and deduped events are emitted as `CollisionEvent` messages.
 

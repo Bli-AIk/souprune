@@ -60,7 +60,7 @@ fn pre_spawn_rule_conditions_match(
     enum_registry: &bevy_fact_rule_event::EnumRegistry,
     rule: &GameRule,
 ) -> bool {
-    let combined = CombinedFactReader::new(&view_root.local_facts, layered_db);
+    let combined = CombinedFactReader::new(view_root.local_state(), layered_db);
     crate::core::fre_bridge::evaluate_conditions(
         &rule.condition_expressions,
         &combined,
@@ -78,14 +78,14 @@ fn apply_pre_spawn_set_local_fact_actions(
         let GameActionDef::SetLocalFact(key, value) = action else {
             continue;
         };
-        let combined = CombinedFactReader::new(&view_root.local_facts, layered_db);
+        let combined = CombinedFactReader::new(view_root.local_state(), layered_db);
         let fact_value = crate::core::fre_bridge::evaluate_local_fact_value(
             key,
             value,
             &combined,
             enum_registry,
         );
-        view_root.local_facts.set(key.as_str(), fact_value);
+        view_root.set_local_value(key.as_str(), fact_value);
     }
 }
 
@@ -97,16 +97,16 @@ mod tests {
     #[test]
     fn pre_spawn_event_applies_set_local_fact_before_initial_spawn() {
         let mut view_root = ViewRoot::new("overworld/backpack.view.ron".into());
-        view_root.local_facts.set("info_box_y_offset", 0);
+        view_root.set_local_value("info_box_y_offset", 0);
 
         let mut layered_db = LayeredFactDatabase::new();
-        layered_db.set_global("overworld:player_screen_y", FactValue::Float(130.1));
+        layered_db.set_global("top_down:player_screen_y", FactValue::Float(130.1));
 
         let rule_defs = vec![GameRuleDef {
             id: "move_info_box_down_when_player_is_low".into(),
-            event: RuleEventDef::Event("overworld:screen_facts_updated".into()),
+            event: RuleEventDef::Event("top_down:screen_facts_updated".into()),
             conditions: vec![
-                "$overworld:player_screen_y > 130".into(),
+                "$top_down:player_screen_y > 130".into(),
                 "$info_box_y_offset != 135".into(),
             ],
             actions: vec![GameActionDef::SetLocalFact(
@@ -123,13 +123,13 @@ mod tests {
         apply_pre_spawn_events(
             &mut view_root,
             &rule_defs,
-            &["overworld:screen_facts_updated".into()],
+            &["top_down:screen_facts_updated".into()],
             &layered_db,
             &bevy_fact_rule_event::EnumRegistry::default(),
         );
 
         assert_eq!(
-            view_root.local_facts.get_by_str("info_box_y_offset"),
+            view_root.local_state().get_by_str("info_box_y_offset"),
             Some(&FactValue::Int(135))
         );
     }

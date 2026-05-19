@@ -6,8 +6,11 @@
 //! 模组开发者使用 `Context` 与宿主框架交互（日志、输入、运动学），
 //! 无需接触原始 WIT 类型。
 
-use crate::Action;
 use crate::souprune::plugin::host_api;
+use crate::{
+    Action, ColliderShape, ConstraintHandle, EntityHandle, RegionHandle, SpriteEntityConfig,
+    ViewBoxHandle,
+};
 
 /// Typed fact value mirroring the WIT `fact-value` variant.
 /// Mod code uses this instead of raw strings.
@@ -17,6 +20,10 @@ pub enum FactValue {
     Float(f64),
     Bool(bool),
     Text(String),
+    IntList(Vec<i64>),
+    FloatList(Vec<f64>),
+    BoolList(Vec<bool>),
+    TextList(Vec<String>),
 }
 
 impl FactValue {
@@ -26,6 +33,23 @@ impl FactValue {
             host_api::FactValue::FloatVal(f) => Self::Float(f),
             host_api::FactValue::BoolVal(b) => Self::Bool(b),
             host_api::FactValue::TextVal(s) => Self::Text(s),
+            host_api::FactValue::IntList(list) => Self::IntList(list),
+            host_api::FactValue::FloatList(list) => Self::FloatList(list),
+            host_api::FactValue::BoolList(list) => Self::BoolList(list),
+            host_api::FactValue::TextList(list) => Self::TextList(list),
+        }
+    }
+
+    pub(crate) fn to_wit(&self) -> host_api::FactValue {
+        match self {
+            Self::Int(value) => host_api::FactValue::IntVal(*value),
+            Self::Float(value) => host_api::FactValue::FloatVal(*value),
+            Self::Bool(value) => host_api::FactValue::BoolVal(*value),
+            Self::Text(value) => host_api::FactValue::TextVal(value.clone()),
+            Self::IntList(value) => host_api::FactValue::IntList(value.clone()),
+            Self::FloatList(value) => host_api::FactValue::FloatList(value.clone()),
+            Self::BoolList(value) => host_api::FactValue::BoolList(value.clone()),
+            Self::TextList(value) => host_api::FactValue::TextList(value.clone()),
         }
     }
 }
@@ -41,52 +65,93 @@ pub struct Context {
 
 impl Context {
     /// Create a new context. Called by the SDK macro before each lifecycle callback.
+    ///
+    /// 创建新的上下文。由 SDK 宏在每个生命周期回调前调用。
     pub fn new() -> Self {
         Self { _private: () }
     }
 
     /// Print an info-level log message to the host console.
+    ///
+    /// 向宿主控制台输出 info 级日志。
     pub fn log(&self, msg: &str) {
         host_api::log(0, msg);
     }
 
     /// Print a warning-level log message to the host console.
+    ///
+    /// 向宿主控制台输出 warning 级日志。
     pub fn warn(&self, msg: &str) {
         host_api::log(1, msg);
     }
 
     /// Print an error-level log message to the host console.
+    ///
+    /// 向宿主控制台输出 error 级日志。
     pub fn error(&self, msg: &str) {
         host_api::log(2, msg);
     }
 
     /// Access input state.
+    ///
+    /// 访问输入状态。
     pub fn input(&self) -> InputHelper {
         InputHelper
     }
 
     /// Access kinematics control.
+    ///
+    /// 访问运动学控制。
     pub fn kinematics(&self) -> KinematicsHelper {
         KinematicsHelper
     }
 
+    /// Access host-side collision region and movement constraint primitives.
+    ///
+    /// 访问宿主侧碰撞区域与移动约束 primitive。
+    pub fn collision(&self) -> CollisionHelper {
+        CollisionHelper
+    }
+
+    /// Access host-side ViewBox and entity primitives.
+    ///
+    /// 访问宿主侧 ViewBox 与实体 primitive。
+    pub fn view(&self) -> ViewPrimitiveHelper {
+        ViewPrimitiveHelper
+    }
+
+    /// Access host-side generic entity primitives.
+    ///
+    /// 访问宿主侧通用实体 primitive。
+    pub fn entity(&self) -> EntityPrimitiveHelper {
+        EntityPrimitiveHelper
+    }
+
     /// Get the current entity's world position.
+    ///
+    /// 获取当前实体的世界坐标。
     pub fn entity_position(&self) -> Vec2 {
         let pos = host_api::get_entity_position();
         Vec2::new(pos.x, pos.y)
     }
 
     /// Get the frame delta time in seconds.
+    ///
+    /// 获取当前帧间隔秒数。
     pub fn delta_time(&self) -> f32 {
         host_api::delta_time()
     }
 
     /// Get a FRE fact by key as a typed value. Returns None if not set.
+    ///
+    /// 按 key 获取类型化 FRE fact。未设置时返回 None。
     pub fn get_fact(&self, key: &str) -> Option<FactValue> {
         host_api::get_fact(key).map(FactValue::from_wit)
     }
 
     /// Get a FRE fact as bool. Returns None if not set or not bool.
+    ///
+    /// 按 bool 读取 FRE fact。未设置或类型不匹配时返回 None。
     pub fn get_fact_bool(&self, key: &str) -> Option<bool> {
         match self.get_fact(key)? {
             FactValue::Bool(b) => Some(b),
@@ -95,6 +160,8 @@ impl Context {
     }
 
     /// Get a FRE fact as i64. Returns None if not set or not int.
+    ///
+    /// 按 i64 读取 FRE fact。未设置或类型不匹配时返回 None。
     pub fn get_fact_int(&self, key: &str) -> Option<i64> {
         match self.get_fact(key)? {
             FactValue::Int(n) => Some(n),
@@ -103,6 +170,8 @@ impl Context {
     }
 
     /// Get a FRE fact as f64. Returns None if not set or not float.
+    ///
+    /// 按 f64 读取 FRE fact。未设置或类型不匹配时返回 None。
     pub fn get_fact_float(&self, key: &str) -> Option<f64> {
         match self.get_fact(key)? {
             FactValue::Float(f) => Some(f),
@@ -111,6 +180,8 @@ impl Context {
     }
 
     /// Get a FRE fact as string. Returns None if not set or not text.
+    ///
+    /// 按字符串读取 FRE fact。未设置或类型不匹配时返回 None。
     pub fn get_fact_string(&self, key: &str) -> Option<String> {
         match self.get_fact(key)? {
             FactValue::Text(s) => Some(s),
@@ -118,68 +189,232 @@ impl Context {
         }
     }
 
+    /// Get a FRE fact as a list of strings. Returns None if not set or not text-list.
+    ///
+    /// 按字符串列表读取 FRE fact。未设置或类型不匹配时返回 None。
+    pub fn get_fact_string_list(&self, key: &str) -> Option<Vec<String>> {
+        match self.get_fact(key)? {
+            FactValue::TextList(list) => Some(list),
+            _ => None,
+        }
+    }
+
+    /// Get a FRE fact as a list of integers. Returns None if not set or not int-list.
+    ///
+    /// 按整数列表读取 FRE fact。未设置或类型不匹配时返回 None。
+    pub fn get_fact_int_list(&self, key: &str) -> Option<Vec<i64>> {
+        match self.get_fact(key)? {
+            FactValue::IntList(list) => Some(list),
+            _ => None,
+        }
+    }
+
+    /// Get a FRE fact as a list of floats. Returns None if not set or not float-list.
+    ///
+    /// 按浮点列表读取 FRE fact。未设置或类型不匹配时返回 None。
+    pub fn get_fact_float_list(&self, key: &str) -> Option<Vec<f64>> {
+        match self.get_fact(key)? {
+            FactValue::FloatList(list) => Some(list),
+            _ => None,
+        }
+    }
+
+    /// Get a FRE fact as a list of bools. Returns None if not set or not bool-list.
+    ///
+    /// 按布尔列表读取 FRE fact。未设置或类型不匹配时返回 None。
+    pub fn get_fact_bool_list(&self, key: &str) -> Option<Vec<bool>> {
+        match self.get_fact(key)? {
+            FactValue::BoolList(list) => Some(list),
+            _ => None,
+        }
+    }
+
     /// Set a FRE fact to a bool value.
+    ///
+    /// 将 FRE fact 设置为 bool 值。
     pub fn set_fact_bool(&self, key: &str, value: bool) {
         host_api::set_fact(key, &host_api::FactValue::BoolVal(value));
     }
 
     /// Set a FRE fact to an int value.
+    ///
+    /// 将 FRE fact 设置为 int 值。
     pub fn set_fact_int(&self, key: &str, value: i64) {
         host_api::set_fact(key, &host_api::FactValue::IntVal(value));
     }
 
     /// Set a FRE fact to a float value.
+    ///
+    /// 将 FRE fact 设置为 float 值。
     pub fn set_fact_float(&self, key: &str, value: f64) {
         host_api::set_fact(key, &host_api::FactValue::FloatVal(value));
     }
 
     /// Set a FRE fact to a string value.
+    ///
+    /// 将 FRE fact 设置为字符串值。
     pub fn set_fact_string(&self, key: &str, value: &str) {
         host_api::set_fact(key, &host_api::FactValue::TextVal(value.to_string()));
     }
 
+    /// Set a persistent FRE fact to a typed value.
+    ///
+    /// 将持久 FRE fact 设置为类型化值。
+    pub fn set_global_fact(&self, key: &str, value: &FactValue) {
+        host_api::set_global_fact(key, &value.to_wit());
+    }
+
+    /// Set a FRE fact to a list of strings.
+    ///
+    /// 将 FRE fact 设置为字符串列表。
+    pub fn set_fact_string_list(&self, key: &str, value: &[String]) {
+        host_api::set_fact(key, &host_api::FactValue::TextList(value.to_vec()));
+    }
+
+    /// Set a FRE fact to a list of integers.
+    ///
+    /// 将 FRE fact 设置为整数列表。
+    pub fn set_fact_int_list(&self, key: &str, value: &[i64]) {
+        host_api::set_fact(key, &host_api::FactValue::IntList(value.to_vec()));
+    }
+
+    /// Set a FRE fact to a list of floats.
+    ///
+    /// 将 FRE fact 设置为浮点列表。
+    pub fn set_fact_float_list(&self, key: &str, value: &[f64]) {
+        host_api::set_fact(key, &host_api::FactValue::FloatList(value.to_vec()));
+    }
+
+    /// Set a FRE fact to a list of bools.
+    ///
+    /// 将 FRE fact 设置为布尔列表。
+    pub fn set_fact_bool_list(&self, key: &str, value: &[bool]) {
+        host_api::set_fact(key, &host_api::FactValue::BoolList(value.to_vec()));
+    }
+
+    /// Set a persistent FRE fact to a bool value.
+    ///
+    /// 将持久 FRE fact 设置为 bool 值。
+    pub fn set_global_fact_bool(&self, key: &str, value: bool) {
+        host_api::set_global_fact(key, &host_api::FactValue::BoolVal(value));
+    }
+
+    /// Set a persistent FRE fact to an int value.
+    ///
+    /// 将持久 FRE fact 设置为 int 值。
+    pub fn set_global_fact_int(&self, key: &str, value: i64) {
+        host_api::set_global_fact(key, &host_api::FactValue::IntVal(value));
+    }
+
+    /// Set a persistent FRE fact to a float value.
+    ///
+    /// 将持久 FRE fact 设置为 float 值。
+    pub fn set_global_fact_float(&self, key: &str, value: f64) {
+        host_api::set_global_fact(key, &host_api::FactValue::FloatVal(value));
+    }
+
+    /// Set a persistent FRE fact to a string value.
+    ///
+    /// 将持久 FRE fact 设置为字符串值。
+    pub fn set_global_fact_string(&self, key: &str, value: &str) {
+        host_api::set_global_fact(key, &host_api::FactValue::TextVal(value.to_string()));
+    }
+
+    /// Set a persistent FRE fact to a list of strings.
+    ///
+    /// 将持久 FRE fact 设置为字符串列表。
+    pub fn set_global_fact_string_list(&self, key: &str, value: &[String]) {
+        host_api::set_global_fact(key, &host_api::FactValue::TextList(value.to_vec()));
+    }
+
+    /// Set a persistent FRE fact to a list of integers.
+    ///
+    /// 将持久 FRE fact 设置为整数列表。
+    pub fn set_global_fact_int_list(&self, key: &str, value: &[i64]) {
+        host_api::set_global_fact(key, &host_api::FactValue::IntList(value.to_vec()));
+    }
+
+    /// Set a persistent FRE fact to a list of floats.
+    ///
+    /// 将持久 FRE fact 设置为浮点列表。
+    pub fn set_global_fact_float_list(&self, key: &str, value: &[f64]) {
+        host_api::set_global_fact(key, &host_api::FactValue::FloatList(value.to_vec()));
+    }
+
+    /// Set a persistent FRE fact to a list of bools.
+    ///
+    /// 将持久 FRE fact 设置为布尔列表。
+    pub fn set_global_fact_bool_list(&self, key: &str, value: &[bool]) {
+        host_api::set_global_fact(key, &host_api::FactValue::BoolList(value.to_vec()));
+    }
+
     /// Emit a FRE event by name. Applied after the current callback returns.
+    ///
+    /// 按名称发出 FRE event。当前回调返回后应用。
     pub fn emit_event(&self, event: &str) {
         host_api::emit_event(event);
     }
 
     /// Get the position of a named entity by tag. Returns None if not found.
+    ///
+    /// 按 tag 获取命名实体位置。找不到时返回 None。
     pub fn get_entity_position_by_tag(&self, tag: &str) -> Option<Vec2> {
         host_api::get_entity_position_by_tag(tag).map(|pos| Vec2::new(pos.x, pos.y))
     }
 
     /// Spawn a bullet emitter with the given pattern ID at a position.
     /// Returns an opaque handle that can be used to despawn it later.
+    ///
+    /// 在指定位置生成弹幕发射器，返回之后可用于销毁的不透明句柄。
     pub fn spawn_emitter(&self, pattern_id: &str, x: f32, y: f32) -> u64 {
         host_api::spawn_emitter(pattern_id, host_api::Vec2 { x, y })
     }
 
     /// Despawn a previously spawned emitter by handle.
+    ///
+    /// 按句柄销毁之前生成的发射器。
     pub fn despawn_emitter(&self, handle: u64) {
         host_api::despawn_emitter(handle);
     }
 
     /// Open a named view (must be defined in a `.view_layout.ron` file).
+    ///
+    /// 打开命名 View（必须定义在 `.view_layout.ron` 文件中）。
     pub fn open_view(&self, view_id: &str) {
         host_api::open_view(view_id);
     }
 
     /// Close the currently active view (if any).
+    ///
+    /// 关闭当前激活的 View（如果存在）。
     pub fn close_view(&self) {
         host_api::close_view();
     }
 
     /// Play a sound effect by asset key.
+    ///
+    /// 按资源 key 播放音效。
     pub fn play_sound(&self, sound_key: &str) {
         host_api::play_sound(sound_key);
     }
 
+    /// Play a sound effect by full asset path.
+    ///
+    /// 按完整资源路径播放音效。
+    pub fn play_sound_full_path(&self, sound_path: &str) {
+        host_api::play_sound_full_path(sound_path);
+    }
+
     /// Get the current mode name. Returns None if no mode is active.
+    ///
+    /// 获取当前 mode 名称。没有激活 mode 时返回 None。
     pub fn get_current_mode(&self) -> Option<String> {
         host_api::get_current_mode()
     }
 
     /// Get the current sub-state name within the active mode.
+    ///
+    /// 获取当前激活 mode 内的 sub-state 名称。
     pub fn get_current_sub_state(&self) -> String {
         host_api::get_current_sub_state()
     }
@@ -192,31 +427,225 @@ impl Default for Context {
 }
 
 /// Input query helper (zero-sized, stateless).
+///
+/// 输入查询辅助对象（零大小、无状态）。
 pub struct InputHelper;
 
 impl InputHelper {
     /// Check if a semantic action is currently pressed.
+    ///
+    /// 检查语义 action 当前是否被按住。
     pub fn pressed(&self, action: Action) -> bool {
         host_api::is_action_pressed(action.to_wit())
     }
 
     /// Check if a semantic action was just pressed this frame.
+    ///
+    /// 检查语义 action 是否在当前帧刚刚按下。
     pub fn just_pressed(&self, action: Action) -> bool {
         host_api::is_action_just_pressed(action.to_wit())
     }
 }
 
 /// Kinematics control helper (zero-sized, stateless).
+///
+/// 运动学控制辅助对象（零大小、无状态）。
 pub struct KinematicsHelper;
 
 impl KinematicsHelper {
     /// Set the entity's velocity.
+    ///
+    /// 设置实体速度。
     pub fn set_velocity(&self, x: f32, y: f32) {
         host_api::set_velocity(host_api::Vec2 { x, y });
     }
 }
 
+/// Collision primitive helper (zero-sized, stateless).
+///
+/// 碰撞 primitive 辅助对象（零大小、无状态）。
+pub struct CollisionHelper;
+
+impl CollisionHelper {
+    /// Create a host-owned collision region.
+    ///
+    /// 创建宿主拥有的碰撞区域。
+    pub fn create_region(&self, center: Vec2, half_size: Vec2) -> Option<RegionHandle> {
+        let raw = host_api::create_collision_region(
+            host_api::Vec2 {
+                x: center.x,
+                y: center.y,
+            },
+            host_api::Vec2 {
+                x: half_size.x,
+                y: half_size.y,
+            },
+        );
+        (raw != 0).then_some(RegionHandle(raw))
+    }
+
+    /// Remove a host-owned collision region.
+    ///
+    /// 移除宿主拥有的碰撞区域。
+    pub fn remove_region(&self, handle: RegionHandle) {
+        host_api::remove_collision_region(handle.0);
+    }
+
+    /// Update a host-owned collision region.
+    ///
+    /// 更新宿主拥有的碰撞区域。
+    pub fn set_region_bounds(&self, handle: RegionHandle, center: Vec2, half_size: Vec2) {
+        host_api::set_collision_region_bounds(
+            handle.0,
+            host_api::Vec2 {
+                x: center.x,
+                y: center.y,
+            },
+            host_api::Vec2 {
+                x: half_size.x,
+                y: half_size.y,
+            },
+        );
+    }
+
+    /// Create a host-owned movement constraint for a region and collider.
+    ///
+    /// 为区域和碰撞体创建宿主拥有的移动约束。
+    pub fn create_movement_constraint(
+        &self,
+        region: RegionHandle,
+        collider: ColliderShape,
+    ) -> Option<ConstraintHandle> {
+        host_api::create_movement_constraint(region.0, collider.to_wit()).map(ConstraintHandle)
+    }
+
+    /// Remove a host-owned movement constraint.
+    ///
+    /// 移除宿主拥有的移动约束。
+    pub fn remove_movement_constraint(&self, handle: ConstraintHandle) {
+        host_api::remove_movement_constraint(handle.0);
+    }
+
+    /// Constrain a target position through a host-owned movement constraint.
+    ///
+    /// 通过宿主拥有的移动约束限制目标位置。
+    pub fn constrain_movement(&self, handle: ConstraintHandle, position: Vec2) -> Option<Vec2> {
+        host_api::constrain_movement(
+            handle.0,
+            host_api::Vec2 {
+                x: position.x,
+                y: position.y,
+            },
+        )
+        .map(|pos| Vec2::new(pos.x, pos.y))
+    }
+}
+
+/// View primitive helper (zero-sized, stateless).
+///
+/// View primitive 辅助对象（零大小、无状态）。
+pub struct ViewPrimitiveHelper;
+
+impl ViewPrimitiveHelper {
+    /// Spawn a host-owned ViewBox primitive.
+    ///
+    /// 生成宿主拥有的 ViewBox primitive。
+    pub fn spawn_box(&self, center: Vec2, size: Vec2, border_width: f32) -> Option<ViewBoxHandle> {
+        let raw = host_api::spawn_view_box(
+            host_api::Vec2 {
+                x: center.x,
+                y: center.y,
+            },
+            host_api::Vec2 {
+                x: size.x,
+                y: size.y,
+            },
+            border_width,
+        );
+        (raw != 0).then_some(ViewBoxHandle(raw))
+    }
+
+    /// Update a host-owned ViewBox primitive's center and size.
+    ///
+    /// 更新宿主拥有的 ViewBox primitive 的中心点和尺寸。
+    pub fn set_box_bounds(&self, handle: ViewBoxHandle, center: Vec2, size: Vec2) {
+        host_api::set_view_box_bounds(
+            handle.0,
+            host_api::Vec2 {
+                x: center.x,
+                y: center.y,
+            },
+            host_api::Vec2 {
+                x: size.x,
+                y: size.y,
+            },
+        );
+    }
+
+    /// Tween a host-owned ViewBox primitive's center and size on the host.
+    ///
+    /// 在宿主侧对 ViewBox primitive 的中心点和尺寸执行 tween。
+    pub fn tween_box_bounds(
+        &self,
+        handle: ViewBoxHandle,
+        center: Vec2,
+        size: Vec2,
+        duration_secs: f32,
+    ) {
+        host_api::tween_view_box_bounds(
+            handle.0,
+            host_api::Vec2 {
+                x: center.x,
+                y: center.y,
+            },
+            host_api::Vec2 {
+                x: size.x,
+                y: size.y,
+            },
+            duration_secs,
+        );
+    }
+
+    /// Update a host-owned ViewBox primitive's visibility.
+    ///
+    /// 更新宿主拥有的 ViewBox primitive 的可见性。
+    pub fn set_box_visible(&self, handle: ViewBoxHandle, visible: bool) {
+        host_api::set_view_box_visible(handle.0, visible);
+    }
+
+    /// Remove a host-owned entity primitive.
+    ///
+    /// 移除宿主拥有的实体 primitive。
+    pub fn remove_entity(&self, handle: EntityHandle) {
+        host_api::remove_entity(handle.0);
+    }
+}
+
+/// Generic host entity primitive helper (zero-sized, stateless).
+///
+/// 通用宿主实体 primitive 辅助对象（零大小、无状态）。
+pub struct EntityPrimitiveHelper;
+
+impl EntityPrimitiveHelper {
+    /// Spawn a host-owned sprite entity primitive.
+    ///
+    /// 生成宿主拥有的 sprite 实体 primitive。
+    pub fn spawn_sprite(&self, config: SpriteEntityConfig) -> Option<EntityHandle> {
+        let raw = host_api::spawn_sprite_entity(&config.to_wit());
+        (raw != 0).then_some(EntityHandle(raw))
+    }
+
+    /// Remove a host-owned entity primitive.
+    ///
+    /// 移除宿主拥有的实体 primitive。
+    pub fn remove(&self, handle: EntityHandle) {
+        host_api::remove_entity(handle.0);
+    }
+}
+
 /// Simple 2D vector for SDK use.
+///
+/// SDK 使用的简单二维向量。
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Vec2 {
     pub x: f32,
@@ -226,14 +655,23 @@ pub struct Vec2 {
 impl Vec2 {
     pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
 
+    /// Create a vector from x and y components.
+    ///
+    /// 从 x 和 y 分量创建向量。
     pub fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
 
+    /// Return the vector length.
+    ///
+    /// 返回向量长度。
     pub fn length(&self) -> f32 {
         (self.x * self.x + self.y * self.y).sqrt()
     }
 
+    /// Return a normalized vector, or zero for near-zero input.
+    ///
+    /// 返回归一化向量；输入接近零时返回零向量。
     pub fn normalize(&self) -> Self {
         let len = self.length();
         if len > 0.0001 {

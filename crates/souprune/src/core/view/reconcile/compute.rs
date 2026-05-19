@@ -11,11 +11,12 @@ use super::resolve::{
     resolve_texts, resolve_viewbox_transform, resolve_visibility,
 };
 use super::tree::{DesiredElement, DesiredViewTree, ViewElementKey};
+use crate::core::view::LocalState;
 use crate::core::view::layout::{ViewLayoutAsset, ViewNodeDef};
 use crate::core::view::ron_view::parsing::{
     DataPathResolvers, ExprFunctionResolvers, PlayerDataView, RepeatContext,
 };
-use bevy_fact_rule_event::{FactDatabase, LayeredFactDatabase};
+use bevy_fact_rule_event::LayeredFactDatabase;
 
 /// Context for resolving expressions during desired state computation.
 /// 计算期望状态时解析表达式的上下文。
@@ -39,15 +40,15 @@ impl<'a> ResolveContext<'a> {
         }
     }
 
-    /// Create a new resolve context with local facts.
-    /// 使用局部事实创建新的解析上下文。
-    pub fn with_local_facts(
+    /// Create a new resolve context with read-only local state.
+    /// 使用只读局部状态创建新的解析上下文。
+    pub fn with_local_state(
         layered_db: &'a LayeredFactDatabase,
-        local_facts: &'a FactDatabase,
+        local_state: &'a LocalState,
         namespace: impl Into<String>,
     ) -> Self {
         Self {
-            player_data: PlayerDataView::with_local_facts(layered_db, local_facts),
+            player_data: PlayerDataView::with_local_state(layered_db, local_state),
             namespace: namespace.into(),
         }
     }
@@ -77,7 +78,7 @@ impl<'a> ResolveContext<'a> {
 ///
 /// * `asset` - The view layout asset
 /// * `global_facts` - Global fact database
-/// * `local_facts` - Local facts for this view
+/// * `local_state` - Read-only local state for this view
 /// * `namespace` - Namespace prefix for element names
 ///
 /// # Returns
@@ -86,12 +87,12 @@ impl<'a> ResolveContext<'a> {
 pub fn compute_desired_state(
     asset: &ViewLayoutAsset,
     global_facts: &LayeredFactDatabase,
-    local_facts: &FactDatabase,
+    local_state: &LocalState,
     namespace: &str,
     data_resolvers: Option<&DataPathResolvers>,
     expr_func_resolvers: Option<&ExprFunctionResolvers>,
 ) -> DesiredViewTree {
-    let ctx = ResolveContext::with_local_facts(global_facts, local_facts, namespace)
+    let ctx = ResolveContext::with_local_state(global_facts, local_state, namespace)
         .with_data_resolvers(data_resolvers)
         .with_expr_functions(expr_func_resolvers);
 

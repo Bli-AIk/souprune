@@ -5,6 +5,7 @@
 #[path = "test_support.rs"]
 mod test_support;
 
+use bevy::input::keyboard::KeyCode;
 use souprune::core;
 
 fn read_project_file(project_name: &str, relative: &str) -> String {
@@ -35,6 +36,22 @@ fn input_config_assets_parse() {
         assert!(
             !input.actions.is_empty(),
             "input config should define actions for {project_name}"
+        );
+        let keycode_to_action = input.build_keycode_to_action_map();
+        assert_eq!(
+            keycode_to_action.get(&KeyCode::KeyZ).map(String::as_str),
+            Some("Confirm"),
+            "Confirm key should be mapped for {project_name}"
+        );
+        assert_eq!(
+            keycode_to_action.get(&KeyCode::KeyX).map(String::as_str),
+            Some("Cancel"),
+            "Cancel key should be mapped for {project_name}"
+        );
+        assert_eq!(
+            keycode_to_action.get(&KeyCode::KeyC).map(String::as_str),
+            Some("Menu"),
+            "Menu key should be mapped for {project_name}"
         );
         parsed_any = true;
     }
@@ -87,7 +104,7 @@ fn sequence_assets_parse_via_schema_and_runtime() {
     );
     files.extend(test_support::list_project_files_with_suffix_from(
         "mad_dummy_example",
-        "overworld",
+        "top_down",
         ".sequence.ron",
     ));
     files.sort();
@@ -122,7 +139,7 @@ fn view_assets_parse_via_schema_and_runtime() {
                 !test_support::list_project_files_with_suffix_from(name, "battle", ".view.ron")
                     .is_empty();
             let has_overworld_views =
-                !test_support::list_project_files_with_suffix_from(name, "overworld", ".view.ron")
+                !test_support::list_project_files_with_suffix_from(name, "top_down", ".view.ron")
                     .is_empty();
             has_project && (has_battle_views || has_overworld_views)
         })
@@ -140,7 +157,7 @@ fn view_assets_parse_via_schema_and_runtime() {
         test_support::list_project_files_with_suffix_from(project_name, "battle", ".view.ron");
     files.extend(test_support::list_project_files_with_suffix_from(
         project_name,
-        "overworld",
+        "top_down",
         ".view.ron",
     ));
     files.sort();

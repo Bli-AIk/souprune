@@ -189,12 +189,12 @@ pub(crate) fn spawn_container_texts(
 
             let depth_value = player_data.get_fact_int("depth");
             info!(
-                "Adding VisibleWhen to text '{}': '{}' -> {} (depth={:?}, has_local_facts={})",
+                "Adding VisibleWhen to text '{}': '{}' -> {} (depth={:?}, has_local_state={})",
                 text_config.name,
                 expr,
                 is_visible,
                 depth_value,
-                player_data.local_facts().is_some()
+                player_data.has_local_state()
             );
 
             cmd.insert(VisibleWhen {
@@ -449,9 +449,9 @@ pub(super) fn resolve_simple_localization(
     s.to_string()
 }
 
-/// Load facts from a FreAsset into the ViewRoot's local_facts.
+/// Load facts from a FreAsset into the ViewRoot's LocalState.
 ///
-/// 将 FreAsset 中的事实加载到 ViewRoot 的 local_facts 中。
+/// 将 FreAsset 中的事实加载到 ViewRoot 的 LocalState 中。
 pub fn load_fre_into_view_root(
     view_root: &mut crate::core::view::components::ViewRoot,
     fre_asset: &GameFreAsset,
@@ -462,23 +462,23 @@ pub fn load_fre_into_view_root(
 
     for (key, fact_value) in fre_asset.resolve_facts(enum_registry) {
         match fact_value {
-            FactValue::Int(i) => view_root.local_facts.set(key.clone(), i),
-            FactValue::Float(f) => view_root.local_facts.set(key.clone(), f),
-            FactValue::Bool(b) => view_root.local_facts.set(key.clone(), b),
+            FactValue::Int(i) => view_root.set_local_value(key.clone(), i),
+            FactValue::Float(f) => view_root.set_local_value(key.clone(), f),
+            FactValue::Bool(b) => view_root.set_local_value(key.clone(), b),
             FactValue::String(s) => {
                 let resolved = resolve_simple_localization(&s, mortar_strings);
-                view_root.local_facts.set(key.clone(), resolved)
+                view_root.set_local_value(key.clone(), resolved)
             }
             FactValue::StringList(list) => {
                 let resolved_list: Vec<String> = list
                     .iter()
                     .map(|s| resolve_simple_localization(s, mortar_strings))
                     .collect();
-                view_root.local_facts.set(key.clone(), resolved_list)
+                view_root.set_local_value(key.clone(), resolved_list)
             }
-            FactValue::IntList(list) => view_root.local_facts.set(key.clone(), list),
-            FactValue::FloatList(list) => view_root.local_facts.set(key.clone(), list),
-            FactValue::BoolList(list) => view_root.local_facts.set(key.clone(), list),
+            FactValue::IntList(list) => view_root.set_local_value(key.clone(), list),
+            FactValue::FloatList(list) => view_root.set_local_value(key.clone(), list),
+            FactValue::BoolList(list) => view_root.set_local_value(key.clone(), list),
         }
     }
 }

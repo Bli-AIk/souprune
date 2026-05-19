@@ -124,16 +124,16 @@ mod tests {
     #[test]
     fn test_evaluate_single_condition_float_comparison() {
         let mut facts = FactDatabase::new();
-        facts.set("overworld:player_screen_y", FactValue::Float(130.1));
+        facts.set("top_down:player_screen_y", FactValue::Float(130.1));
         let enums = empty_enums();
 
         assert!(evaluate_single_condition(
-            "$overworld:player_screen_y > 130.0",
+            "$top_down:player_screen_y > 130.0",
             &facts,
             &enums
         ));
         assert!(!evaluate_single_condition(
-            "$overworld:player_screen_y <= 130.0",
+            "$top_down:player_screen_y <= 130.0",
             &facts,
             &enums
         ));
