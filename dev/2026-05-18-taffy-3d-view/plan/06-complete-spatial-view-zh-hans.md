@@ -102,7 +102,7 @@
 - [x] `cargo test -p souprune`
 - [x] `cargo clippy --workspace --all-targets -- -D warnings`
 - [x] `git diff --check`
-- [ ] 阶段分支提交后合并回 `feat/taffy_view`，只推送 `feat/taffy_view`。
+- [x] 阶段分支提交后合并回 `feat/taffy_view`，只推送 `feat/taffy_view`。
 
 ## 人工验收重点
 
