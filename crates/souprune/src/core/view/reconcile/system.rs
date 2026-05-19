@@ -509,7 +509,6 @@ mod tests {
             roots: Vec::new(),
             requires: Vec::new(),
             facts: None,
-            world_space: false,
             space: None,
             coordinate_system: CoordinateSystem::Standard,
             coordinate_space: None,

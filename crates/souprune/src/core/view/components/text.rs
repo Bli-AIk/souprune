@@ -1,6 +1,6 @@
-//! Text-related UI components.
+//! Text-related View components.
 //!
-//! 文本相关的 UI 组件。
+//! 文本相关的 View 组件。
 
 use bevy::color::Srgba;
 use bevy::prelude::*;
@@ -9,14 +9,14 @@ use bevy_bitmap_text::{TextAlign, TextAnchor};
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
 
-/// Component that records the UI layer and the current selection index within that layer.
+/// Component that records the View layer and the current selection index within that layer.
 ///
 /// Access pattern:
 /// - Fields are private to enforce read-only access from outside code in the crate.
 /// - Use the provided getters to read `layer`, `index` and `max_index`.
 /// - Use `set_layer` and `set_index` to change state in a controlled way (clamps and resets index as needed).
 ///
-/// 记录 UI 层以及该层内当前选中项索引的组件。
+/// 记录 View 层以及该层内当前选中项索引的组件。
 ///
 /// 访问约定：
 /// - 字段为私有以在 crate 范围内强制读取访问。
@@ -28,9 +28,9 @@ pub struct ViewAnimationState {
     pub(crate) state_name: String,
 }
 
-/// Font identifier for UI text — wraps the font file name stem.
+/// Font identifier for View text — wraps the font file name stem.
 ///
-/// UI 文本的字体标识符 — 包装字体文件名（不含扩展名）。
+/// View 文本的字体标识符 — 包装字体文件名（不含扩展名）。
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) struct ViewFont(pub(crate) String);

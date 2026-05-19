@@ -1312,7 +1312,7 @@
         "selection_confirmed": false,
         "view_rules_loaded": false,
     }),
-    world_space: true,
+    space: Some(World2d),
     coordinate_system: Standard,
     coordinate_space: Some((
         axis_origin: (0.0, 0.0),

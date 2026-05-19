@@ -2164,7 +2164,6 @@
         "stage4:focus_active": true,
         "stage4:focus_label": "focus=0 stack=0 active=true",
     }),
-    world_space: false,
     coordinate_system: Standard,
     coordinate_space: Some((
         axis_origin: (0.0, 0.0),

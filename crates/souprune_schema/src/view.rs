@@ -679,12 +679,6 @@ pub struct ViewLayout {
     )]
     pub facts: Option<HashMap<String, InitialFactValue>>,
 
-    /// Whether the layout should be rendered in world space.
-    ///
-    /// 布局是否应在世界空间中渲染。
-    #[serde(default)]
-    pub world_space: bool,
-
     /// Explicit View root placement space.
     ///
     /// 显式 View 根放置空间。

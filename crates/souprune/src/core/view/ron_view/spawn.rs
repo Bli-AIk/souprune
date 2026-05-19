@@ -480,11 +480,8 @@ fn camera_relative_parent_for_view(
     target_parent: Option<Entity>,
 ) -> Option<Entity> {
     match view_layout.space {
-        Some(ViewSpaceDef::Camera2dRelative) => target_parent,
+        None | Some(ViewSpaceDef::Camera2dRelative) => target_parent,
         Some(ViewSpaceDef::World2d | ViewSpaceDef::World3dPlane(_)) => None,
-        None => (!view_layout.world_space)
-            .then_some(target_parent)
-            .flatten(),
     }
 }
 
@@ -492,7 +489,10 @@ fn camera_relative_view_offset(
     view_layout: &ViewLayoutAsset,
     camera_visible_size: Option<Vec2>,
 ) -> Vec2 {
-    if view_layout.world_space {
+    if matches!(
+        view_layout.space,
+        Some(ViewSpaceDef::World2d | ViewSpaceDef::World3dPlane(_))
+    ) {
         return Vec2::ZERO;
     }
 
@@ -532,10 +532,10 @@ fn camera_relative_view_offset(
     )
 }
 
-/// Unified system to spawn all Views (backpack, battle, chase, dialogue).
+/// Unified system to spawn all dynamic Views.
 /// All View spawning goes through SpawnViewRequest → this system.
 ///
-/// 统一的 View 生成系统（背包、战斗、追逐、对话）。
+/// 统一的动态 View 生成系统。
 /// 所有 View 生成都通过 SpawnViewRequest → 此系统。
 pub fn spawn_dynamic_view_system(
     mut commands: Commands,
@@ -659,9 +659,8 @@ pub fn spawn_dynamic_view_system(
             layout_viewport_size(view_layout, visible_size),
         );
 
-        // Camera-relative views: parent the view entity to the camera so child
-        // transforms are automatically relative to the camera position.
-        // World-space views (battle): keep the view entity as a standalone world entity.
+        // Camera-relative Views parent the root entity to the selected camera.
+        // Explicit world-space Views stay as standalone world entities.
         if let Some(ViewSpaceDef::World3dPlane(plane)) = &view_layout.space {
             commands.entity(view_entity).insert((
                 spatial_root_transform(plane),
@@ -707,13 +706,12 @@ pub fn spawn_dynamic_view_system(
 mod tests {
     use super::*;
 
-    fn explicit_screen_layout(world_space: bool) -> ViewLayoutAsset {
+    fn explicit_screen_layout(space: Option<ViewSpaceDef>) -> ViewLayoutAsset {
         ViewLayoutAsset {
             roots: Vec::new(),
             requires: Vec::new(),
             facts: None,
-            world_space,
-            space: None,
+            space,
             coordinate_system: CoordinateSystem::Standard,
             coordinate_space: Some(CoordinateSpaceDef {
                 axis_origin: (
@@ -729,7 +727,7 @@ mod tests {
 
     #[test]
     fn camera_relative_view_offsets_explicit_coordinate_space_to_camera_viewport() {
-        let layout = explicit_screen_layout(false);
+        let layout = explicit_screen_layout(None);
 
         let offset = camera_relative_view_offset(&layout, Some(Vec2::new(320.0, 240.0)));
 
@@ -737,8 +735,8 @@ mod tests {
     }
 
     #[test]
-    fn world_space_view_does_not_offset_explicit_coordinate_space() {
-        let layout = explicit_screen_layout(true);
+    fn explicit_world_2d_space_does_not_offset_explicit_coordinate_space() {
+        let layout = explicit_screen_layout(Some(ViewSpaceDef::World2d));
 
         let offset = camera_relative_view_offset(&layout, Some(Vec2::new(320.0, 240.0)));
 
@@ -747,7 +745,7 @@ mod tests {
 
     #[test]
     fn layout_viewport_prefers_explicit_coordinate_space() {
-        let layout = explicit_screen_layout(false);
+        let layout = explicit_screen_layout(None);
 
         let viewport = layout_viewport_size(&layout, Some(Vec2::new(320.0, 240.0)));
 
@@ -756,7 +754,7 @@ mod tests {
 
     #[test]
     fn layout_uses_3d_plane_space_detects_world_3d_plane() {
-        let mut layout = explicit_screen_layout(false);
+        let mut layout = explicit_screen_layout(None);
         layout.space = Some(ViewSpaceDef::World3dPlane(Box::new(ViewWorld3dPlaneDef {
             transform: SerializableTransform::default(),
             rotation_degrees: None,
@@ -774,8 +772,7 @@ mod tests {
 
     #[test]
     fn explicit_world_2d_space_does_not_parent_camera_relative_view() {
-        let mut layout = explicit_screen_layout(false);
-        layout.space = Some(ViewSpaceDef::World2d);
+        let layout = explicit_screen_layout(Some(ViewSpaceDef::World2d));
         let camera = Entity::from_raw_u32(1).expect("test entity should be valid");
 
         assert_eq!(camera_relative_parent_for_view(&layout, Some(camera)), None);
@@ -783,8 +780,7 @@ mod tests {
 
     #[test]
     fn camera_2d_relative_space_keeps_camera_parent() {
-        let mut layout = explicit_screen_layout(true);
-        layout.space = Some(ViewSpaceDef::Camera2dRelative);
+        let layout = explicit_screen_layout(Some(ViewSpaceDef::Camera2dRelative));
         let camera = Entity::from_raw_u32(1).expect("test entity should be valid");
 
         assert_eq!(
@@ -815,7 +811,7 @@ mod tests {
 
     #[test]
     fn focus_policy_marks_layout_as_focus_scope_candidate() {
-        let mut layout = explicit_screen_layout(false);
+        let mut layout = explicit_screen_layout(None);
         layout.roots = vec![focus_node(Some(ViewFocusPolicyDef::Scope), Vec::new())];
 
         assert!(layout_requests_focus_scope(&layout));
@@ -823,7 +819,7 @@ mod tests {
 
     #[test]
     fn child_focus_policy_marks_layout_as_focus_scope_candidate() {
-        let mut layout = explicit_screen_layout(false);
+        let mut layout = explicit_screen_layout(None);
         layout.roots = vec![focus_node(
             None,
             vec![focus_node(Some(ViewFocusPolicyDef::Focusable), Vec::new())],

@@ -151,7 +151,6 @@ mod tests {
                     "Soup".to_string(),
                 ]),
             )])),
-            world_space: true,
             space: Some(souprune_schema::view::ViewSpaceDef::World3dPlane(Box::new(
                 souprune_schema::view::ViewWorld3dPlaneDef {
                     transform: souprune_schema::view::SerializableTransform {
@@ -182,7 +181,6 @@ mod tests {
         let runtime = runtime_view_layout_from_schema(&schema).expect("conversion should succeed");
         let text = &runtime.roots[0].texts[0];
 
-        assert!(runtime.world_space);
         let Some(ViewSpaceDef::World3dPlane(plane)) = runtime.space.as_ref() else {
             panic!("runtime space should be World3dPlane");
         };

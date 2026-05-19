@@ -6,18 +6,18 @@
 //!
 //! ## 模块概述
 //!
-//! This module handles the rendering of UI shapes using bevy_alight_motion's SdfMaterial.
+//! This module handles the rendering of View shapes using bevy_alight_motion's SdfMaterial.
 //!
-//! 本模块使用 bevy_alight_motion 的 SdfMaterial 处理 UI 形状的 SDF 渲染。
+//! 本模块使用 bevy_alight_motion 的 SdfMaterial 处理 View 形状的 SDF 渲染。
 //!
 //! ## Source File Overview
 //!
 //! ## 源文件概述
 //!
-//! It manages shape geometry, text content, and visibility based on the current UI layer.
+//! It manages shape geometry, text content, and visibility based on the current View layer.
 //! Structures are loaded from external RON files for maximum flexibility.
 //!
-//! 管理形状几何、文本内容和基于当前 UI 层级的可见性。
+//! 管理形状几何、文本内容和基于当前 View 层级的可见性。
 //! 结构从外部 RON 文件加载以获得最大灵活性。
 
 use super::components::{
@@ -48,10 +48,10 @@ type ViewBoxQuery<'w, 's> = Query<
     Or<(Added<ViewBox>, Changed<ViewBox>, Changed<Transform>)>,
 >;
 
-/// Create SDF shape child entities for each UI box.
+/// Create SDF shape child entities for each ViewBox.
 /// By default, generates a single SDF shape. If structure_file is specified, loads complex structure from file.
 ///
-/// 为 UI 框创建 SDF 形状子实体。
+/// 为 ViewBox 创建 SDF 形状子实体。
 /// 默认生成单个 SDF 形状。如果指定了 structure_file，则从文件加载复杂结构。
 fn spawn_ui_box_children(
     commands: &mut Commands,
@@ -388,7 +388,7 @@ fn spawn_texts_for_filler(
         .entity(filler_entity)
         .with_children(|filler_parent| {
             for text_config in &ui_box.texts {
-                info!("Spawning text for UI box: {}", text_config.content);
+                debug!("Spawning text for ViewBox: {}", text_config.content);
 
                 let text_block = parse_text_preserving_whitespace(&text_config.content);
 
@@ -477,9 +477,9 @@ fn update_single_sdf_shape(
     }
 }
 
-/// Update SDF-based UI geometry each time layout components change.
+/// Update SDF-based View geometry each time layout components change.
 ///
-/// 当布局组件变化时更新基于 SDF 的 UI 几何数据。
+/// 当布局组件变化时更新基于 SDF 的 View 几何数据。
 pub fn update_sdf_view_shape_system(
     mut meshes: ResMut<Assets<Mesh>>,
     mut sdf_materials: ResMut<Assets<SdfMaterial>>,
@@ -511,7 +511,7 @@ pub fn update_sdf_view_shape_system(
 
         let Some(children) = children_opt else {
             trace!(
-                "Creating new SDF shape children for UI box at position: {:?}",
+                "Creating new SDF shape children for ViewBox at position: {:?}",
                 transform.translation
             );
             spawn_ui_box_children(
@@ -543,7 +543,7 @@ pub fn update_sdf_view_shape_system(
 
         if sdf_shape_entities.len() < expected_shapes {
             trace!(
-                "Adding SDF shape children to existing UI box at position: {:?}",
+                "Adding SDF shape children to existing ViewBox at position: {:?}",
                 transform.translation
             );
             spawn_ui_box_children(
@@ -557,7 +557,7 @@ pub fn update_sdf_view_shape_system(
             continue;
         }
 
-        trace!("Updating existing SDF shape children for UI box");
+        trace!("Updating existing SDF shape children for ViewBox");
         let alpha = ui_box.alpha();
         if expected_shapes == 1 {
             update_single_sdf_shape(

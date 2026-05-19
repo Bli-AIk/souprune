@@ -19,7 +19,7 @@
 - [Inviting Guests](part2_plating_the_world/2.3_npc.md)
 
 ## The Soul Dessert
-- [Adding Sugar to the Interface](part3_soul_dessert/3.1_ui.md)
+- [Adding Sugar to the View](part3_soul_dessert/3.1_view.md)
 - [Auditory Seasoning](part3_soul_dessert/3.2_audio.md)
 - [Plating Effects](part3_soul_dessert/3.3_vfx.md)
 

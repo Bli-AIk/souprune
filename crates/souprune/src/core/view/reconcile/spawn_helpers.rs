@@ -220,7 +220,7 @@ pub fn spawn_sprite_entity(
         commands.entity(entity_id).insert(ChildOf(parent_entity));
     }
 
-    info!(
+    debug!(
         "[spawn_helpers] Spawned sprite '{}' (Entity {:?})",
         spec.full_name, entity_id
     );

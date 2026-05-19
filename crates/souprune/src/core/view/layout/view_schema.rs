@@ -50,19 +50,6 @@ pub struct ViewLayoutAsset {
     #[serde(default)]
     pub facts: Option<HashMap<String, InitialFactValue>>,
 
-    /// When true, view root stays in world space — all nodes use plain Transform.
-    /// Use for battle scenes where camera is locked at world origin and all entities
-    /// (player, AM animations, View nodes) share the same world coordinate space.
-    /// When false (default), the view root is parented to the active camera entity,
-    /// so child nodes stay fixed on screen as the camera moves (e.g. top_down HUD).
-    ///
-    /// 为 true 时，View 根节点保持在世界空间——所有节点使用纯 Transform。
-    /// 用于战斗场景：相机锁定在世界原点，所有实体共享同一世界坐标系。
-    /// 为 false（默认）时，View 根节点被设为相机子节点，
-    /// 子节点随相机移动保持固定在屏幕上（如 top_down HUD）。
-    #[serde(default)]
-    pub world_space: bool,
-
     /// Explicit View root placement space.
     ///
     /// 显式 View 根放置空间。

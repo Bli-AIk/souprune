@@ -57,7 +57,7 @@ impl ViewSdfShape {
     pub fn to_material(&self) -> SdfMaterial {
         let frame_half = self.frame_half();
         SdfMaterial::new_with_frame_half(
-            SdfShapeType::BoxMiter, // Sharp corners for UI boxes
+            SdfShapeType::BoxMiter, // Sharp corners for ViewBox shapes
             self.half_width,
             self.half_height,
             self.color,

@@ -137,7 +137,6 @@ mod tests {
             roots: Vec::new(),
             requires: Vec::new(),
             facts: None,
-            world_space: false,
             space: Some(space),
             coordinate_system: Default::default(),
             coordinate_space: None,

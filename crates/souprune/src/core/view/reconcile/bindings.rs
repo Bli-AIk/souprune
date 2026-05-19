@@ -9,10 +9,10 @@
 use std::fmt::Debug;
 
 /// Property can be a static value or a dynamic expression binding.
-/// This is the core abstraction that enables declarative UI programming.
+/// This is the core abstraction that enables declarative View programming.
 ///
 /// 属性可以是静态值或动态表达式绑定。
-/// 这是实现声明式 UI 编程的核心抽象。
+/// 这是实现声明式 View 编程的核心抽象。
 ///
 /// # Examples
 ///

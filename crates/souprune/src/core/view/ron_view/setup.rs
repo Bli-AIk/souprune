@@ -41,7 +41,7 @@ pub fn ui_animation_init_system(
             )
         } else {
             warn!(
-                "State {} not found in animation config for UI entity {:?}",
+                "State {} not found in animation config for View entity {:?}",
                 anim_state.state_name, entity
             );
             continue;
@@ -64,7 +64,7 @@ pub fn ui_animation_init_system(
             Ok(c) => c,
             Err(e) => {
                 error!(
-                    "Failed to load initial UI animation clip {}: {}. Using fallback.",
+                    "Failed to load initial View animation clip {}: {}. Using fallback.",
                     entry.path(),
                     e
                 );

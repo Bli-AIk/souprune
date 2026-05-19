@@ -1,6 +1,6 @@
-//! top-down UI components used by the top_down app state.
+//! View components used by the top_down app state.
 //!
-//! 用于 top_down 应用状态的 UI 组件。
+//! 用于 top_down 应用状态的 View 组件。
 //!
 //! This module has been refactored into submodules for better organization.
 //!
@@ -22,7 +22,7 @@ pub(crate) use text::{
     ViewAnimationState, ViewFont, ViewTextAnimationStyle, ViewTextConfig, ViewTextTemplate,
 };
 
-// Public exports (used outside core::ui)
+// Public exports used outside this module.
 pub use hpbar::{DynamicViewElement, TimeDependentTransform};
 pub use view_element::{
     ActiveView, ElementState, LocalState, PendingViewData, PendingViewRules, ViewElement,

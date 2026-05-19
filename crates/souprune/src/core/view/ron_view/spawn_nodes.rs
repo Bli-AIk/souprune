@@ -68,7 +68,7 @@ pub fn spawn_view_node(
         let limit = repeat.limit.unwrap_or(usize::MAX);
         let count = array_len.min(limit);
 
-        info!(
+        debug!(
             "[spawn_view_node] Repeating node '{}' {} times (source: '{}', len: {}, limit: {:?})",
             node_def.name, count, repeat.source, array_len, repeat.limit
         );

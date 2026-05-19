@@ -899,7 +899,6 @@ mod tests {
             roots: vec![root],
             requires: Vec::new(),
             facts: None,
-            world_space: false,
             space: None,
             coordinate_system: Default::default(),
             coordinate_space: None,

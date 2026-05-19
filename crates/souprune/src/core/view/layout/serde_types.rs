@@ -6,11 +6,11 @@
 //!
 //! ## 模块概述
 //!
-//! Helper types for Serde serialization/deserialization used in UI schemas.
+//! Helper types for Serde serialization/deserialization used in View schemas.
 //! This module handles the conversion between simple RON data types (like `SerializableColor`)
 //! and Bevy's runtime types (like `Color`, `Val`).
 //!
-//! 用于 UI Schema 的 Serde 序列化/反序列化辅助类型。
+//! 用于 View Schema 的 Serde 序列化/反序列化辅助类型。
 //! 本模块处理简单 RON 数据类型（如 `SerializableColor`）与 Bevy 运行时类型（如 `Color`, `Val`）之间的转换。
 
 use bevy::prelude::*;

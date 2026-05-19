@@ -24,10 +24,10 @@ use bevy::prelude::*;
 use bevy_bitmap_text::{GlyphReveal, TextBlock};
 use bevy_fact_rule_event::LayeredFactDatabase;
 
-/// Update time-dependent UI elements (elements with @time in expressions).
+/// Update time-dependent View elements (elements with @time in expressions).
 /// Runs every frame for animation effects.
 ///
-/// 更新时间依赖的 UI 元素（表达式中包含 @time 的元素）。
+/// 更新时间依赖的 View 元素（表达式中包含 @time 的元素）。
 /// 每帧运行以实现动画效果。
 pub fn update_time_dependent_ui_elements(
     time: Res<Time>,
@@ -55,10 +55,9 @@ pub fn update_time_dependent_ui_elements(
     }
 }
 
-/// Update fact-dependent UI elements (elements without @time).
+/// Update fact-dependent View elements (elements without @time).
 /// Only runs when LayeredFactDatabase or ViewRoot changes.
 ///
-/// 更新 fact 依赖的 UI 元素（不包含 @time 的元素）。
 /// 仅在 LayeredFactDatabase 或 ViewRoot 变化时运行。
 pub fn update_fact_dependent_ui_elements(
     layered_db: Res<LayeredFactDatabase>,
