@@ -12,8 +12,7 @@ use std::path::PathBuf;
 
 use bevy::asset::UnapprovedPathMode;
 use bevy::core_pipeline::tonemapping::Tonemapping;
-use bevy::ecs::message::MessageReader;
-use bevy::input::mouse::MouseMotion;
+use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
 use souprune::core::camera::MainGameCamera;
@@ -145,7 +144,7 @@ impl SpatialOrbitCameraState {
 fn orbit_spatial_camera_system(
     mut state: ResMut<SpatialOrbitCameraState>,
     mouse_button: Res<ButtonInput<MouseButton>>,
-    mut motion_events: MessageReader<MouseMotion>,
+    mouse_motion: Res<AccumulatedMouseMotion>,
     mut camera_query: Query<(&mut Transform, &Camera), (With<Camera3d>, With<MainGameCamera>)>,
     spatial_roots: Query<&GlobalTransform, With<ViewSpatialRoot>>,
 ) {
@@ -154,13 +153,11 @@ fn orbit_spatial_camera_system(
         .next()
         .map(GlobalTransform::translation)
     else {
-        motion_events.clear();
         return;
     };
     let Some((mut camera_transform, _)) =
         camera_query.iter_mut().find(|(_, camera)| camera.is_active)
     else {
-        motion_events.clear();
         return;
     };
 
@@ -168,15 +165,15 @@ fn orbit_spatial_camera_system(
         state.initialize_from_camera(camera_transform.translation, target);
     }
 
-    if mouse_button.pressed(MouseButton::Right) {
-        let total_delta: Vec2 = motion_events.read().map(|event| event.delta).sum();
-        if total_delta.length_squared() > 0.01 {
-            state.yaw -= total_delta.x * ORBIT_DRAG_SENSITIVITY;
-            state.pitch = (state.pitch - total_delta.y * ORBIT_DRAG_SENSITIVITY)
-                .clamp(-ORBIT_MAX_PITCH, ORBIT_MAX_PITCH);
-        }
-    } else {
-        motion_events.clear();
+    let total_delta = orbit_motion_delta(
+        mouse_button.pressed(MouseButton::Right),
+        mouse_button.just_pressed(MouseButton::Right),
+        mouse_motion.delta,
+    );
+    if total_delta.length_squared() > 0.01 {
+        state.yaw -= total_delta.x * ORBIT_DRAG_SENSITIVITY;
+        state.pitch = (state.pitch - total_delta.y * ORBIT_DRAG_SENSITIVITY)
+            .clamp(-ORBIT_MAX_PITCH, ORBIT_MAX_PITCH);
     }
 
     *camera_transform = orbit_camera_transform(target, state.yaw, state.pitch, state.radius);
@@ -440,6 +437,14 @@ fn orbit_camera_offset(yaw: f32, pitch: f32, radius: f32) -> Vec3 {
     )
 }
 
+fn orbit_motion_delta(pressed: bool, just_pressed: bool, delta: Vec2) -> Vec2 {
+    if pressed && !just_pressed {
+        delta
+    } else {
+        Vec2::ZERO
+    }
+}
+
 fn valid_pixels_per_unit(value: f32) -> f32 {
     if value.is_finite() && value > 0.0 {
         value
@@ -459,5 +464,18 @@ mod tests {
         assert!((offset.x - 0.0).abs() < 0.0001);
         assert!((offset.y - 0.0).abs() < 0.0001);
         assert!((offset.z - 6.0).abs() < 0.0001);
+    }
+
+    #[test]
+    fn orbit_motion_delta_ignores_initial_press_frame() {
+        let delta = Vec2::new(12.0, -8.0);
+
+        assert_eq!(
+            orbit_motion_delta(true, true, delta),
+            Vec2::ZERO,
+            "the first right-click frame must not consume stale cursor motion"
+        );
+        assert_eq!(orbit_motion_delta(true, false, delta), delta);
+        assert_eq!(orbit_motion_delta(false, false, delta), Vec2::ZERO);
     }
 }
