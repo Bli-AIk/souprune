@@ -58,20 +58,6 @@ pub enum DataBinding {
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
-pub enum SplitAxis {
-    Vertical,
-    #[default]
-    Horizontal,
-}
-
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
-pub enum GapPolicy {
-    #[default]
-    Expands,
-    Includes,
-}
-
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub enum LogLevel {
     #[default]
     Info,

@@ -14,7 +14,7 @@
 //! 销毁布局，同时负责播放状态配置中的进入/退出音效，让 UI 与音频的切换保持一致。
 
 use crate::core::audio;
-use crate::core::mode::SequenceSubState;
+use crate::core::mode::{SequenceMode, SequenceSubState};
 use crate::extra::mortar::LocaleLoaded;
 use bevy::prelude::*;
 
@@ -29,7 +29,15 @@ pub struct UIInteractiveStateTracker {
     pub current_view_path: Option<String>,
 }
 
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub(crate) struct StateViewTransitionSet;
+
+fn active_mode_scope(sequence_mode: &SequenceMode) -> Option<String> {
+    sequence_mode.0.clone()
+}
+
 pub(crate) fn backpack_state_transition_system(
+    sequence_mode: Res<SequenceMode>,
     sub_state: Res<State<SequenceSubState>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     mut tracker: ResMut<UIInteractiveStateTracker>,
@@ -65,7 +73,7 @@ pub(crate) fn backpack_state_transition_system(
 
             spawn_writer.write(super::super::SpawnViewRequest {
                 path: view_layout_path.clone(),
-                mode_scope: Some("overworld".to_string()),
+                mode_scope: active_mode_scope(&sequence_mode),
                 pre_spawn_events: state_config.get_pre_spawn_events(state_name).to_vec(),
                 bindings: None,
             });
@@ -127,5 +135,17 @@ pub(crate) fn state_transition_sound_system(
         }
 
         tracker.previous_state = Some(current_state.to_string());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn state_view_scope_uses_active_project_mode_name() {
+        let sequence_mode = SequenceMode(Some("field".to_string()));
+
+        assert_eq!(active_mode_scope(&sequence_mode), Some("field".to_string()));
     }
 }

@@ -11,8 +11,8 @@ use std::collections::HashMap;
 
 use super::{
     AggregateRule, CameraAction, DataBinding, EaseKindRepr, ElementModification, ElementSelector,
-    FactCondition, FactModificationDef, FactValueMatch, GapPolicy, LogLevel, PlayerAction,
-    SplitAxis, TweenTarget, UIAction,
+    FactCondition, FactModificationDef, FactValueMatch, LogLevel, PlayerAction, TweenTarget,
+    UIAction,
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -111,31 +111,6 @@ pub enum Chapter {
         #[serde(default)]
         fade_in: Option<f32>,
     },
-    SplitBattleBox {
-        source: String,
-        result: (String, String),
-        axis: SplitAxis,
-        #[serde(default)]
-        position: f32,
-        #[serde(default)]
-        gap: f32,
-        #[serde(default)]
-        gap_policy: GapPolicy,
-        #[serde(default)]
-        duration: f32,
-        #[serde(default)]
-        easing: EaseKindRepr,
-    },
-    MergeBattleBoxes {
-        sources: (String, String),
-        result: String,
-        #[serde(default)]
-        gap_policy: GapPolicy,
-        #[serde(default)]
-        duration: f32,
-        #[serde(default)]
-        easing: EaseKindRepr,
-    },
     BattleSpeechBubble(crate::battle::BattleSpeechBubbleDef),
     SpawnBehavior {
         behavior_id: String,
@@ -154,16 +129,6 @@ pub enum Chapter {
         count: usize,
         #[serde(default)]
         allow_repeat: bool,
-    },
-    PickEnemyTurn {
-        #[serde(default)]
-        enemy_id: Option<String>,
-        #[serde(default)]
-        enemy_id_fact: Option<String>,
-        #[serde(default)]
-        group: Option<String>,
-        #[serde(default)]
-        group_fact: Option<String>,
     },
     Log {
         text: String,

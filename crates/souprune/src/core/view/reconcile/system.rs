@@ -155,7 +155,7 @@ pub fn view_reconciliation_system(
         let desired = compute_desired_state(
             asset,
             &layered_db,
-            &view_root.local_facts,
+            view_root.local_state(),
             namespace,
             data_resolvers.as_deref(),
             expr_func_resolvers.as_deref(),

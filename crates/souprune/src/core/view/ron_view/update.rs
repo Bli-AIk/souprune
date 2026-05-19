@@ -37,11 +37,11 @@ pub fn update_time_dependent_ui_elements(
     view_root_query: Query<&ViewRoot>,
 ) {
     for (entity, dynamic_elem, mut transform) in query.iter_mut() {
-        let local_facts = find_view_root_ancestor(entity, &parent_query, &view_root_query)
-            .map(|root| &root.local_facts);
+        let local_state = find_view_root_ancestor(entity, &parent_query, &view_root_query)
+            .map(|root| root.local_state());
 
-        let player_data = if let Some(local) = local_facts {
-            PlayerDataView::with_local_facts(&layered_db, local)
+        let player_data = if let Some(local) = local_state {
+            PlayerDataView::with_local_state(&layered_db, local)
         } else {
             PlayerDataView::new(&layered_db)
         };
@@ -70,22 +70,22 @@ pub fn update_fact_dependent_ui_elements(
     view_root_query: Query<&ViewRoot, Changed<ViewRoot>>,
     all_view_root_query: Query<&ViewRoot>,
 ) {
-    // Check if any ViewRoot changed (local_facts modification)
-    // 检查是否有任何 ViewRoot 变化（local_facts 修改）
+    // Check if any ViewRoot changed (LocalState modification)
+    // 检查是否有任何 ViewRoot 变化（LocalState 修改）
     let any_view_root_changed = !view_root_query.is_empty();
 
-    // Only update when fact database changes OR any ViewRoot's local_facts changed
-    // 仅在 fact 数据库变化或任何 ViewRoot 的 local_facts 变化时更新
+    // Only update when fact database changes OR any ViewRoot's LocalState changed
+    // 仅在 fact 数据库变化或任何 ViewRoot 的 LocalState 变化时更新
     if !layered_db.is_changed() && !any_view_root_changed {
         return;
     }
 
     for (entity, dynamic_elem, mut transform) in query.iter_mut() {
-        let local_facts = find_view_root_ancestor(entity, &parent_query, &all_view_root_query)
-            .map(|root| &root.local_facts);
+        let local_state = find_view_root_ancestor(entity, &parent_query, &all_view_root_query)
+            .map(|root| root.local_state());
 
-        let player_data = if let Some(local) = local_facts {
-            PlayerDataView::with_local_facts(&layered_db, local)
+        let player_data = if let Some(local) = local_state {
+            PlayerDataView::with_local_state(&layered_db, local)
         } else {
             PlayerDataView::new(&layered_db)
         };
@@ -251,7 +251,7 @@ pub fn update_dynamic_text_system(
         let view_root_result =
             find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
         let player_data = if let Some((_, view_root)) = view_root_result {
-            PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
+            PlayerDataView::with_local_state(&layered_db, view_root.local_state())
         } else {
             PlayerDataView::new(&layered_db)
         }
@@ -416,11 +416,11 @@ pub fn update_shader_materials_system(
         // Phase 1: Evaluate expressions if facts changed OR material is newly added
         // 阶段 1：当 facts 变化或材质新添加时评估表达式
         let expr_updates: Vec<(String, f32)> = if facts_changed || is_newly_added {
-            // Find ViewRoot ancestor to access local facts (lazy evaluation)
+            // Find ViewRoot ancestor to access LocalState (lazy evaluation)
             let view_root_result =
                 find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
             let player_data = if let Some((_, view_root)) = view_root_result {
-                PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
+                PlayerDataView::with_local_state(&layered_db, view_root.local_state())
             } else {
                 PlayerDataView::new(&layered_db)
             };

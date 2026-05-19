@@ -14,13 +14,14 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
 
-use super::wasm_runtime::{self, LoadedMod, WasmRuntime};
+use wasm_runtime::{LoadedMod, WasmRuntime};
 
-mod danmaku_runtime;
-
-mod custom_actions;
-
+mod audio_effects;
 mod behaviors;
+mod custom_actions;
+mod danmaku_runtime;
+mod host_entities;
+mod wasm_runtime;
 
 pub use behaviors::{BehaviorContext, BehaviorParams, BehaviorVelocity};
 pub use danmaku_runtime::{ActiveDanmaku, ActiveDanmakuStack};
@@ -48,20 +49,39 @@ impl Plugin for ModPlugin {
             .init_resource::<BehaviorRegistry>()
             .init_resource::<DanmakuRegistry>()
             .init_resource::<SpawnPatternRegistry>()
+            .init_resource::<host_entities::HostEntityHandles>()
+            .init_resource::<host_entities::PendingHostEntityEffects>()
+            .init_resource::<audio_effects::PendingAudioEffects>()
             .add_systems(Startup, load_mods_system)
             .add_systems(
                 schedule,
                 (
                     behaviors::init_behaviors_system,
+                    behaviors::dispatch_behavior_input_system
+                        .after(crate::core::input::InputTransactionSet),
                     behaviors::update_behaviors_system,
                 )
                     .chain()
-                    .in_set(crate::core::battle_runtime::BattleMovementSet),
+                    .in_set(crate::core::fixed_scene::FixedSceneMovementSet),
             )
             .add_systems(
                 schedule,
                 custom_actions::dispatch_wasm_custom_actions_system
-                    .after(crate::core::fre_bridge::dispatch_custom_actions_system),
+                    .after(crate::core::fre_bridge::dispatch_custom_actions_system)
+                    .after(crate::core::sequencer::flow::process_custom_chapter_system)
+                    .before(crate::core::sequencer::flow::cleanup_finished_chapters_system),
+            )
+            .add_systems(
+                schedule,
+                host_entities::flush_host_entity_effects_system
+                    .after(behaviors::update_behaviors_system)
+                    .after(custom_actions::dispatch_wasm_custom_actions_system),
+            )
+            .add_systems(
+                schedule,
+                audio_effects::flush_audio_effects_system
+                    .after(behaviors::update_behaviors_system)
+                    .after(custom_actions::dispatch_wasm_custom_actions_system),
             )
             .add_systems(schedule, dispatch_mode_lifecycle_system);
     }
@@ -387,6 +407,12 @@ fn dispatch_mode_lifecycle_system(
     mut mode_events: MessageReader<crate::core::mode::ModeChanged>,
     mut loaded_mods: NonSendMut<LoadedMods>,
     mut wasm_tracer: ResMut<crate::core::trace::WasmCallTracer>,
+    mut fact_db: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
+    mut fact_writer: MessageWriter<bevy_fact_rule_event::FactEvent>,
+    mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
+    mut host_entity_effects: ResMut<host_entities::PendingHostEntityEffects>,
+    mut audio_effects: ResMut<audio_effects::PendingAudioEffects>,
+    frame_count: Res<bevy::diagnostic::FrameCount>,
 ) {
     let events: Vec<crate::core::mode::ModeChanged> = mode_events.read().cloned().collect();
     if events.is_empty() {
@@ -395,10 +421,36 @@ fn dispatch_mode_lifecycle_system(
 
     for event in &events {
         if let Some(ref from) = event.from {
-            dispatch_mode_call(&mut loaded_mods, &mut wasm_tracer, from, false);
+            let fact_snapshot = custom_actions::build_fact_snapshot(&fact_db);
+            dispatch_mode_call(
+                &mut loaded_mods,
+                &mut wasm_tracer,
+                &mut fact_db,
+                &mut fact_writer,
+                &mut fact_history,
+                &mut host_entity_effects,
+                &mut audio_effects,
+                &fact_snapshot,
+                frame_count.0 as u64,
+                from,
+                false,
+            );
         }
         if let Some(ref to) = event.to {
-            dispatch_mode_call(&mut loaded_mods, &mut wasm_tracer, to, true);
+            let fact_snapshot = custom_actions::build_fact_snapshot(&fact_db);
+            dispatch_mode_call(
+                &mut loaded_mods,
+                &mut wasm_tracer,
+                &mut fact_db,
+                &mut fact_writer,
+                &mut fact_history,
+                &mut host_entity_effects,
+                &mut audio_effects,
+                &fact_snapshot,
+                frame_count.0 as u64,
+                to,
+                true,
+            );
         }
     }
 }
@@ -406,12 +458,25 @@ fn dispatch_mode_lifecycle_system(
 fn dispatch_mode_call(
     loaded_mods: &mut LoadedMods,
     wasm_tracer: &mut crate::core::trace::WasmCallTracer,
+    fact_db: &mut bevy_fact_rule_event::LayeredFactDatabase,
+    fact_writer: &mut MessageWriter<bevy_fact_rule_event::FactEvent>,
+    fact_history: &mut crate::core::trace::FactChangeHistory,
+    host_entity_effects: &mut host_entities::PendingHostEntityEffects,
+    audio_effects: &mut audio_effects::PendingAudioEffects,
+    fact_snapshot: &std::sync::Arc<HashMap<String, bevy_fact_rule_event::FactValue>>,
+    frame_number: u64,
     mode: &str,
     is_enter: bool,
 ) {
     for loaded in &mut loaded_mods.mods {
         if !loaded.has_mode_lifecycle {
             continue;
+        }
+        {
+            let ctx = loaded.store.data_mut();
+            ctx.call_ctx.fact_snapshot = std::sync::Arc::clone(fact_snapshot);
+            ctx.call_ctx.current_mode = Some(mode.to_string());
+            ctx.call_ctx.clear_pending_side_effects();
         }
         let iface = loaded.bindings.souprune_plugin_mode_lifecycle();
         let start = std::time::Instant::now();
@@ -438,6 +503,20 @@ fn dispatch_mode_call(
             "on_mode_exit"
         };
         wasm_tracer.record(&loaded.name, "mode-lifecycle", method, elapsed);
+        let pending = loaded.store.data_mut().call_ctx.take_pending_side_effects();
+        if !pending.is_empty() {
+            custom_actions::apply_pending_side_effects(
+                pending,
+                fact_db,
+                fact_writer,
+                fact_history,
+                host_entity_effects,
+                audio_effects,
+                None,
+                frame_number,
+                &format!("mode-lifecycle:{method}:{}", loaded.name),
+            );
+        }
     }
 }
 

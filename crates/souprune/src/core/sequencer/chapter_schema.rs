@@ -25,22 +25,6 @@ use bevy_tween::interpolation::EaseKind;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Axis along which to split a box.
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq)]
-pub enum SplitAxis {
-    Vertical,
-    #[default]
-    Horizontal,
-}
-
-/// Policy for how gap affects split box dimensions.
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq)]
-pub enum GapPolicy {
-    #[default]
-    Expands,
-    Includes,
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Chapter {
     SpawnView {
@@ -143,34 +127,9 @@ pub enum Chapter {
         #[serde(default)]
         fade_in: Option<f32>,
     },
-    SplitBattleBox {
-        source: String,
-        result: (String, String),
-        axis: SplitAxis,
-        #[serde(default)]
-        position: f32,
-        #[serde(default)]
-        gap: f32,
-        #[serde(default)]
-        gap_policy: GapPolicy,
-        #[serde(default)]
-        duration: f32,
-        #[serde(default = "default_easing", with = "ease_kind_serde")]
-        easing: EaseKind,
-    },
-    MergeBattleBoxes {
-        sources: (String, String),
-        result: String,
-        #[serde(default)]
-        gap_policy: GapPolicy,
-        #[serde(default)]
-        duration: f32,
-        #[serde(default = "default_easing", with = "ease_kind_serde")]
-        easing: EaseKind,
-    },
-    /// Start a preset battle enemy speech bubble.
+    /// Start a battle enemy speech bubble presentation.
     ///
-    /// 启动预设战斗敌人对话气泡。
+    /// 启动战斗敌人对话气泡表现。
     BattleSpeechBubble(souprune_schema::battle::BattleSpeechBubbleDef),
     Log {
         text: String,
@@ -230,33 +189,6 @@ pub enum Chapter {
     /// **不要在 `.sequence.ron` 文件中使用。**
     #[serde(skip)]
     LoopIterationEnd,
-    /// Select the next turn for an enemy from a named `turn_group` and inject
-    /// the corresponding `RunSequence`. Preset-level chapter.
-    ///
-    /// 从命名的 `turn_group` 中选择下一个回合并注入对应的 `RunSequence`。
-    /// 属于 Preset 层的章节。
-    PickEnemyTurn {
-        /// Literal enemy id.
-        ///
-        /// 字面量敌人 id。
-        #[serde(default)]
-        enemy_id: Option<String>,
-        /// Fact key whose value is the enemy id (for template params).
-        ///
-        /// 值为敌人 id 的 fact 键名（用于模板参数）。
-        #[serde(default)]
-        enemy_id_fact: Option<String>,
-        /// Literal turn group name. Selects from `turn_groups[group]` in the enemy definition.
-        ///
-        /// 字面量回合组名。从敌人定义的 `turn_groups[group]` 中选择。
-        #[serde(default)]
-        group: Option<String>,
-        /// Fact key whose value is the turn group name (for template params).
-        ///
-        /// 值为回合组名的 fact 键名（用于模板参数）。
-        #[serde(default)]
-        group_fact: Option<String>,
-    },
 }
 
 fn default_true() -> bool {

@@ -1,9 +1,317 @@
-//! Core data types for danmaku and spawn pattern interfaces.
+//! Core data types for input, danmaku, and spawn pattern interfaces.
 //!
-//! 弹幕和生成模式接口的核心数据类型。
+//! 输入、弹幕和生成模式接口的核心数据类型。
 
 use crate::context::Vec2;
-use crate::exports;
+use crate::{Action, exports};
+
+/// High-level input context identifier.
+///
+/// 高层输入上下文标识。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputContextId {
+    /// Project-declared runtime mode name.
+    ///
+    /// 项目声明的运行时 mode 名称。
+    Mode(String),
+    Dialogue,
+    View,
+    Custom(String),
+}
+
+/// Target receiving an input command.
+///
+/// 接收输入命令的目标。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputTarget {
+    ActiveView,
+    FreScope,
+    Behavior(String),
+}
+
+/// Navigation direction used by input commands.
+///
+/// 输入命令使用的导航方向。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+impl Direction {
+    #[doc(hidden)]
+    pub fn from_wit(direction: exports::souprune::plugin::behavior::Direction) -> Self {
+        use exports::souprune::plugin::behavior::Direction as WitDirection;
+        match direction {
+            WitDirection::Up => Self::Up,
+            WitDirection::Down => Self::Down,
+            WitDirection::Left => Self::Left,
+            WitDirection::Right => Self::Right,
+        }
+    }
+}
+
+/// Semantic input command after raw actions are normalized.
+///
+/// 原始动作被标准化之后得到的语义输入命令。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputCommand {
+    Navigate(Direction),
+    Confirm,
+    Cancel,
+    Menu,
+}
+
+impl InputContextId {
+    #[doc(hidden)]
+    pub fn from_wit(context: &exports::souprune::plugin::behavior::InputContextId) -> Self {
+        use exports::souprune::plugin::behavior::InputContextKind as WitInputContextKind;
+        match context.kind {
+            WitInputContextKind::Mode => {
+                Self::Mode(context.custom_name.clone().unwrap_or_default())
+            }
+            WitInputContextKind::Dialogue => Self::Dialogue,
+            WitInputContextKind::View => Self::View,
+            WitInputContextKind::Custom => {
+                Self::Custom(context.custom_name.clone().unwrap_or_default())
+            }
+        }
+    }
+}
+
+impl InputCommand {
+    #[doc(hidden)]
+    pub fn from_wit(command: exports::souprune::plugin::behavior::InputCommand) -> Self {
+        use exports::souprune::plugin::behavior::InputCommand as WitInputCommand;
+        match command {
+            WitInputCommand::Navigate(direction) => Self::Navigate(Direction::from_wit(direction)),
+            WitInputCommand::Confirm => Self::Confirm,
+            WitInputCommand::Cancel => Self::Cancel,
+            WitInputCommand::Menu => Self::Menu,
+        }
+    }
+}
+
+impl From<Action> for InputCommand {
+    fn from(action: Action) -> Self {
+        match action {
+            Action::Up => Self::Navigate(Direction::Up),
+            Action::Down => Self::Navigate(Direction::Down),
+            Action::Left => Self::Navigate(Direction::Left),
+            Action::Right => Self::Navigate(Direction::Right),
+            Action::Confirm => Self::Confirm,
+            Action::Cancel => Self::Cancel,
+            Action::Menu => Self::Menu,
+        }
+    }
+}
+
+/// A lightweight input effect request emitted by input handlers.
+///
+/// 输入处理器发出的轻量输入效果请求。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputEffect {
+    EmitEvent(String),
+    OpenView(String),
+    CloseView,
+}
+
+/// A single input transaction traveling through the routing layer.
+///
+/// 经过路由层流转的一笔输入事务。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct InputEnvelope {
+    pub context: InputContextId,
+    pub target: InputTarget,
+    pub command: InputCommand,
+    pub source_action: String,
+}
+
+impl InputEnvelope {
+    /// Create a new input envelope.
+    ///
+    /// 创建一个新的输入事务封装。
+    pub fn new(
+        context: InputContextId,
+        target: InputTarget,
+        command: InputCommand,
+        source_action: impl Into<String>,
+    ) -> Self {
+        Self {
+            context,
+            target,
+            command,
+            source_action: source_action.into(),
+        }
+    }
+}
+
+/// Result of handling an input transaction.
+///
+/// 处理输入事务后的结果。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputResult {
+    Ignored,
+    Consumed(Vec<InputEffect>),
+    PassThrough(Vec<InputEffect>),
+}
+
+/// Opaque handle for a host-owned collision region.
+///
+/// 宿主拥有的碰撞区域的不透明句柄。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RegionHandle(pub u64);
+
+/// Opaque handle for a host-owned movement constraint.
+///
+/// 宿主拥有的移动约束的不透明句柄。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ConstraintHandle(pub u64);
+
+/// Opaque handle for a host-owned entity primitive.
+///
+/// 宿主拥有的实体 primitive 的不透明句柄。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EntityHandle(pub u64);
+
+/// Opaque handle for a host-owned ViewBox primitive.
+///
+/// 宿主拥有的 ViewBox primitive 的不透明句柄。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ViewBoxHandle(pub u64);
+
+impl From<ViewBoxHandle> for EntityHandle {
+    fn from(handle: ViewBoxHandle) -> Self {
+        Self(handle.0)
+    }
+}
+
+/// RGBA color for host-owned sprite primitives.
+///
+/// 宿主拥有的 sprite primitive 使用的 RGBA 颜色。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Rgba {
+    pub red: f32,
+    pub green: f32,
+    pub blue: f32,
+    pub alpha: f32,
+}
+
+impl Rgba {
+    /// Create a color from red, green, blue, and alpha components.
+    ///
+    /// 从红、绿、蓝、透明度分量创建颜色。
+    pub fn new(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
+        Self {
+            red,
+            green,
+            blue,
+            alpha,
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn to_wit(self) -> crate::souprune::plugin::host_api::Rgba {
+        crate::souprune::plugin::host_api::Rgba {
+            red: self.red,
+            green: self.green,
+            blue: self.blue,
+            alpha: self.alpha,
+        }
+    }
+}
+
+impl Default for Rgba {
+    fn default() -> Self {
+        Self::new(1.0, 1.0, 1.0, 1.0)
+    }
+}
+
+/// Host-owned sprite entity primitive configuration.
+///
+/// 宿主拥有的 sprite 实体 primitive 配置。
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpriteEntityConfig {
+    pub texture: String,
+    pub position: Vec2,
+    pub z: f32,
+    pub color: Rgba,
+    pub physics_collider: Option<ColliderShape>,
+    pub trigger_collider: Option<ColliderShape>,
+    pub behavior_id: Option<String>,
+    pub behavior_context: Option<String>,
+    pub bullet_target: bool,
+    pub mode_scope: Option<String>,
+    pub name: Option<String>,
+}
+
+impl SpriteEntityConfig {
+    /// Create a sprite entity config with default optional components disabled.
+    ///
+    /// 创建一个默认不附加可选组件的 sprite 实体配置。
+    pub fn new(texture: impl Into<String>, position: Vec2) -> Self {
+        Self {
+            texture: texture.into(),
+            position,
+            z: 0.0,
+            color: Rgba::default(),
+            physics_collider: None,
+            trigger_collider: None,
+            behavior_id: None,
+            behavior_context: None,
+            bullet_target: false,
+            mode_scope: None,
+            name: None,
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn to_wit(self) -> crate::souprune::plugin::host_api::SpriteEntityDesc {
+        crate::souprune::plugin::host_api::SpriteEntityDesc {
+            texture: self.texture,
+            position: crate::souprune::plugin::host_api::Vec2 {
+                x: self.position.x,
+                y: self.position.y,
+            },
+            z: self.z,
+            color: self.color.to_wit(),
+            physics_collider: self.physics_collider.map(ColliderShape::to_wit),
+            trigger_collider: self.trigger_collider.map(ColliderShape::to_wit),
+            behavior_id: self.behavior_id,
+            behavior_context: self.behavior_context,
+            bullet_target: self.bullet_target,
+            mode_scope: self.mode_scope,
+            name: self.name,
+        }
+    }
+}
+
+/// Collider shape used by host-side movement constraints.
+///
+/// 宿主侧移动约束使用的碰撞体形状。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ColliderShape {
+    Circle { radius: f32 },
+    Rectangle { half_size: Vec2 },
+}
+
+impl ColliderShape {
+    #[doc(hidden)]
+    pub fn to_wit(self) -> crate::souprune::plugin::host_api::ColliderShape {
+        use crate::souprune::plugin::host_api::{
+            ColliderShape as WitColliderShape, Vec2 as WitVec2,
+        };
+        match self {
+            Self::Circle { radius } => WitColliderShape::Circle(radius),
+            Self::Rectangle { half_size } => WitColliderShape::Rectangle(WitVec2 {
+                x: half_size.x,
+                y: half_size.y,
+            }),
+        }
+    }
+}
 
 /// Bullet context for danmaku callbacks.
 #[derive(Debug, Clone)]

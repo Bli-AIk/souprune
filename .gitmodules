@@ -17,14 +17,6 @@
 	path = third_party/iyes_perf_ui
 	url = git@github.com:Bli-AIk/iyes_perf_ui.git
 	branch = bevy-0-18
-[submodule "crates/flambe"]
-	path = crates/flambe
-	url = git@github.com:Bli-AIk/flambe.git
-	branch = feat/init
-[submodule "crates/bevy_workbench"]
-	path = crates/bevy_workbench
-	url = git@github.com:Bli-AIk/bevy_workbench.git
-	branch = feat/init
 [submodule "crates/bevy_bitmap_text"]
 	path = crates/bevy_bitmap_text
 	url = git@github.com:Bli-AIk/bevy_bitmap_text.git

@@ -23,6 +23,13 @@
 //!   actions from WASM, enabling data-driven game logic.
 //!   自定义 Action：实现 `CustomActionHandler` 处理 FRE 自定义动作。
 //!
+//! - **Host View Primitives**: Use `ctx.view().spawn_box(...)` to create
+//!   host-owned ViewBox primitives, keep the returned handle in your behavior
+//!   state, and update/remove it through the same helper.
+//!   宿主 View primitive：通过 `ctx.view().spawn_box(...)` 创建宿主拥有的
+//!   ViewBox primitive，把返回的 handle 保存在行为状态中，并通过同一 helper
+//!   更新或移除它。
+//!
 //! # Example
 //!
 //! ```ignore
@@ -44,17 +51,63 @@
 //!     behaviors: [("my_soul", MySoul, || MySoul { counter: 0 })],
 //! }
 //! ```
+//!
+//! # Host View Primitive Example / 宿主 View Primitive 示例
+//!
+//! ```ignore
+//! use souprune_sdk::prelude::*;
+//!
+//! struct BoxCursor { handle: Option<ViewBoxHandle>, index: i32 }
+//!
+//! impl Behavior for BoxCursor {
+//!     fn on_enter(&mut self, ctx: &mut Context) {
+//!         self.handle = ctx.view().spawn_box(
+//!             Vec2::new(0.0, -120.0),
+//!             Vec2::new(180.0, 42.0),
+//!             4.0,
+//!         );
+//!         if let Some(handle) = self.handle {
+//!             ctx.view().tween_box_bounds(
+//!                 handle,
+//!                 Vec2::new(32.0, -120.0),
+//!                 Vec2::new(180.0, 42.0),
+//!                 0.25,
+//!             );
+//!         }
+//!     }
+//!
+//!     fn on_input(&mut self, ctx: &mut Context, _context: InputContextId, command: InputCommand) {
+//!         if let InputCommand::Navigate(Direction::Right) = command {
+//!             self.index += 1;
+//!             if let Some(handle) = self.handle {
+//!                 let x = self.index as f32 * 32.0;
+//!                 ctx.view().set_box_bounds(
+//!                     handle,
+//!                     Vec2::new(x, -120.0),
+//!                     Vec2::new(180.0, 42.0),
+//!                 );
+//!             }
+//!         }
+//!     }
+//! }
+//! ```
 
 pub mod context;
 pub mod traits;
 pub mod types;
 
-pub use context::{Context, FactValue, Vec2};
+pub use context::{
+    CollisionHelper, Context, EntityPrimitiveHelper, FactValue, Vec2, ViewPrimitiveHelper,
+};
 pub use traits::{
     ActionParam, Behavior, CustomActionHandler, DanmakuBehavior, ModeLifecycle, RuleAction,
     RuleDef, RuleModification, RuleProvider, SpawnPatternBehavior,
 };
-pub use types::{BulletContext, BulletOutput, SpawnContext, SpawnOutput, SpawnParam};
+pub use types::{
+    BulletContext, BulletOutput, ColliderShape, ConstraintHandle, Direction, EntityHandle,
+    InputCommand, InputContextId, InputEffect, InputEnvelope, InputResult, InputTarget,
+    RegionHandle, Rgba, SpawnContext, SpawnOutput, SpawnParam, SpriteEntityConfig, ViewBoxHandle,
+};
 
 // Generate guest bindings from the WIT interface
 wit_bindgen::generate!({
@@ -102,13 +155,18 @@ impl Action {
 
 /// Convenience prelude for mod developers.
 pub mod prelude {
-    pub use crate::context::{Context, FactValue, Vec2};
+    pub use crate::context::{
+        CollisionHelper, Context, EntityPrimitiveHelper, FactValue, Vec2, ViewPrimitiveHelper,
+    };
     pub use crate::traits::{
         ActionParam, Behavior, CustomActionHandler, DanmakuBehavior, ModeLifecycle, RuleAction,
         RuleDef, RuleModification, RuleProvider, SpawnPatternBehavior,
     };
     pub use crate::{
-        Action, BulletContext, BulletOutput, SpawnContext, SpawnOutput, SpawnParam, export_mod,
+        Action, BulletContext, BulletOutput, ColliderShape, ConstraintHandle, Direction,
+        EntityHandle, InputCommand, InputContextId, InputEffect, InputEnvelope, InputResult,
+        InputTarget, RegionHandle, Rgba, SpawnContext, SpawnOutput, SpawnParam, SpriteEntityConfig,
+        ViewBoxHandle, export_mod,
     };
 }
 
@@ -168,6 +226,17 @@ macro_rules! export_mod {
             fn on_enter(&self) {
                 let mut ctx = $crate::context::Context::new();
                 self.inner.borrow_mut().on_enter(&mut ctx);
+            }
+
+            fn on_input(
+                &self,
+                input_context: $crate::exports::souprune::plugin::behavior::InputContextId,
+                command: $crate::exports::souprune::plugin::behavior::InputCommand,
+            ) {
+                let mut ctx = $crate::context::Context::new();
+                let input_context = $crate::InputContextId::from_wit(&input_context);
+                let command = $crate::InputCommand::from_wit(command);
+                self.inner.borrow_mut().on_input(&mut ctx, input_context, command);
             }
 
             fn on_update(&self, delta_time: f32) {

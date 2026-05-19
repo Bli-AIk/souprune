@@ -215,7 +215,7 @@ fn render_chase_state_section(ui: &mut egui::Ui, world: &mut World) {
     ui.add_space(10.0);
 
     let chase_enabled_display: Option<(&str, egui::Color32)> = world
-        .get_resource::<crate::preset::overworld::chase::ChaseEnabled>()
+        .get_resource::<crate::core::top_down::chase::ChaseEnabled>()
         .map(|c| {
             if c.0 {
                 ("Yes", egui::Color32::GREEN)
@@ -225,7 +225,7 @@ fn render_chase_state_section(ui: &mut egui::Ui, world: &mut World) {
         });
 
     let chase_name_val = world
-        .get_resource::<crate::preset::overworld::chase::ChaseStateName>()
+        .get_resource::<crate::core::top_down::chase::ChaseStateName>()
         .and_then(|c| c.0.clone());
 
     egui::CollapsingHeader::new("Chase State Info")

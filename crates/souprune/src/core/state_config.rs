@@ -121,6 +121,17 @@ impl LoadedStateConfig {
             .unwrap_or(&[])
     }
 
+    /// Get the active state's screen-space fact projection config.
+    ///
+    /// 获取当前状态的屏幕空间 fact 投影配置。
+    pub fn get_screen_fact_projection(
+        &self,
+        state_name: &str,
+    ) -> Option<&souprune_schema::config::ScreenFactProjectionDef> {
+        self.get(state_name)
+            .and_then(|s| s.screen_fact_projection.as_ref())
+    }
+
     /// Iterate over all configured states.
     ///
     /// 遍历所有状态配置。

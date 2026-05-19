@@ -12,7 +12,6 @@
 //! 集成要启用，以及哪些游戏插件组成真正的运行时。把这些选择集中在这里，
 //! 可以避免 crate 根入口和 runner 被一长串互不相干的插件细节淹没。
 
-use crate::app_state::app_setup;
 use crate::config;
 use crate::core::input::Action;
 use crate::core::*;
@@ -30,6 +29,8 @@ use bevy::render::settings::{RenderCreation, WgpuSettings};
 #[cfg(not(target_os = "android"))]
 use bevy::window::WindowResolution;
 use bevy::window::{Window, WindowPlugin};
+
+pub mod app_setup;
 
 pub(crate) fn get_bevy_default_plugins(
     resolution_scale: u32,
@@ -145,14 +146,12 @@ pub fn get_third_plugins() -> (
 
 pub fn get_game_plugins() -> (
     CorePlugin,
-    crate::preset::PresetPlugin,
     app_setup::AppSetupPlugin,
     GlobalPlugin,
     mod_system::ModPlugin,
 ) {
     (
         CorePlugin,
-        crate::preset::PresetPlugin,
         app_setup::AppSetupPlugin,
         GlobalPlugin,
         mod_system::ModPlugin,

@@ -4,116 +4,17 @@
 //! 一个独立的测试宿主应用程序，模拟游戏框架。
 //! 使用 Wasmtime 加载和运行 WASM 模组组件。
 
-use wasmtime::component::{Component, HasSelf, Linker, ResourceTable};
+use state::MockHostState;
+use wasmtime::component::{Component, HasSelf, Linker};
 use wasmtime::{Engine, Store};
-use wasmtime_wasi::WasiCtxBuilder;
 
 wasmtime::component::bindgen!({
     path: "wit",
     world: "souprune-mod",
 });
 
-struct MockHostState {
-    wasi: wasmtime_wasi::WasiCtx,
-    table: ResourceTable,
-}
-
-impl wasmtime_wasi::WasiView for MockHostState {
-    fn ctx(&mut self) -> wasmtime_wasi::WasiCtxView<'_> {
-        wasmtime_wasi::WasiCtxView {
-            ctx: &mut self.wasi,
-            table: &mut self.table,
-        }
-    }
-}
-
-impl souprune::plugin::host_api::Host for MockHostState {
-    fn log(&mut self, _level: u32, message: String) {
-        println!("[HOST] Log: {}", message);
-    }
-
-    fn is_action_pressed(&mut self, action: souprune::plugin::host_api::Action) -> bool {
-        // Simulate: only Right is pressed
-        matches!(action, souprune::plugin::host_api::Action::Right)
-    }
-
-    fn is_action_just_pressed(&mut self, _action: souprune::plugin::host_api::Action) -> bool {
-        false
-    }
-
-    fn set_velocity(&mut self, velocity: souprune::plugin::host_api::Vec2) {
-        println!("[HOST] Set velocity: ({}, {})", velocity.x, velocity.y);
-    }
-
-    fn get_entity_position(&mut self) -> souprune::plugin::host_api::Vec2 {
-        souprune::plugin::host_api::Vec2 { x: 0.0, y: 0.0 }
-    }
-
-    fn delta_time(&mut self) -> f32 {
-        0.016
-    }
-
-    fn get_fact(&mut self, key: String) -> Option<souprune::plugin::host_api::FactValue> {
-        use souprune::plugin::host_api::FactValue;
-        match key.as_str() {
-            "player:pos_x" => Some(FactValue::FloatVal(100.0)),
-            "player:pos_y" => Some(FactValue::FloatVal(-200.0)),
-            _ => None,
-        }
-    }
-
-    fn set_fact(&mut self, key: String, value: souprune::plugin::host_api::FactValue) {
-        println!("[HOST] set_fact: {}={:?}", key, value);
-    }
-
-    fn emit_event(&mut self, event_name: String) {
-        println!("[HOST] emit_event: {}", event_name);
-    }
-
-    fn get_entity_position_by_tag(
-        &mut self,
-        tag: String,
-    ) -> Option<souprune::plugin::host_api::Vec2> {
-        println!("[HOST] get_entity_position_by_tag: {}", tag);
-        None
-    }
-
-    fn spawn_emitter(
-        &mut self,
-        pattern_id: String,
-        position: souprune::plugin::host_api::Vec2,
-    ) -> u64 {
-        println!(
-            "[HOST] spawn_emitter: {} at ({}, {})",
-            pattern_id, position.x, position.y
-        );
-        0
-    }
-
-    fn despawn_emitter(&mut self, handle: u64) {
-        println!("[HOST] despawn_emitter: {}", handle);
-    }
-
-    fn open_view(&mut self, view_id: String) {
-        println!("[HOST] open_view: {}", view_id);
-    }
-
-    fn close_view(&mut self) {
-        println!("[HOST] close_view");
-    }
-
-    fn play_sound(&mut self, sound_key: String) {
-        println!("[HOST] play_sound: {}", sound_key);
-    }
-
-    fn get_current_mode(&mut self) -> Option<String> {
-        Some("overworld".to_string())
-    }
-
-    fn get_current_sub_state(&mut self) -> String {
-        "Normal".to_string()
-    }
-}
+mod host_api;
+mod state;
 
 fn main() -> anyhow::Result<()> {
     let mut config = wasmtime::Config::new();
@@ -131,16 +32,7 @@ fn main() -> anyhow::Result<()> {
 
     println!("Loading WASM mod from: {}", wasm_path);
     let component = Component::from_file(&engine, &wasm_path)?;
-
-    let wasi = WasiCtxBuilder::new().build();
-    let mut store = Store::new(
-        &engine,
-        MockHostState {
-            wasi,
-            table: ResourceTable::new(),
-        },
-    );
-
+    let mut store = Store::new(&engine, MockHostState::new());
     let bindings = SoupruneMod::instantiate(&mut store, &component, &linker)?;
 
     // List behaviors
@@ -177,6 +69,18 @@ fn main() -> anyhow::Result<()> {
         behavior_iface
             .behavior_instance()
             .call_on_enter(&mut store, instance)?;
+
+        let input_context = exports::souprune::plugin::behavior::InputContextId {
+            kind: exports::souprune::plugin::behavior::InputContextKind::Mode,
+            custom_name: Some("battle".to_string()),
+        };
+        let input_command = exports::souprune::plugin::behavior::InputCommand::Confirm;
+        behavior_iface.behavior_instance().call_on_input(
+            &mut store,
+            instance,
+            &input_context,
+            input_command,
+        )?;
 
         behavior_iface
             .behavior_instance()

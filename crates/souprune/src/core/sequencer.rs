@@ -24,7 +24,7 @@ mod log_chapter;
 mod performance;
 mod player;
 mod run_sequence;
-mod tween;
+pub(crate) mod tween;
 pub mod view_action;
 mod view_element;
 
@@ -36,7 +36,7 @@ pub use context::{
     ActiveChapter, ChapterFinished, CurrentSequenceFlow, SequenceContext, SequenceDebugInfo,
     SequenceExecutionState, SequenceRulesHandle, WaitTimer,
 };
-pub use flow::load_default_chapter_system;
+pub use flow::sync_sequence_flow_system;
 
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
@@ -48,10 +48,10 @@ use crate::core::ron_loader::RonAssetLoader;
 use chapter_schema::Chapter;
 
 /// SystemSet for sequencer systems.
-/// Callers (BattlePlugin, OverworldPlugin) configure when this set runs.
+/// Callers (FixedScenePlugin, TopDownPlugin) configure when this set runs.
 ///
 /// Sequencer 系统集。
-/// 调用方（BattlePlugin, OverworldPlugin）配置该集合何时运行。
+/// 调用方（FixedScenePlugin, TopDownPlugin）配置该集合何时运行。
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SequencerUpdate;
 
@@ -62,7 +62,7 @@ pub struct SequencerUpdate;
 /// 包含章节序列和可选的规则文件路径。
 #[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
 pub struct SequenceAsset {
-    /// The mode this sequence runs in (e.g., "overworld", "battle").
+    /// The mode this sequence runs in (e.g., "top_down", "battle").
     /// Sets SequenceMode when this sequence is loaded.
     #[serde(default)]
     pub mode: Option<String>,
@@ -171,7 +171,7 @@ pub fn register_sequencer_systems(app: &mut App, schedule: impl ScheduleLabel + 
             log_chapter::process_log_chapter_system,
             interaction::check_await_fact_completion_system,
             flow::cleanup_finished_chapters_system,
-            flow::sync_battle_flow_system,
+            flow::sync_sequence_flow_system,
         )
             .chain()
             .in_set(SequencerUpdate)

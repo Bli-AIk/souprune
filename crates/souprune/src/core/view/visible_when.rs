@@ -9,13 +9,13 @@
 //!
 //! This system only runs when relevant data changes:
 //! - Global LayeredFactDatabase changes
-//! - Any ViewRoot's local_facts changes
+//! - Any ViewRoot's LocalState changes
 //!
 //! ## 性能优化
 //!
 //! 此系统仅在相关数据变更时运行：
 //! - 全局 LayeredFactDatabase 变更
-//! - 任何 ViewRoot 的 local_facts 变更
+//! - 任何 ViewRoot 的 LocalState 变更
 //!
 //! 本模块提供评估 `visible_when` 表达式并相应更新实体可见性的系统。
 
@@ -26,12 +26,12 @@ use bevy_fact_rule_event::LayeredFactDatabase;
 
 /// System that evaluates `visible_when` expressions and updates visibility.
 ///
-/// This system only runs when the fact database or any ViewRoot's local_facts changes,
+/// This system only runs when the fact database or any ViewRoot's LocalState changes,
 /// avoiding unnecessary per-frame computation.
 ///
 /// 评估 `visible_when` 表达式并更新可见性的系统。
 ///
-/// 此系统仅在 fact 数据库或任何 ViewRoot 的 local_facts 变更时运行，
+/// 此系统仅在 fact 数据库或任何 ViewRoot 的 LocalState 变更时运行，
 /// 避免不必要的每帧计算。
 pub fn evaluate_visible_when_system(
     layered_db: Res<LayeredFactDatabase>,
@@ -57,9 +57,10 @@ pub fn evaluate_visible_when_system(
         let view_root = find_view_root_ancestor(entity, &view_root_query, &child_of_query);
 
         let is_visible = if let Some(view_root) = view_root {
-            let player_data = PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
-                .with_resolvers(None, cond_resolvers.as_deref())
-                .with_expr_functions(expr_func_resolvers.as_deref());
+            let player_data =
+                PlayerDataView::with_local_state(&layered_db, view_root.local_state())
+                    .with_resolvers(None, cond_resolvers.as_deref())
+                    .with_expr_functions(expr_func_resolvers.as_deref());
             evaluate_visible_when_expr(&visible_when.expression, &player_data)
         } else {
             let player_data = PlayerDataView::new(&layered_db)

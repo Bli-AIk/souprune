@@ -27,6 +27,42 @@ pub enum Action {
     Menu = 6,
 }
 
+/// High-level input context identifier, mirrors the WIT `input-context-id` record.
+///
+/// 高层输入上下文标识，对应 WIT 中的 `input-context-id` 记录。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputContextId {
+    /// Project-declared runtime mode name.
+    ///
+    /// 项目声明的运行时 mode 名称。
+    Mode(String),
+    Dialogue,
+    View,
+    Custom(String),
+}
+
+/// Navigation direction used by input commands, mirrors the WIT `direction` enum.
+///
+/// 输入命令使用的导航方向，对应 WIT 中的 `direction` 枚举。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+/// Semantic input command, mirrors the WIT `input-command` variant.
+///
+/// 语义输入命令，对应 WIT 中的 `input-command` 变体。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputCommand {
+    Navigate(Direction),
+    Confirm,
+    Cancel,
+    Menu,
+}
+
 /// 2D vector, mirrors the WIT `vec2` record.
 ///
 /// 二维向量，对应 WIT 中的 `vec2` 记录。
@@ -42,6 +78,27 @@ impl Vec2 {
     pub fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
+}
+
+/// Opaque handle for a host-owned collision region.
+///
+/// 宿主拥有的碰撞区域的不透明句柄。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RegionHandle(pub u64);
+
+/// Opaque handle for a host-owned movement constraint.
+///
+/// 宿主拥有的移动约束的不透明句柄。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ConstraintHandle(pub u64);
+
+/// Collider shape used by host-side movement constraints.
+///
+/// 宿主侧移动约束使用的碰撞体形状。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ColliderShape {
+    Circle { radius: f32 },
+    Rectangle { half_size: Vec2 },
 }
 
 /// Named property for danmaku behaviors, mirrors the WIT `prop` record.

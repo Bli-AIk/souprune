@@ -52,7 +52,7 @@ fn test_vec2_tuple_parse() {
 fn test_set_view_element_with_duration() {
     let ron = r#"#![enable(implicit_some)]
     SetViewElement(
-        selector: LocalName("BattleBox"),
+        selector: LocalName("SampleBox"),
         target: BoxSize(to: ("@current", 130.0)),
         duration: 0.5,
         easing: InOutQuad,
@@ -74,7 +74,7 @@ fn test_set_view_element_with_duration() {
 fn test_set_view_element_instant() {
     // No duration/easing → instant set
     let ron = r#"SetViewElement(
-        selector: LocalName("BattleBox"),
+        selector: LocalName("SampleBox"),
         target: BoxSize(to: (175, "@current")),
     )"#;
     let result: Result<Chapter, _> = ron::from_str(ron);
@@ -92,7 +92,7 @@ fn test_set_view_element_instant() {
 #[test]
 fn test_set_view_element_anchor() {
     let ron = r#"SetViewElement(
-        selector: LocalName("BattleBox"),
+        selector: LocalName("SampleBox"),
         target: Anchor(0.0, -1.0),
     )"#;
     let result: Result<Chapter, _> = ron::from_str(ron);
@@ -140,49 +140,6 @@ fn test_tween_target_box_size_with_from() {
     assert!(
         result.is_ok(),
         "Failed to parse TweenTarget::BoxSize with from: {:?}",
-        result.err()
-    );
-}
-
-#[test]
-fn test_split_battle_box_chapter_with_cubic_out_easing() {
-    let ron = r#"SplitBattleBox(
-        source: "main",
-        result: ("left_anim", "right_anim"),
-        axis: Vertical,
-        gap: 25.0,
-        duration: 0.8,
-        easing: CubicOut,
-    )"#;
-    let result: Result<Chapter, _> = ron::from_str(ron);
-    match &result {
-        Ok(v) => println!("SplitBattleBox easing OK: {:?}", v),
-        Err(e) => println!("SplitBattleBox easing ERR: {}", e),
-    }
-    assert!(
-        result.is_ok(),
-        "Failed to parse SplitBattleBox with CubicOut easing: {:?}",
-        result.err()
-    );
-}
-
-#[test]
-fn test_merge_battle_boxes_chapter_with_cubic_out_easing() {
-    let ron = r#"MergeBattleBoxes(
-        sources: ("left_anim", "right_anim"),
-        result: "main",
-        gap_policy: Expands,
-        duration: 0.5,
-        easing: CubicOut,
-    )"#;
-    let result: Result<Chapter, _> = ron::from_str(ron);
-    match &result {
-        Ok(v) => println!("MergeBattleBoxes easing OK: {:?}", v),
-        Err(e) => println!("MergeBattleBoxes easing ERR: {}", e),
-    }
-    assert!(
-        result.is_ok(),
-        "Failed to parse MergeBattleBoxes with CubicOut easing: {:?}",
         result.err()
     );
 }

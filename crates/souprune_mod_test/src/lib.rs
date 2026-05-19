@@ -32,6 +32,18 @@ impl Behavior for MyTestSoul {
         }
     }
 
+    fn on_input(
+        &mut self,
+        context: &mut Context,
+        input_context: InputContextId,
+        command: InputCommand,
+    ) {
+        context.log(&format!(
+            "Input callback: context={:?}, command={:?}",
+            input_context, command
+        ));
+    }
+
     fn on_exit(&mut self, context: &mut Context) {
         context.log("TestMod: Bye bye!");
     }

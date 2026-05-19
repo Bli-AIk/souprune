@@ -26,12 +26,12 @@ use super::lifecycle::DialogueControllerEntity;
 ///
 /// 可配置的 FRE 事实到 Mortar 运行时函数/变量的绑定。
 ///
-/// The game/preset initializes this resource at startup to register mortar functions
-/// and variables that read from specific FRE facts. This eliminates game-specific
-/// knowledge from the dialogue system.
+/// Project or mode runtime code initializes this resource at startup to register
+/// mortar functions and variables that read from specific FRE facts. This keeps
+/// project-specific knowledge out of the dialogue system.
 ///
-/// 游戏/preset 在启动时初始化此资源，注册从特定 FRE 事实读取数据的 mortar
-/// 函数和变量。这消除了对话系统中的游戏特定知识。
+/// 项目或模式运行时代码在启动时初始化此资源，注册从特定 FRE 事实读取数据的
+/// mortar 函数和变量。这让对话系统不需要包含项目特定知识。
 #[derive(Resource, Default)]
 pub struct MortarFactBindings {
     /// Number function bindings: (mortar_function_name, fact_key, default_value).

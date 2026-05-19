@@ -12,10 +12,10 @@
 //! 准备资源源和热重载监听器、注入启动资源，并最终运行装配好的插件图。
 //! 只在进程构建阶段有意义的逻辑，应当放在这里，而不是混进玩法代码里。
 
-use crate::app_state::app_setup;
 #[cfg(target_os = "android")]
 use crate::bootstrap::logging::android_panic_log_path;
 use crate::bootstrap::logging::setup_logging;
+use crate::bootstrap::plugins::app_setup;
 use crate::bootstrap::plugins::{
     get_bevy_default_plugins, get_file_importer_plugins, get_game_plugins, get_third_plugins,
 };
@@ -194,29 +194,26 @@ pub fn run() {
     // Register game-specific mortar fact bindings.
     // These map FRE fact keys → Mortar dialogue functions/variables.
     use crate::core::dialogue::MortarFactBindings;
-    use crate::preset::item_actions::{
-        DIALOGUE_ITEM_HEAL_AMOUNT, DIALOGUE_ITEM_NAME, DIALOGUE_ITEM_VALUE,
-    };
     app.insert_resource(MortarFactBindings {
         number_functions: vec![
             ("get_player_hp".into(), "player:hp".into(), 20.0),
             ("get_player_hp_max".into(), "player:hp_max".into(), 20.0),
             (
                 "get_heal_amount".into(),
-                DIALOGUE_ITEM_HEAL_AMOUNT.into(),
+                "dialogue:item_heal_amount".into(),
                 0.0,
             ),
-            ("get_item_value".into(), DIALOGUE_ITEM_VALUE.into(), 0.0),
+            ("get_item_value".into(), "dialogue:item_value".into(), 0.0),
         ],
         string_variables: vec![
-            ("item_name".into(), DIALOGUE_ITEM_NAME.into(), true),
+            ("item_name".into(), "dialogue:item_name".into(), true),
             (
                 "item_description".into(),
                 "dialogue:item_description".into(),
                 false,
             ),
         ],
-        number_variables: vec![("heal_amount".into(), DIALOGUE_ITEM_HEAL_AMOUNT.into())],
+        number_variables: vec![("heal_amount".into(), "dialogue:item_heal_amount".into())],
     });
 
     app.add_plugins(get_game_plugins()).run();

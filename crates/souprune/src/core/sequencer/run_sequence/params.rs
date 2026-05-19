@@ -15,22 +15,30 @@ use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 use std::collections::HashMap;
 
-use crate::core::view::ViewRoot;
+use crate::core::view::{LocalState, ViewRoot};
 
 use super::super::chapter_schema::FactValueMatch;
 
-/// Prefix for injected sequence parameters in local_facts.
+/// Prefix for injected sequence parameters in ViewRoot LocalState.
 /// Parameters are stored as `_param_{name}` to avoid conflicts.
 ///
-/// 注入到 local_facts 的序列参数前缀。
+/// 注入到 ViewRoot LocalState 的序列参数前缀。
 /// 参数存储为 `_param_{name}` 以避免冲突。
 const PARAM_PREFIX: &str = "_param_";
 
-/// Inject sequence parameters into a ViewRoot's local_facts.
+/// Inject sequence parameters into a ViewRoot's LocalState.
 ///
-/// For `Expr("$key")` lookups, checks the ViewRoot's own local_facts first
+/// This is a sequencer-owned construction/update write for the currently
+/// running sequence, not a generic runtime consumer mutation path.
+///
+/// For `Expr("$key")` lookups, checks the ViewRoot's own LocalState first
 /// (where parent RunSequence params are stored) before falling back to
 /// the LayeredFactDatabase.
+///
+/// 向 ViewRoot 的 LocalState 注入序列参数。
+///
+/// 这是序列器拥有的构建/更新写入，用于当前运行的序列，
+/// 不是普通运行时 consumer 的任意可变入口。
 pub(super) fn inject_sequence_params(
     view_root: &mut ViewRoot,
     params: &HashMap<String, FactValueMatch>,
@@ -38,11 +46,12 @@ pub(super) fn inject_sequence_params(
 ) {
     for (key, value) in params {
         let prefixed_key = format!("{}{}", PARAM_PREFIX, key);
-        let Some(fact_value) = resolve_fact_value(value, layered_db, &view_root.local_facts) else {
+        let Some(fact_value) = resolve_fact_value(value, layered_db, view_root.local_state())
+        else {
             warn!("RunSequence: Failed to evaluate param '{}'", key);
             continue;
         };
-        view_root.local_facts.set(prefixed_key, fact_value.clone());
+        view_root.set_local_value(prefixed_key, fact_value.clone());
         info!("RunSequence: Injected param '{}' = {:?}", key, fact_value);
     }
 }
@@ -50,7 +59,7 @@ pub(super) fn inject_sequence_params(
 fn resolve_fact_value(
     value: &FactValueMatch,
     layered_db: &LayeredFactDatabase,
-    local_facts: &bevy_fact_rule_event::FactDatabase,
+    local_state: &LocalState,
 ) -> Option<FactValue> {
     match value {
         FactValueMatch::Bool(value) => Some(FactValue::Bool(*value)),
@@ -59,9 +68,9 @@ fn resolve_fact_value(
         FactValueMatch::String(value) => Some(FactValue::String(value.clone())),
         FactValueMatch::Expr(expr) => {
             if let Some(fact_key) = expr.strip_prefix('$') {
-                // Check ViewRoot local_facts first (parent RunSequence params),
+                // Check ViewRoot local state first (parent RunSequence params),
                 // then fall back to layered DB.
-                local_facts
+                local_state
                     .get_by_str(fact_key)
                     .or_else(|| layered_db.get_by_str(fact_key))
                     .cloned()

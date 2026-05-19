@@ -44,6 +44,7 @@ mod fre_panel;
 mod freeze;
 #[cfg(feature = "debug")]
 mod image_overlay;
+#[cfg(feature = "debug")]
 mod inspector;
 #[cfg(feature = "debug")]
 mod restart;
@@ -77,7 +78,9 @@ pub use freeze::GameFreezeState;
 pub use freeze::debug_freeze::setup_freeze_debug;
 
 /// Resource to track recently triggered rules for visual feedback.
-/// Always available so the editor can show trigger highlights.
+/// Always available so runtime debug UI can show trigger highlights.
+///
+/// 始终可用，让运行时调试 UI 可以显示规则触发高亮。
 #[derive(Resource, Default)]
 pub struct RuleTriggerHistory {
     /// Map from rule_id to last trigger timestamp (in seconds).
@@ -119,8 +122,7 @@ impl Plugin for DebugPlugin {
             setup_collider_debug(app);
             setup_freeze_debug(app);
 
-            use inspector::debug_inspector;
-            debug_inspector::setup_debug_features(app);
+            inspector::setup_debug_features(app);
 
             fre_panel::debug_fre_panel::setup_fre_panel_debug(app);
 

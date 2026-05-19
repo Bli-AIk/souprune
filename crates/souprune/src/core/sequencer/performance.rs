@@ -2,7 +2,7 @@
 //!
 //! ## Module Overview
 //!
-//! Performance (Danmaku and Alight Motion) systems for the battle sequencer.
+//! Performance (Danmaku and Alight Motion) systems for the fixed-scene sequencer.
 //!
 //! 战斗序列管理器的演出（弹幕和 Alight Motion）系统。
 
@@ -65,7 +65,7 @@ pub fn process_danmaku_performance_system(
         } = &active_chapter.chapter
         {
             info!(
-                "[Battle] Starting danmaku performance from: {}",
+                "[Sequencer] Starting danmaku performance from: {}",
                 performance
             );
             let mut event = crate::core::danmaku::PlayPerformanceEvent::new(performance.clone());
@@ -108,14 +108,14 @@ pub fn process_danmaku_wait_chapter_system(
                     .entity(entity)
                     .insert(WaitTimer(Timer::from_seconds(d, TimerMode::Once)))
                     .remove::<DanmakuPerformanceTracker>();
-                info!("[Battle] Danmaku performance blocking for {:.1}s", d);
+                info!("[Sequencer] Danmaku performance blocking for {:.1}s", d);
             }
             _ => {
                 commands
                     .entity(entity)
                     .insert(ChapterFinished)
                     .remove::<DanmakuPerformanceTracker>();
-                debug!("[Battle] Danmaku performance has no duration — completing immediately");
+                debug!("[Sequencer] Danmaku performance has no duration — completing immediately");
             }
         }
     }
@@ -147,7 +147,7 @@ pub fn process_am_performance_system(
         } = &active_chapter.chapter
         {
             info!(
-                "[Battle] Starting Alight Motion performance from: {}",
+                "[Sequencer] Starting Alight Motion performance from: {}",
                 amproj_path
             );
 
@@ -196,7 +196,7 @@ pub fn process_alight_motion_wait_chapter_system(
 
         // Only mark finished after performance has started and then stopped
         if tracker.started && !alight_motion_state.is_playing {
-            info!("[Battle] Alight Motion performance chapter finished");
+            info!("[Sequencer] Alight Motion performance chapter finished");
             commands.entity(entity).insert(ChapterFinished);
         }
     }

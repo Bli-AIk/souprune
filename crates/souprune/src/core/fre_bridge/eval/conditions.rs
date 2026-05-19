@@ -43,7 +43,7 @@ pub(crate) fn evaluate_conditions(
 /// - `$name == true`, `$name == false` - boolean check
 /// - `$name.len()` - get length of StringList
 ///
-/// Variable resolution priority: local_facts -> global_facts
+/// Variable resolution priority: View LocalState -> global facts.
 ///
 /// 评估单个条件表达式。
 ///
@@ -54,7 +54,7 @@ pub(crate) fn evaluate_conditions(
 /// - `$name == true`, `$name == false` - 布尔检查
 /// - `$name.len()` - 获取 StringList 的长度
 ///
-/// 变量解析优先级：local_facts -> global_facts
+/// 变量解析优先级：View LocalState -> 全局 facts。
 pub fn evaluate_single_condition(
     condition: &str,
     facts: &dyn FactReader,

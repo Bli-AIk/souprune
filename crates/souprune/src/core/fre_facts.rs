@@ -5,11 +5,11 @@
 //! 以避免拼写错误和方便全局搜索。
 //!
 //! 本文件只包含框架基础设施所需的 core facts。
-//! 游戏特定的 fact key（如 `player:hp`、`enemy:*`）
-//! 由各 app_state 模块自行定义或直接使用字符串字面量。
+//! 项目特定的 fact key（如 `player:hp`、`enemy:*`）
+//! 由项目内容/runtime 或对应模式运行时定义。
 
 // ============================================================================
-// Core Facts — 框架基础设施，不随 preset 变化
+// Core Facts — 框架基础设施，不随项目玩法变化
 // ============================================================================
 
 // ── Dialogue system facts ──────────────────────────────────────────
@@ -102,6 +102,37 @@ pub fn dialogue_channel_key(channel: &str, field: &str) -> String {
 pub const STATE_SEQUENCE_SUB_STATE: &str = "state:sequence_sub_state";
 /// 当前 AppState 名称
 pub const STATE_APP_STATE: &str = "state:app_state";
+
+// ── Semantic input events ─────────────────────────────────────────
+
+/// Navigate up input event.
+///
+/// 向上导航输入事件。
+pub const INPUT_NAVIGATE_UP: &str = "input:navigate_up";
+/// Navigate down input event.
+///
+/// 向下导航输入事件。
+pub const INPUT_NAVIGATE_DOWN: &str = "input:navigate_down";
+/// Navigate left input event.
+///
+/// 向左导航输入事件。
+pub const INPUT_NAVIGATE_LEFT: &str = "input:navigate_left";
+/// Navigate right input event.
+///
+/// 向右导航输入事件。
+pub const INPUT_NAVIGATE_RIGHT: &str = "input:navigate_right";
+/// Confirm input event.
+///
+/// 确认输入事件。
+pub const INPUT_CONFIRM: &str = "input:confirm";
+/// Cancel input event.
+///
+/// 取消输入事件。
+pub const INPUT_CANCEL: &str = "input:cancel";
+/// Menu input event.
+///
+/// 菜单输入事件。
+pub const INPUT_MENU: &str = "input:menu";
 
 // ── View internal control facts ────────────────────────────────────
 
