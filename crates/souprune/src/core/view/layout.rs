@@ -315,7 +315,7 @@ mod tests {
         .expect("observer example asset should parse");
 
         assert_eq!(layout.roots.len(), 1);
-        assert!(matches!(layout.space, Some(ViewSpaceDef::World3dPlane(_))));
+        assert!(matches!(layout.space, Some(ViewSpaceDef::World2d)));
     }
 
     #[test]

@@ -170,13 +170,19 @@ fn orbit_spatial_camera_system(
         mouse_button.just_pressed(MouseButton::Right),
         mouse_motion.delta,
     );
-    if total_delta.length_squared() > 0.01 {
-        state.yaw -= total_delta.x * ORBIT_DRAG_SENSITIVITY;
-        state.pitch = (state.pitch - total_delta.y * ORBIT_DRAG_SENSITIVITY)
-            .clamp(-ORBIT_MAX_PITCH, ORBIT_MAX_PITCH);
-    }
+    apply_orbit_drag(&mut state, total_delta);
 
     *camera_transform = orbit_camera_transform(target, state.yaw, state.pitch, state.radius);
+}
+
+fn apply_orbit_drag(state: &mut SpatialOrbitCameraState, total_delta: Vec2) {
+    if total_delta.length_squared() <= 0.01 {
+        return;
+    }
+
+    state.yaw -= total_delta.x * ORBIT_DRAG_SENSITIVITY;
+    state.pitch = (state.pitch + total_delta.y * ORBIT_DRAG_SENSITIVITY)
+        .clamp(-ORBIT_MAX_PITCH, ORBIT_MAX_PITCH);
 }
 
 #[derive(Component)]
@@ -477,5 +483,14 @@ mod tests {
         );
         assert_eq!(orbit_motion_delta(true, false, delta), delta);
         assert_eq!(orbit_motion_delta(false, false, delta), Vec2::ZERO);
+    }
+
+    #[test]
+    fn orbit_drag_uses_mouse_y_direction_directly_for_pitch() {
+        let mut state = SpatialOrbitCameraState::default();
+
+        apply_orbit_drag(&mut state, Vec2::new(0.0, -10.0));
+
+        assert!(state.pitch < 0.0);
     }
 }

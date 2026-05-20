@@ -9,7 +9,6 @@
 use std::path::PathBuf;
 
 use bevy::asset::UnapprovedPathMode;
-use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
 use souprune::core::camera::MainGameCamera;
@@ -67,9 +66,15 @@ fn setup(
 ) {
     commands.spawn((
         Name::new("View Layout Observer Camera"),
-        Camera3d::default(),
-        Tonemapping::None,
-        Transform::from_xyz(0.0, 0.25, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Camera2d,
+        Projection::Orthographic(OrthographicProjection {
+            scaling_mode: bevy::camera::ScalingMode::Fixed {
+                width: 960.0,
+                height: 540.0,
+            },
+            ..OrthographicProjection::default_2d()
+        }),
+        Transform::default(),
         MainGameCamera,
     ));
 

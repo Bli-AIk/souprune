@@ -27,16 +27,16 @@
                 display: Some(Flex),
             ),
             transform: Some((
-                translation: Some((-1.8, -1.1, 0.0)),
+                translation: Some((-360.0, 110.0, 0.0)),
             )),
-            sprite: Some((
-                visual: "procedural://white_pixel",
-                color: Some((0.05, 0.07, 0.10, 0.96)),
-                transform: Some((
-                    translation: Some((1.8, 1.1, -0.02)),
-                    scale: Some((3.6, 2.2, 1.0)),
-                )),
-                pivot: Some((0.5, 0.5)),
+            view_box: Some((
+                width: 360.0,
+                height: 220.0,
+                border_width: 0.0,
+                offset: (180.0, -110.0, -0.02),
+                fill_shader: None,
+                structure_file: None,
+                fill_color: Some((0.05, 0.07, 0.10, 0.96)),
             )),
             children: [
                 (
@@ -59,14 +59,14 @@
                         )),
                         display: Some(Flex),
                     ),
-                    sprite: Some((
-                        visual: "procedural://white_pixel",
-                        color: Some((0.14, 0.25, 0.44, 0.96)),
-                        transform: Some((
-                            translation: Some((156.0, 22.0, 0.02)),
-                            scale: Some((312.0, 44.0, 1.0)),
-                        )),
-                        pivot: Some((0.5, 0.5)),
+                    view_box: Some((
+                        width: 312.0,
+                        height: 44.0,
+                        border_width: 0.0,
+                        offset: (156.0, 22.0, 0.02),
+                        fill_shader: None,
+                        structure_file: None,
+                        fill_color: Some((0.14, 0.25, 0.44, 0.96)),
                     )),
                     children: [
                         (
@@ -152,14 +152,14 @@
                         )),
                         display: Some(Flex),
                     ),
-                    sprite: Some((
-                        visual: "procedural://white_pixel",
-                        color: Some((0.08, 0.12, 0.18, 0.96)),
-                        transform: Some((
-                            translation: Some((156.0, 56.0, 0.02)),
-                            scale: Some((312.0, 112.0, 1.0)),
-                        )),
-                        pivot: Some((0.5, 0.5)),
+                    view_box: Some((
+                        width: 312.0,
+                        height: 112.0,
+                        border_width: 0.0,
+                        offset: (156.0, 56.0, 0.02),
+                        fill_shader: None,
+                        structure_file: None,
+                        fill_color: Some((0.08, 0.12, 0.18, 0.96)),
                     )),
                     children: [
                         (
@@ -270,19 +270,5 @@
             ],
         ),
     ],
-    space: Some(World3dPlane((
-        transform: (
-            translation: Some((0.0, 0.0, 0.0)),
-            rotation: None,
-            scale: Some((1.0, 1.0, 1.0)),
-        ),
-        rotation_degrees: Some((18.0, 0.0, 0.0)),
-        plane_size: (3.6, 2.2),
-        pixels_per_unit: 100.0,
-        camera: Main,
-        anchor: World,
-        orientation: Fixed,
-        depth: DistanceToCamera,
-        input: PlaneRay,
-    ))),
+    space: Some(World2d),
 )

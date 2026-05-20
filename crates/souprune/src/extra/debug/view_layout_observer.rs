@@ -400,11 +400,12 @@ fn collect_root_contexts(
 }
 
 fn world_point_to_root_layout(cursor_world: Vec2, root_transform: &GlobalTransform) -> Vec2 {
-    root_transform
+    let point = root_transform
         .affine()
         .inverse()
         .transform_point3(cursor_world.extend(0.0))
-        .truncate()
+        .truncate();
+    Vec2::new(point.x, -point.y)
 }
 
 fn build_selection(
@@ -902,6 +903,14 @@ mod tests {
         assert!(text.contains("Rect: x=12"));
         assert!(text.contains("Layout: display=flex pos=relative dir=row"));
         assert!(text.contains("Sizing: w=px(10) h=px(10) grow=1 shrink=1 basis=px(0)"));
+    }
+
+    #[test]
+    fn world_point_to_root_layout_flips_world_y_into_layout_y() {
+        let layout_point =
+            world_point_to_root_layout(Vec2::new(24.0, -18.0), &GlobalTransform::IDENTITY);
+
+        assert_eq!(layout_point, Vec2::new(24.0, 18.0));
     }
 
     #[test]

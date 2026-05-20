@@ -147,3 +147,20 @@ impl Plugin for DebugPlugin {
 fn cleanup_rule_trigger_history_system(mut history: ResMut<RuleTriggerHistory>, time: Res<Time>) {
     history.cleanup_old_triggers(time.elapsed_secs_f64());
 }
+
+#[cfg(all(test, feature = "debug"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn debug_plugin_can_share_frame_time_diagnostics_with_brp_extras() {
+        let mut app = App::new();
+
+        app.add_plugins(bevy::asset::AssetPlugin::default());
+        app.init_asset::<bevy::shader::Shader>();
+        app.add_plugins(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default());
+        app.add_plugins(DebugPlugin);
+
+        assert!(app.is_plugin_added::<DebugPlugin>());
+    }
+}
