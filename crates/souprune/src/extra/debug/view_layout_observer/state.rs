@@ -43,7 +43,6 @@ pub(super) struct ViewRootObserverContext {
     pub(super) entity: Entity,
     pub(super) layout_path: String,
     pub(super) namespace: String,
-    pub(super) transform: GlobalTransform,
     pub(super) spatial_plane: Option<ViewWorld3dPlaneDef>,
     pub(super) spatial_hit: Option<ViewSpatialHit>,
     pub(super) layout_point: Option<Vec2>,
@@ -60,12 +59,19 @@ pub(super) struct ViewLayoutObserverSelection {
     pub(super) depth: usize,
     pub(super) area: f32,
     pub(super) rect: ViewLayoutRect,
+    pub(super) element_transform: GlobalTransform,
+    pub(super) origin: ViewLayoutObserverOrigin,
     pub(super) clip_rect: Option<ViewClipRect>,
     pub(super) scroll_state: Option<ViewScrollState>,
     pub(super) debug: Option<ViewLayoutDebugMetadata>,
     pub(super) spatial_plane: Option<ViewWorld3dPlaneDef>,
     pub(super) spatial_hit: Option<ViewSpatialHit>,
-    pub(super) root_transform: GlobalTransform,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ViewLayoutObserverOrigin {
+    Center,
+    TopLeft,
 }
 
 #[derive(Resource, Debug, Default, Clone)]

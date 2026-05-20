@@ -8,10 +8,11 @@ use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, Window};
 
 use super::state::{
-    MAX_PARENT_DEPTH, ViewLayoutObserverMode, ViewLayoutObserverSelection, ViewRootObserverContext,
+    MAX_PARENT_DEPTH, ViewLayoutObserverMode, ViewLayoutObserverOrigin,
+    ViewLayoutObserverSelection, ViewRootObserverContext,
 };
 use crate::core::camera::MainGameCamera;
-use crate::core::view::components::{ViewElement, ViewRoot};
+use crate::core::view::components::{ViewContainer, ViewElement, ViewRoot};
 use crate::core::view::layout::{
     ViewClipRect, ViewLayoutDebugMetadata, ViewLayoutRect, ViewScrollState,
 };
@@ -37,6 +38,8 @@ pub(super) type ViewLayoutElementQuery<'w, 's> = Query<
         Entity,
         &'static ViewElement,
         &'static ViewLayoutRect,
+        &'static GlobalTransform,
+        Option<&'static ViewContainer>,
         Option<&'static ViewLayoutDebugMetadata>,
         Option<&'static ViewClipRect>,
         Option<&'static ViewScrollState>,
@@ -67,7 +70,7 @@ pub(super) fn collect_hover_selection(
 ) -> Option<ViewLayoutObserverSelection> {
     let root_contexts = collect_root_contexts(cursor_world, view_roots);
     let selections = view_elements.iter().filter_map(
-        |(entity, element, rect, debug, clip_rect, scroll_state)| {
+        |(entity, element, rect, transform, container, debug, clip_rect, scroll_state)| {
             let root_entity = find_view_root_entity(entity, view_root_lookup, child_of_query)?;
             let root_context = root_contexts.get(&root_entity)?;
             let layout_point = root_context.layout_point?;
@@ -86,6 +89,8 @@ pub(super) fn collect_hover_selection(
                 entity,
                 element,
                 rect,
+                transform,
+                container,
                 debug,
                 clip_rect,
                 scroll_state,
@@ -118,7 +123,7 @@ pub(super) fn collect_locked_selection(
     child_of_query: &Query<&ChildOf>,
 ) -> Option<ViewLayoutObserverSelection> {
     let root_contexts = collect_root_contexts(None, view_roots);
-    let (entity, element, rect, debug, clip_rect, scroll_state) =
+    let (entity, element, rect, transform, container, debug, clip_rect, scroll_state) =
         view_elements.get(locked_entity).ok()?;
     let root_entity = find_view_root_entity(entity, view_root_lookup, child_of_query)?;
     let root_context = root_contexts.get(&root_entity)?;
@@ -126,6 +131,8 @@ pub(super) fn collect_locked_selection(
         entity,
         element,
         rect,
+        transform,
+        container,
         debug,
         clip_rect,
         scroll_state,
@@ -142,19 +149,23 @@ pub(super) fn collect_all_selections(
     let root_contexts = collect_root_contexts(None, view_roots);
     let mut selections: Vec<_> = view_elements
         .iter()
-        .filter_map(|(entity, element, rect, debug, clip_rect, scroll_state)| {
-            let root_entity = find_view_root_entity(entity, view_root_lookup, child_of_query)?;
-            let root_context = root_contexts.get(&root_entity)?;
-            Some(build_selection(
-                entity,
-                element,
-                rect,
-                debug,
-                clip_rect,
-                scroll_state,
-                root_context,
-            ))
-        })
+        .filter_map(
+            |(entity, element, rect, transform, container, debug, clip_rect, scroll_state)| {
+                let root_entity = find_view_root_entity(entity, view_root_lookup, child_of_query)?;
+                let root_context = root_contexts.get(&root_entity)?;
+                Some(build_selection(
+                    entity,
+                    element,
+                    rect,
+                    transform,
+                    container,
+                    debug,
+                    clip_rect,
+                    scroll_state,
+                    root_context,
+                ))
+            },
+        )
         .collect();
     selections.sort_by_key(|selection| selection.depth);
     selections
@@ -182,7 +193,6 @@ fn collect_root_contexts(
                         entity,
                         layout_path: view_root.layout_path.clone(),
                         namespace: view_root.namespace.clone(),
-                        transform: *transform,
                         spatial_plane: spatial_root.map(|root| root.plane.clone()),
                         spatial_hit: spatial_hit.copied(),
                         layout_point,
@@ -206,6 +216,8 @@ fn build_selection(
     entity: Entity,
     element: &ViewElement,
     rect: &ViewLayoutRect,
+    transform: &GlobalTransform,
+    container: Option<&ViewContainer>,
     debug: Option<&ViewLayoutDebugMetadata>,
     clip_rect: Option<&ViewClipRect>,
     scroll_state: Option<&ViewScrollState>,
@@ -224,12 +236,21 @@ fn build_selection(
         depth,
         area: rect.width.abs() * rect.height.abs(),
         rect: *rect,
+        element_transform: *transform,
+        origin: observer_origin(container),
         clip_rect: clip_rect.copied(),
         scroll_state: scroll_state.copied(),
         debug: debug.cloned(),
         spatial_plane: root_context.spatial_plane.clone(),
         spatial_hit: root_context.spatial_hit,
-        root_transform: root_context.transform,
+    }
+}
+
+fn observer_origin(container: Option<&ViewContainer>) -> ViewLayoutObserverOrigin {
+    if container.is_some() {
+        ViewLayoutObserverOrigin::TopLeft
+    } else {
+        ViewLayoutObserverOrigin::Center
     }
 }
 
@@ -336,6 +357,8 @@ mod tests {
                 width,
                 height: width,
             },
+            element_transform: GlobalTransform::IDENTITY,
+            origin: ViewLayoutObserverOrigin::Center,
             clip_rect: None,
             scroll_state: None,
             debug: Some(ViewLayoutDebugMetadata {
@@ -364,7 +387,6 @@ mod tests {
             }),
             spatial_plane: None,
             spatial_hit: None,
-            root_transform: GlobalTransform::IDENTITY,
         }
     }
 
@@ -396,5 +418,16 @@ mod tests {
             world_point_to_root_layout(Vec2::new(24.0, -18.0), &GlobalTransform::IDENTITY);
 
         assert_eq!(layout_point, Vec2::new(24.0, 18.0));
+    }
+
+    #[test]
+    fn observer_origin_uses_top_left_for_pure_containers_only() {
+        let container = ViewContainer;
+
+        assert_eq!(
+            observer_origin(Some(&container)),
+            ViewLayoutObserverOrigin::TopLeft
+        );
+        assert_eq!(observer_origin(None), ViewLayoutObserverOrigin::Center);
     }
 }

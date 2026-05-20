@@ -284,6 +284,7 @@ mod tests {
         SerializableDisplay, SerializablePositionType, ViewLayoutEdges, ViewLayoutGap,
         ViewLayoutLengthDebug, ViewLayoutSizingDebug,
     };
+    use crate::extra::debug::view_layout_observer::state::ViewLayoutObserverOrigin;
 
     fn sample_selection(entity: Entity, depth: usize, area: f32) -> ViewLayoutObserverSelection {
         let width = area.sqrt();
@@ -302,6 +303,8 @@ mod tests {
                 width,
                 height: width,
             },
+            element_transform: GlobalTransform::IDENTITY,
+            origin: ViewLayoutObserverOrigin::Center,
             clip_rect: None,
             scroll_state: None,
             debug: Some(ViewLayoutDebugMetadata {
@@ -330,7 +333,6 @@ mod tests {
             }),
             spatial_plane: None,
             spatial_hit: None,
-            root_transform: GlobalTransform::IDENTITY,
         }
     }
 

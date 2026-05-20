@@ -32,6 +32,7 @@ use crate::core::view::layout::ViewClipRect;
 use crate::extra::debug::{DebugCamera, DebugToastEvent};
 
 pub(super) fn setup_view_layout_observer_debug(app: &mut App) {
+    gizmos::setup_view_layout_observer_gizmos(app);
     app.init_resource::<ViewLayoutObserverState>()
         .init_resource::<ViewLayoutObserverSnapshot>()
         .add_systems(
@@ -40,8 +41,10 @@ pub(super) fn setup_view_layout_observer_debug(app: &mut App) {
                 handle_view_layout_observer_hotkeys_system,
                 window::view_layout_observer_window_closed_system,
                 update_view_layout_observer_snapshot_system.after(crate::core::view::ViewUpdate),
-                gizmos::draw_view_layout_observer_gizmos_system
+                gizmos::sync_view_layout_observer_gizmos_system
                     .after(update_view_layout_observer_snapshot_system),
+                gizmos::draw_view_layout_observer_gizmos_system
+                    .after(gizmos::sync_view_layout_observer_gizmos_system),
             ),
         )
         .add_systems(
