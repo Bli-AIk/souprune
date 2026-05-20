@@ -247,16 +247,25 @@ fn render_tree_selection_row(
     let mut clicked = false;
     ui.horizontal(|ui| {
         ui.add_space(indent);
+        let visibility_label = if selection.is_hidden { " hidden" } else { "" };
         let label = format!(
-            "{}  [{}]",
+            "{}  [{}]{}",
             selection.element_name,
             selection
                 .debug
                 .as_ref()
                 .map(|metadata| display_label(metadata.display))
-                .unwrap_or("view")
+                .unwrap_or("view"),
+            visibility_label
         );
-        clicked = ui.selectable_label(selected, label).clicked();
+        let color = if selection.is_hidden {
+            ui.visuals().weak_text_color()
+        } else {
+            ui.visuals().text_color()
+        };
+        clicked = ui
+            .selectable_label(selected, egui::RichText::new(label).color(color))
+            .clicked();
     });
     clicked
 }

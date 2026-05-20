@@ -237,6 +237,32 @@
                             children: [],
                             repeat: None,
                         ),
+                        (
+                            name: "ObserverHiddenLine",
+                            tags: ["observer_hidden_line"],
+                            style: (
+                                width: Some(Px(288.0)),
+                                height: Some(Px(24.0)),
+                                position_type: Some(Relative),
+                                display: Some(Flex),
+                                sizing: Some(Fixed(
+                                    width: Px(288.0),
+                                    height: Px(24.0),
+                                )),
+                            ),
+                            visible_when: Some("false"),
+                            sprite: Some((
+                                visual: "procedural://white_pixel",
+                                color: Some((0.80, 0.84, 0.90, 0.96)),
+                                transform: Some((
+                                    translation: Some((144.0, 12.0, 0.03)),
+                                    scale: Some((288.0, 24.0, 1.0)),
+                                )),
+                                pivot: Some((0.5, 0.5)),
+                            )),
+                            children: [],
+                            repeat: None,
+                        ),
                     ],
                     repeat: None,
                 ),

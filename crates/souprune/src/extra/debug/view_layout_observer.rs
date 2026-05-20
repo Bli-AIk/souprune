@@ -74,6 +74,7 @@ fn update_view_layout_observer_snapshot_system(
 
     let hover_selection = collect_hover_selection(
         cursor_world_2d(&windows, &camera_2d),
+        state.mode == ViewLayoutObserverMode::All,
         &view_roots,
         &view_elements,
         &view_root_lookup,

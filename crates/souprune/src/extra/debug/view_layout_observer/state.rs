@@ -61,6 +61,7 @@ pub(super) struct ViewLayoutObserverSelection {
     pub(super) rect: ViewLayoutRect,
     pub(super) element_transform: GlobalTransform,
     pub(super) origin: ViewLayoutObserverOrigin,
+    pub(super) is_hidden: bool,
     pub(super) clip_rect: Option<ViewClipRect>,
     pub(super) scroll_state: Option<ViewScrollState>,
     pub(super) debug: Option<ViewLayoutDebugMetadata>,

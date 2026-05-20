@@ -48,6 +48,10 @@ pub(super) fn build_selection_text(
         format!("Rect: {}", format_layout_rect(&selection.rect)),
     ]);
 
+    if selection.is_hidden {
+        lines.push("Visibility: hidden".to_string());
+    }
+
     if let Some(clip_rect) = selection.clip_rect {
         lines.push(format!("Clip: {}", format_clip_rect(&clip_rect)));
     }
@@ -305,6 +309,7 @@ mod tests {
             },
             element_transform: GlobalTransform::IDENTITY,
             origin: ViewLayoutObserverOrigin::Center,
+            is_hidden: false,
             clip_rect: None,
             scroll_state: None,
             debug: Some(ViewLayoutDebugMetadata {
@@ -359,6 +364,17 @@ mod tests {
         assert!(text.contains("Rect: x=12"));
         assert!(text.contains("Layout: display=flex pos=relative dir=row"));
         assert!(text.contains("Sizing: w=px(10) h=px(10) grow=1 shrink=1 basis=px(0)"));
+    }
+
+    #[test]
+    fn build_selection_text_marks_hidden_selection() {
+        let state = ViewLayoutObserverState::default();
+        let mut selection = sample_selection(Entity::from_bits(7), 3, 625.0);
+        selection.is_hidden = true;
+
+        let text = build_selection_text(&state, Some(&selection));
+
+        assert!(text.contains("Visibility: hidden"));
     }
 
     #[test]

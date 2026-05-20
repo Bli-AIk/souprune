@@ -96,7 +96,7 @@ fn draw_observer_rect(
     if rect.width <= 0.0 || rect.height <= 0.0 {
         return;
     }
-    let color = observer_color(kind, selected);
+    let color = observer_color(kind, selected, selection.is_hidden);
     let offset = layout_rect_center_offset(rect, selection.rect);
     draw_layout_rect(gizmos, selection, offset, rect.width, rect.height, color);
 }
@@ -119,8 +119,11 @@ fn observer_rect_for_kind(
     }
 }
 
-fn observer_color(kind: ObserverRectKind, selected: bool) -> Color {
+fn observer_color(kind: ObserverRectKind, selected: bool, hidden: bool) -> Color {
     let alpha = if selected { 1.0 } else { 0.45 };
+    if hidden {
+        return Color::srgba(0.62, 0.66, 0.7, alpha);
+    }
     match kind {
         ObserverRectKind::Margin => Color::srgba(1.0, 0.28, 0.28, alpha),
         ObserverRectKind::Border => Color::srgba(1.0, 0.82, 0.18, alpha),
@@ -439,6 +442,7 @@ mod tests {
             },
             element_transform: GlobalTransform::IDENTITY,
             origin,
+            is_hidden: false,
             clip_rect: None,
             scroll_state: None,
             debug: None,

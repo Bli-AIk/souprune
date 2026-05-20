@@ -39,6 +39,7 @@ pub(super) type ViewLayoutElementQuery<'w, 's> = Query<
         &'static ViewElement,
         &'static ViewLayoutRect,
         &'static GlobalTransform,
+        &'static InheritedVisibility,
         Option<&'static ViewContainer>,
         Option<&'static ViewLayoutDebugMetadata>,
         Option<&'static ViewClipRect>,
@@ -62,6 +63,7 @@ pub(super) fn cursor_world_2d(
 
 pub(super) fn collect_hover_selection(
     cursor_world: Option<Vec2>,
+    include_hidden: bool,
     view_roots: &ViewRootObserverQuery,
     view_elements: &ViewLayoutElementQuery,
     view_root_lookup: &Query<&ViewRoot>,
@@ -69,10 +71,24 @@ pub(super) fn collect_hover_selection(
 ) -> Option<ViewLayoutObserverSelection> {
     let root_contexts = collect_root_contexts(cursor_world, view_roots);
     let selections = view_elements.iter().filter_map(
-        |(entity, element, rect, transform, container, debug, clip_rect, scroll_state)| {
+        |(
+            entity,
+            element,
+            rect,
+            transform,
+            inherited_visibility,
+            container,
+            debug,
+            clip_rect,
+            scroll_state,
+        )| {
             let root_entity = find_view_root_entity(entity, view_root_lookup, child_of_query)?;
             let root_context = root_contexts.get(&root_entity)?;
             let origin = observer_origin(container);
+            let is_hidden = !inherited_visibility.get();
+            if is_hidden && !include_hidden {
+                return None;
+            }
             if !cursor_hits_layout_rect(root_context, transform, rect, rect, origin)
                 || !point_inside_ancestor_clips(entity, root_context, view_elements, child_of_query)
             {
@@ -84,6 +100,7 @@ pub(super) fn collect_hover_selection(
                 element,
                 rect,
                 transform,
+                inherited_visibility,
                 container,
                 debug,
                 clip_rect,
@@ -117,8 +134,17 @@ pub(super) fn collect_locked_selection(
     child_of_query: &Query<&ChildOf>,
 ) -> Option<ViewLayoutObserverSelection> {
     let root_contexts = collect_root_contexts(None, view_roots);
-    let (entity, element, rect, transform, container, debug, clip_rect, scroll_state) =
-        view_elements.get(locked_entity).ok()?;
+    let (
+        entity,
+        element,
+        rect,
+        transform,
+        inherited_visibility,
+        container,
+        debug,
+        clip_rect,
+        scroll_state,
+    ) = view_elements.get(locked_entity).ok()?;
     let root_entity = find_view_root_entity(entity, view_root_lookup, child_of_query)?;
     let root_context = root_contexts.get(&root_entity)?;
     Some(build_selection(
@@ -126,6 +152,7 @@ pub(super) fn collect_locked_selection(
         element,
         rect,
         transform,
+        inherited_visibility,
         container,
         debug,
         clip_rect,
@@ -144,7 +171,17 @@ pub(super) fn collect_all_selections(
     let mut selections: Vec<_> = view_elements
         .iter()
         .filter_map(
-            |(entity, element, rect, transform, container, debug, clip_rect, scroll_state)| {
+            |(
+                entity,
+                element,
+                rect,
+                transform,
+                inherited_visibility,
+                container,
+                debug,
+                clip_rect,
+                scroll_state,
+            )| {
                 let root_entity = find_view_root_entity(entity, view_root_lookup, child_of_query)?;
                 let root_context = root_contexts.get(&root_entity)?;
                 Some(build_selection(
@@ -152,6 +189,7 @@ pub(super) fn collect_all_selections(
                     element,
                     rect,
                     transform,
+                    inherited_visibility,
                     container,
                     debug,
                     clip_rect,
@@ -200,6 +238,7 @@ fn build_selection(
     element: &ViewElement,
     rect: &ViewLayoutRect,
     transform: &GlobalTransform,
+    inherited_visibility: &InheritedVisibility,
     container: Option<&ViewContainer>,
     debug: Option<&ViewLayoutDebugMetadata>,
     clip_rect: Option<&ViewClipRect>,
@@ -221,6 +260,7 @@ fn build_selection(
         rect: *rect,
         element_transform: *transform,
         origin: observer_origin(container),
+        is_hidden: !inherited_visibility.get(),
         clip_rect: clip_rect.copied(),
         scroll_state: scroll_state.copied(),
         debug: debug.cloned(),
@@ -268,7 +308,7 @@ fn point_inside_ancestor_clips(
         let Some(entity) = current else {
             return true;
         };
-        if let Ok((_, _, rect, transform, container, _, Some(clip_rect), _)) =
+        if let Ok((_, _, rect, transform, _, container, _, Some(clip_rect), _)) =
             view_elements.get(entity)
             && !cursor_hits_layout_rect(
                 root_context,
@@ -421,6 +461,7 @@ mod tests {
             },
             element_transform: GlobalTransform::IDENTITY,
             origin: ViewLayoutObserverOrigin::Center,
+            is_hidden: false,
             clip_rect: None,
             scroll_state: None,
             debug: Some(ViewLayoutDebugMetadata {
