@@ -55,7 +55,10 @@ fn main() {
         souprune::core::CorePlugin,
     ));
     #[cfg(feature = "debug")]
-    app.add_plugins(bevy_brp_extras::BrpExtrasPlugin);
+    {
+        app.add_plugins(bevy_brp_extras::BrpExtrasPlugin);
+        app.add_plugins(souprune::extra::debug::DebugPlugin);
+    }
 
     app.insert_resource(souprune::config::load_config());
     souprune::init_game_state(&mut app);
