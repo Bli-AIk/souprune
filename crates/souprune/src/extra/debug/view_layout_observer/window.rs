@@ -9,9 +9,7 @@ use bevy::window::{Window, WindowClosed, WindowRef, WindowResolution};
 use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule};
 use bevy_inspector_egui::egui;
 
-use super::format::{
-    ascii_text, build_selection_text, display_label, format_layout_rect, mode_label,
-};
+use super::format::{build_selection_text, display_label, format_layout_rect, mode_label};
 use super::state::{
     ViewLayoutObserverMode, ViewLayoutObserverSelection, ViewLayoutObserverSnapshot,
     ViewLayoutObserverState,
@@ -208,7 +206,7 @@ fn render_observer_tree(
         snapshot
             .selected_selection
             .as_ref()
-            .map(|selection| ascii_text(&selection.element_name))
+            .map(|selection| selection.element_name.clone())
             .unwrap_or_else(|| "none".to_string())
     ));
     ui.separator();
@@ -251,7 +249,7 @@ fn render_tree_selection_row(
         ui.add_space(indent);
         let label = format!(
             "{}  [{}]",
-            ascii_text(&selection.element_name),
+            selection.element_name,
             selection
                 .debug
                 .as_ref()

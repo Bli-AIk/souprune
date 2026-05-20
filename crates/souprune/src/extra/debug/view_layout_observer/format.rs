@@ -1,6 +1,6 @@
-//! ASCII formatting helpers for the View layout observer.
+//! Formatting helpers for the View layout observer.
 //!
-//! View 布局观察器的 ASCII 格式化辅助函数。
+//! View 布局观察器的格式化辅助函数。
 
 use bevy::prelude::*;
 
@@ -27,7 +27,7 @@ pub(super) fn build_selection_text(
 
     let Some(selection) = selection else {
         lines.push("Target: none".to_string());
-        return ascii_text(&lines.join("\n"));
+        return lines.join("\n");
     };
 
     lines.extend([
@@ -83,18 +83,7 @@ pub(super) fn build_selection_text(
         ));
     }
 
-    ascii_text(&lines.join("\n"))
-}
-
-pub(super) fn ascii_text(value: &str) -> String {
-    value
-        .chars()
-        .map(
-            |character| {
-                if character.is_ascii() { character } else { '?' }
-            },
-        )
-        .collect()
+    lines.join("\n")
 }
 
 pub(super) fn mode_label(mode: ViewLayoutObserverMode) -> &'static str {
@@ -368,21 +357,6 @@ mod tests {
         assert!(text.contains("Rect: x=12"));
         assert!(text.contains("Layout: display=flex pos=relative dir=row"));
         assert!(text.contains("Sizing: w=px(10) h=px(10) grow=1 shrink=1 basis=px(0)"));
-    }
-
-    #[test]
-    fn build_selection_text_is_ascii_only() {
-        let state = ViewLayoutObserverState {
-            mode: ViewLayoutObserverMode::Hover,
-            ..Default::default()
-        };
-        let mut selection = sample_selection(Entity::from_bits(7), 3, 625.0);
-        selection.element_name = "demo::按钮".to_string();
-
-        let text = build_selection_text(&state, Some(&selection));
-
-        assert!(text.is_ascii());
-        assert!(text.contains("demo::??"));
     }
 
     #[test]
