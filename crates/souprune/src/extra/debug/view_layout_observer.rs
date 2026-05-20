@@ -28,7 +28,6 @@ use self::state::{
 };
 use crate::core::camera::MainGameCamera;
 use crate::core::view::components::ViewRoot;
-use crate::core::view::layout::ViewClipRect;
 use crate::extra::debug::{DebugCamera, DebugToastEvent};
 
 pub(super) fn setup_view_layout_observer_debug(app: &mut App) {
@@ -63,7 +62,6 @@ fn update_view_layout_observer_snapshot_system(
     view_elements: ViewLayoutElementQuery,
     view_root_lookup: Query<&ViewRoot>,
     child_of_query: Query<&ChildOf>,
-    clip_rect_query: Query<&ViewClipRect>,
     mut state: ResMut<ViewLayoutObserverState>,
     mut snapshot: ResMut<ViewLayoutObserverSnapshot>,
 ) {
@@ -80,7 +78,6 @@ fn update_view_layout_observer_snapshot_system(
         &view_elements,
         &view_root_lookup,
         &child_of_query,
-        &clip_rect_query,
     );
     let locked_selection = state.locked_entity.and_then(|locked_entity| {
         collect_locked_selection(

@@ -45,7 +45,7 @@ pub(super) struct ViewRootObserverContext {
     pub(super) namespace: String,
     pub(super) spatial_plane: Option<ViewWorld3dPlaneDef>,
     pub(super) spatial_hit: Option<ViewSpatialHit>,
-    pub(super) layout_point: Option<Vec2>,
+    pub(super) cursor_world: Option<Vec2>,
 }
 
 #[derive(Debug, Clone)]

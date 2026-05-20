@@ -66,21 +66,15 @@ pub(super) fn collect_hover_selection(
     view_elements: &ViewLayoutElementQuery,
     view_root_lookup: &Query<&ViewRoot>,
     child_of_query: &Query<&ChildOf>,
-    clip_rect_query: &Query<&ViewClipRect>,
 ) -> Option<ViewLayoutObserverSelection> {
     let root_contexts = collect_root_contexts(cursor_world, view_roots);
     let selections = view_elements.iter().filter_map(
         |(entity, element, rect, transform, container, debug, clip_rect, scroll_state)| {
             let root_entity = find_view_root_entity(entity, view_root_lookup, child_of_query)?;
             let root_context = root_contexts.get(&root_entity)?;
-            let layout_point = root_context.layout_point?;
-            if !point_in_layout_rect(layout_point, rect)
-                || !point_inside_ancestor_clips(
-                    entity,
-                    layout_point,
-                    child_of_query,
-                    clip_rect_query,
-                )
+            let origin = observer_origin(container);
+            if !cursor_hits_layout_rect(root_context, transform, rect, rect, origin)
+                || !point_inside_ancestor_clips(entity, root_context, view_elements, child_of_query)
             {
                 return None;
             }
@@ -178,11 +172,9 @@ fn collect_root_contexts(
     view_roots
         .iter()
         .map(
-            |(entity, view_root, transform, spatial_root, spatial_hit)| {
-                let layout_point = if let Some(hit) = spatial_hit {
-                    Some(hit.layout_position)
-                } else if spatial_root.is_none() {
-                    cursor_world.map(|point| world_point_to_root_layout(point, transform))
+            |(entity, view_root, _transform, spatial_root, spatial_hit)| {
+                let cursor_world = if spatial_root.is_none() {
+                    cursor_world
                 } else {
                     None
                 };
@@ -195,21 +187,12 @@ fn collect_root_contexts(
                         namespace: view_root.namespace.clone(),
                         spatial_plane: spatial_root.map(|root| root.plane.clone()),
                         spatial_hit: spatial_hit.copied(),
-                        layout_point,
+                        cursor_world,
                     },
                 )
             },
         )
         .collect()
-}
-
-fn world_point_to_root_layout(cursor_world: Vec2, root_transform: &GlobalTransform) -> Vec2 {
-    let point = root_transform
-        .affine()
-        .inverse()
-        .transform_point3(cursor_world.extend(0.0))
-        .truncate();
-    Vec2::new(point.x, -point.y)
 }
 
 fn build_selection(
@@ -276,17 +259,24 @@ fn find_view_root_entity(
 
 fn point_inside_ancestor_clips(
     entity: Entity,
-    point: Vec2,
+    root_context: &ViewRootObserverContext,
+    view_elements: &ViewLayoutElementQuery,
     child_of_query: &Query<&ChildOf>,
-    clip_rect_query: &Query<&ViewClipRect>,
 ) -> bool {
     let mut current = Some(entity);
     for _ in 0..MAX_PARENT_DEPTH {
         let Some(entity) = current else {
             return true;
         };
-        if let Ok(clip_rect) = clip_rect_query.get(entity)
-            && !point_in_clip_rect(point, clip_rect)
+        if let Ok((_, _, rect, transform, container, _, Some(clip_rect), _)) =
+            view_elements.get(entity)
+            && !cursor_hits_layout_rect(
+                root_context,
+                transform,
+                rect,
+                &layout_rect_from_clip_rect(*clip_rect),
+                observer_origin(container),
+            )
         {
             return false;
         }
@@ -298,18 +288,90 @@ fn point_inside_ancestor_clips(
     true
 }
 
-fn point_in_layout_rect(point: Vec2, rect: &ViewLayoutRect) -> bool {
-    point.x >= rect.x
-        && point.x <= rect.x + rect.width
-        && point.y >= rect.y
-        && point.y <= rect.y + rect.height
+fn cursor_hits_layout_rect(
+    root_context: &ViewRootObserverContext,
+    transform: &GlobalTransform,
+    base_rect: &ViewLayoutRect,
+    target_rect: &ViewLayoutRect,
+    origin: ViewLayoutObserverOrigin,
+) -> bool {
+    let Some(point) = cursor_layout_point(root_context, transform, base_rect, origin) else {
+        return false;
+    };
+    point_in_local_layout_rect(point, *target_rect, *base_rect)
 }
 
-fn point_in_clip_rect(point: Vec2, rect: &ViewClipRect) -> bool {
-    point.x >= rect.x
-        && point.x <= rect.x + rect.width
-        && point.y >= rect.y
-        && point.y <= rect.y + rect.height
+fn cursor_layout_point(
+    root_context: &ViewRootObserverContext,
+    transform: &GlobalTransform,
+    base_rect: &ViewLayoutRect,
+    origin: ViewLayoutObserverOrigin,
+) -> Option<Vec2> {
+    if root_context.spatial_plane.is_some() {
+        let hit = root_context.spatial_hit?;
+        let local = transform
+            .affine()
+            .inverse()
+            .transform_point3(hit.world_position);
+        let pixels_per_unit = root_context
+            .spatial_plane
+            .as_ref()
+            .map(|plane| valid_pixels_per_unit(plane.pixels_per_unit))
+            .unwrap_or(1.0);
+        return Some(local_point_to_layout_point(
+            local.truncate(),
+            *base_rect,
+            origin,
+            pixels_per_unit,
+        ));
+    }
+
+    let cursor_world = root_context.cursor_world?;
+    let local = cursor_world - transform.translation().truncate();
+    Some(local_point_to_layout_point(local, *base_rect, origin, 1.0))
+}
+
+fn local_point_to_layout_point(
+    local: Vec2,
+    base_rect: ViewLayoutRect,
+    origin: ViewLayoutObserverOrigin,
+    pixels_per_unit: f32,
+) -> Vec2 {
+    let local = local * pixels_per_unit;
+    match origin {
+        ViewLayoutObserverOrigin::Center => Vec2::new(
+            local.x + base_rect.width * 0.5,
+            -local.y + base_rect.height * 0.5,
+        ),
+        ViewLayoutObserverOrigin::TopLeft => Vec2::new(local.x, -local.y),
+    }
+}
+
+fn point_in_local_layout_rect(
+    point: Vec2,
+    target_rect: ViewLayoutRect,
+    base_rect: ViewLayoutRect,
+) -> bool {
+    let min = Vec2::new(target_rect.x - base_rect.x, target_rect.y - base_rect.y);
+    let max = min + Vec2::new(target_rect.width, target_rect.height);
+    point.x >= min.x && point.x <= max.x && point.y >= min.y && point.y <= max.y
+}
+
+fn layout_rect_from_clip_rect(rect: ViewClipRect) -> ViewLayoutRect {
+    ViewLayoutRect {
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+    }
+}
+
+fn valid_pixels_per_unit(value: f32) -> f32 {
+    if value.is_finite() && value > 0.0 {
+        value
+    } else {
+        1.0
+    }
 }
 
 fn choose_best_selection(
@@ -413,11 +475,81 @@ mod tests {
     }
 
     #[test]
-    fn world_point_to_root_layout_flips_world_y_into_layout_y() {
-        let layout_point =
-            world_point_to_root_layout(Vec2::new(24.0, -18.0), &GlobalTransform::IDENTITY);
+    fn centered_origin_cursor_maps_to_local_layout_box() {
+        let point = local_point_to_layout_point(
+            Vec2::ZERO,
+            ViewLayoutRect {
+                x: 12.0,
+                y: 24.0,
+                width: 200.0,
+                height: 100.0,
+            },
+            ViewLayoutObserverOrigin::Center,
+            1.0,
+        );
 
-        assert_eq!(layout_point, Vec2::new(24.0, 18.0));
+        assert_eq!(point, Vec2::new(100.0, 50.0));
+    }
+
+    #[test]
+    fn top_left_origin_cursor_uses_container_local_top_left() {
+        let point = local_point_to_layout_point(
+            Vec2::new(40.0, -35.0),
+            ViewLayoutRect {
+                x: 12.0,
+                y: 24.0,
+                width: 200.0,
+                height: 100.0,
+            },
+            ViewLayoutObserverOrigin::TopLeft,
+            1.0,
+        );
+
+        assert_eq!(point, Vec2::new(40.0, 35.0));
+    }
+
+    #[test]
+    fn local_layout_rect_comparison_is_relative_to_element_rect() {
+        let base = ViewLayoutRect {
+            x: 100.0,
+            y: 40.0,
+            width: 200.0,
+            height: 100.0,
+        };
+        let clipped = ViewLayoutRect {
+            x: 120.0,
+            y: 50.0,
+            width: 60.0,
+            height: 30.0,
+        };
+
+        assert!(point_in_local_layout_rect(
+            Vec2::new(40.0, 20.0),
+            clipped,
+            base
+        ));
+        assert!(!point_in_local_layout_rect(
+            Vec2::new(10.0, 20.0),
+            clipped,
+            base
+        ));
+    }
+
+    #[test]
+    fn spatial_cursor_point_scales_plane_units_to_layout_pixels() {
+        let point = local_point_to_layout_point(
+            Vec2::new(0.25, -0.1),
+            ViewLayoutRect {
+                x: 0.0,
+                y: 0.0,
+                width: 100.0,
+                height: 80.0,
+            },
+            ViewLayoutObserverOrigin::Center,
+            100.0,
+        );
+
+        assert_eq!(point, Vec2::new(75.0, 50.0));
     }
 
     #[test]
