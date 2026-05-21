@@ -130,7 +130,7 @@ fn static_float(value: &crate::core::sequencer::chapter_schema::Value<f32>) -> f
     }
 }
 
-fn valid_pixels_per_unit(value: f32) -> f32 {
+pub(crate) fn valid_pixels_per_unit(value: f32) -> f32 {
     if value.is_finite() && value > 0.0 {
         value
     } else {

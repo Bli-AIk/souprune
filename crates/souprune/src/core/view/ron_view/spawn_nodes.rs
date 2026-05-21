@@ -19,8 +19,8 @@ mod repeat;
 mod sprite;
 
 use super::super::components::*;
+use super::super::layout::placement::{self, ViewLayoutOrigin};
 use super::super::layout::*;
-use super::super::spatial::layout_slot_to_plane_translation;
 use super::parsing::PlayerDataView;
 use super::resources::RonDrivenView;
 use super::spawn_helpers::{build_text_config, spawn_container_texts, spawn_ui_sprite};
@@ -46,6 +46,8 @@ pub fn spawn_view_node(
     namespace: &str,
     layout_slots: Option<&ViewLayoutSlots>,
     node_path: &str,
+    parent_slot: Option<&ViewLayoutSlot>,
+    parent_origin: ViewLayoutOrigin,
     spatial_plane: Option<&ViewWorld3dPlaneDef>,
 ) {
     if node_display_is_none(node_def) {
@@ -100,6 +102,8 @@ pub fn spawn_view_node(
                 Some(&ctx),
                 layout_slots,
                 &repeat_node_path,
+                parent_slot,
+                parent_origin,
                 spatial_plane,
             );
         }
@@ -119,6 +123,8 @@ pub fn spawn_view_node(
         None,
         layout_slots,
         node_path,
+        parent_slot,
+        parent_origin,
         spatial_plane,
     );
 }
@@ -136,6 +142,8 @@ fn spawn_view_node_with_repeat_context(
     repeat_ctx: Option<&super::parsing::RepeatContext>,
     layout_slots: Option<&ViewLayoutSlots>,
     node_path: &str,
+    parent_slot: Option<&ViewLayoutSlot>,
+    parent_origin: ViewLayoutOrigin,
     spatial_plane: Option<&ViewWorld3dPlaneDef>,
 ) {
     let has_view_box = node_def.view_box.is_some();
@@ -181,7 +189,13 @@ fn spawn_view_node_with_repeat_context(
                 player_data,
                 repeat_ctx,
             );
-            let transform = combine_layout_transform(layout_slot, transform, spatial_plane);
+            let transform = combine_layout_transform(
+                layout_slot,
+                parent_slot,
+                parent_origin,
+                transform,
+                spatial_plane,
+            );
 
             info!(
                 "[State Sprite] Spawning state sprite '{}' at position: {:?}",
@@ -231,7 +245,13 @@ fn spawn_view_node_with_repeat_context(
                 player_data,
                 repeat_ctx,
             );
-            let transform = combine_layout_transform(layout_slot, transform, spatial_plane);
+            let transform = combine_layout_transform(
+                layout_slot,
+                parent_slot,
+                parent_origin,
+                transform,
+                spatial_plane,
+            );
 
             info!(
                 "[View Sprite] Spawning standalone sprite '{}' at position: {:?}, scale: {:?}",
@@ -284,7 +304,13 @@ fn spawn_view_node_with_repeat_context(
                     )
                 })
                 .unwrap_or_else(|| Transform::from_translation(offset));
-            let transform = combine_layout_transform(layout_slot, transform, spatial_plane);
+            let transform = combine_layout_transform(
+                layout_slot,
+                parent_slot,
+                parent_origin,
+                transform,
+                spatial_plane,
+            );
             let is_dynamic_node_transform = node_def
                 .transform
                 .as_ref()
@@ -386,6 +412,8 @@ fn spawn_view_node_with_repeat_context(
                 ViewContainer,
                 combine_layout_transform(
                     layout_slot,
+                    parent_slot,
+                    parent_origin,
                     node_def
                         .transform
                         .as_ref()
@@ -440,6 +468,11 @@ fn spawn_view_node_with_repeat_context(
 
     for (child_idx, child_def) in node_def.children.iter().enumerate() {
         let child_path = layout_child_path(node_path, child_idx, child_def);
+        let child_parent_origin = if is_pure_container {
+            ViewLayoutOrigin::TopLeft
+        } else {
+            ViewLayoutOrigin::Center
+        };
         spawn_view_node(
             commands,
             asset_server,
@@ -452,6 +485,8 @@ fn spawn_view_node_with_repeat_context(
             namespace,
             layout_slots,
             &child_path,
+            layout_slot,
+            child_parent_origin,
             spatial_plane,
         );
     }
@@ -485,22 +520,21 @@ fn combine_transforms(parent: Transform, child: Transform) -> Transform {
 
 fn combine_layout_transform(
     slot: Option<&ViewLayoutSlot>,
+    parent_slot: Option<&ViewLayoutSlot>,
+    parent_origin: ViewLayoutOrigin,
     transform: Transform,
     spatial_plane: Option<&ViewWorld3dPlaneDef>,
 ) -> Transform {
-    let Some(slot) = slot else {
-        return transform;
-    };
     if let Some(plane) = spatial_plane {
-        return combine_transforms(
-            Transform::from_translation(layout_slot_to_plane_translation(slot, plane)),
+        return placement::combine_spatial_layout_transform(
+            slot,
+            parent_slot,
+            parent_origin,
+            plane.pixels_per_unit,
             transform,
         );
     }
-    combine_transforms(
-        Transform::from_translation(Vec3::new(slot.x, -slot.y, 0.0)),
-        transform,
-    )
+    placement::combine_layout_transform(slot, parent_slot, parent_origin, transform)
 }
 
 fn insert_layout_slot_components(
@@ -580,7 +614,8 @@ mod tests {
         };
         let explicit = Transform::from_translation(Vec3::new(5.0, -6.0, 7.0));
 
-        let combined = combine_layout_transform(Some(&slot), explicit, None);
+        let combined =
+            combine_layout_transform(Some(&slot), None, ViewLayoutOrigin::Center, explicit, None);
 
         assert_eq!(combined.translation, Vec3::new(215.0, -126.0, 7.0));
     }
@@ -608,7 +643,13 @@ mod tests {
         };
         let explicit = Transform::from_translation(Vec3::new(0.5, -0.25, 7.0));
 
-        let combined = combine_layout_transform(Some(&slot), explicit, Some(&plane));
+        let combined = combine_layout_transform(
+            Some(&slot),
+            None,
+            ViewLayoutOrigin::Center,
+            explicit,
+            Some(&plane),
+        );
 
         assert_eq!(combined.translation, Vec3::new(2.6, -1.45, 7.0));
     }

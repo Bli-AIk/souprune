@@ -375,6 +375,8 @@ pub fn spawn_ron_view_for_entity(
                 &namespace,
                 layout_slots.as_ref(),
                 &root_path,
+                None,
+                crate::core::view::layout::placement::ViewLayoutOrigin::TopLeft,
                 spatial_plane,
             );
         }

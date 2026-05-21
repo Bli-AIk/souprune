@@ -12,6 +12,7 @@ use super::resolve::{
 };
 use super::tree::{DesiredElement, DesiredViewTree, ViewElementKey};
 use crate::core::view::LocalState;
+use crate::core::view::layout::placement::{self, ViewLayoutOrigin};
 use crate::core::view::layout::{
     SerializableDisplay, ViewLayoutAsset, ViewLayoutContext, ViewLayoutRect,
     ViewLayoutRepeatContext, ViewLayoutSlot, ViewLayoutSlots, ViewNodeDef, ViewSpaceDef,
@@ -21,8 +22,7 @@ use crate::core::view::layout::{
 use crate::core::view::ron_view::parsing::{
     DataPathResolvers, ExprFunctionResolvers, PlayerDataView, RepeatContext, resolve_text_content,
 };
-use crate::core::view::spatial::layout_slot_to_plane_translation;
-use bevy::prelude::{Transform, Vec2, Vec3};
+use bevy::prelude::{Transform, Vec2};
 use bevy_fact_rule_event::LayeredFactDatabase;
 
 /// Context for resolving expressions during desired state computation.
@@ -138,6 +138,8 @@ pub fn compute_desired_state(
                 None,
                 layout_slots.as_ref(),
                 &node_path,
+                None,
+                ViewLayoutOrigin::TopLeft,
                 spatial_plane,
             )
         })
@@ -157,6 +159,8 @@ fn compute_element(
     repeat_ctx: Option<&RepeatContext>,
     layout_slots: Option<&ViewLayoutSlots>,
     node_path: &str,
+    parent_slot: Option<&ViewLayoutSlot>,
+    parent_origin: ViewLayoutOrigin,
     spatial_plane: Option<&ViewWorld3dPlaneDef>,
 ) -> Vec<DesiredElement> {
     if node_display_is_none(node_def) {
@@ -171,6 +175,8 @@ fn compute_element(
             repeat_spec,
             layout_slots,
             node_path,
+            parent_slot,
+            parent_origin,
             spatial_plane,
         );
     }
@@ -181,6 +187,8 @@ fn compute_element(
     let layout_slot = layout_slots.and_then(|slots| slots.get(node_path));
     let transform = combine_layout_transform(
         layout_slot,
+        parent_slot,
+        parent_origin,
         resolve_element_transform(&ctx.player_data, node_def, repeat_ctx),
         spatial_plane,
     );
@@ -214,6 +222,8 @@ fn compute_element(
                 repeat_ctx,
                 layout_slots,
                 &child_path,
+                layout_slot,
+                child_parent_origin(node_def),
                 spatial_plane,
             )
         })
@@ -241,6 +251,8 @@ fn expand_repeat(
     repeat_spec: &crate::core::view::layout::RepeatDef,
     layout_slots: Option<&ViewLayoutSlots>,
     node_path: &str,
+    parent_slot: Option<&ViewLayoutSlot>,
+    parent_origin: ViewLayoutOrigin,
     spatial_plane: Option<&ViewWorld3dPlaneDef>,
 ) -> Vec<DesiredElement> {
     let count = resolve_repeat_count(&ctx.player_data, repeat_spec);
@@ -281,6 +293,8 @@ fn expand_repeat(
         let layout_slot = layout_slots.and_then(|slots| slots.get(&repeat_node_path));
         let transform = combine_layout_transform(
             layout_slot,
+            parent_slot,
+            parent_origin,
             resolve_element_transform(&ctx.player_data, node_def, Some(&repeat_ctx)),
             spatial_plane,
         );
@@ -313,6 +327,8 @@ fn expand_repeat(
                     Some(&repeat_ctx),
                     layout_slots,
                     &child_path,
+                    layout_slot,
+                    child_parent_origin(node_def),
                     spatial_plane,
                 )
             })
@@ -383,22 +399,36 @@ fn resolve_element_transform(
 
 fn combine_layout_transform(
     slot: Option<&ViewLayoutSlot>,
+    parent_slot: Option<&ViewLayoutSlot>,
+    parent_origin: ViewLayoutOrigin,
     transform: Transform,
     spatial_plane: Option<&ViewWorld3dPlaneDef>,
 ) -> Transform {
-    let Some(slot) = slot else {
-        return transform;
-    };
     if let Some(plane) = spatial_plane {
-        return combine_transforms(
-            Transform::from_translation(layout_slot_to_plane_translation(slot, plane)),
+        return placement::combine_spatial_layout_transform(
+            slot,
+            parent_slot,
+            parent_origin,
+            plane.pixels_per_unit,
             transform,
         );
     }
-    combine_transforms(
-        Transform::from_translation(Vec3::new(slot.x, -slot.y, 0.0)),
-        transform,
-    )
+    placement::combine_layout_transform(slot, parent_slot, parent_origin, transform)
+}
+
+fn child_parent_origin(node_def: &ViewNodeDef) -> ViewLayoutOrigin {
+    if node_is_pure_container(node_def) {
+        ViewLayoutOrigin::TopLeft
+    } else {
+        ViewLayoutOrigin::Center
+    }
+}
+
+fn node_is_pure_container(node_def: &ViewNodeDef) -> bool {
+    node_def.view_box.is_none()
+        && node_def.sprite.is_none()
+        && node_def.state_sprite.is_none()
+        && (!node_def.texts.is_empty() || !node_def.children.is_empty())
 }
 
 fn spatial_plane_for_asset(asset: &ViewLayoutAsset) -> Option<&ViewWorld3dPlaneDef> {
@@ -447,9 +477,10 @@ mod tests {
     use crate::core::sequencer::chapter_schema::Value;
     use crate::core::view::layout::{
         CoordinateSystem, RepeatDef, SerializableJustifyContent, SerializableTransform,
-        SerializableVal, StyleDef, UiFlexDirection, ViewCameraTargetDef, ViewSpaceDef,
-        ViewWorld3dPlaneDef,
+        SerializableVal, StyleDef, UiFlexDirection, ViewBoxLogicDef, ViewCameraTargetDef,
+        ViewSpaceDef, ViewWorld3dPlaneDef,
     };
+    use bevy::prelude::Vec3;
     use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 
     fn asset(root: ViewNodeDef) -> ViewLayoutAsset {
@@ -662,6 +693,133 @@ mod tests {
             desired.roots[0].children[0].transform.translation,
             Vec3::new(275.0, -6.0, 7.0)
         );
+    }
+
+    #[test]
+    fn desired_state_treats_taffy_child_slots_as_parent_local() {
+        let mut leaf = node(
+            "Leaf",
+            StyleDef {
+                width: Some(SerializableVal::Px(40.0)),
+                height: Some(SerializableVal::Px(20.0)),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        leaf.view_box = Some(ViewBoxLogicDef {
+            width: 40.0,
+            height: 20.0,
+            border_width: 0.0,
+            offset: (
+                Value::Static(20.0),
+                Value::Static(-10.0),
+                Value::Static(0.0),
+            ),
+            fill_shader: None,
+            structure_file: None,
+            fill_color: None,
+        });
+
+        let mut row = node(
+            "Row",
+            StyleDef {
+                width: Some(SerializableVal::Px(160.0)),
+                height: Some(SerializableVal::Px(80.0)),
+                padding: Some(crate::core::view::layout::SerializableRect {
+                    left: SerializableVal::Px(10.0),
+                    right: SerializableVal::Px(0.0),
+                    top: SerializableVal::Px(20.0),
+                    bottom: SerializableVal::Px(0.0),
+                }),
+                ..Default::default()
+            },
+            vec![leaf],
+        );
+        row.view_box = Some(ViewBoxLogicDef {
+            width: 160.0,
+            height: 80.0,
+            border_width: 0.0,
+            offset: (
+                Value::Static(80.0),
+                Value::Static(-40.0),
+                Value::Static(0.0),
+            ),
+            fill_shader: None,
+            structure_file: None,
+            fill_color: None,
+        });
+
+        let root = node(
+            "Root",
+            StyleDef {
+                width: Some(SerializableVal::Px(240.0)),
+                height: Some(SerializableVal::Px(120.0)),
+                padding: Some(crate::core::view::layout::SerializableRect {
+                    left: SerializableVal::Px(30.0),
+                    right: SerializableVal::Px(0.0),
+                    top: SerializableVal::Px(40.0),
+                    bottom: SerializableVal::Px(0.0),
+                }),
+                ..Default::default()
+            },
+            vec![row],
+        );
+
+        let db = LayeredFactDatabase::new();
+        let local = LocalState::new();
+
+        let desired = compute_desired_state(
+            &asset(root),
+            Vec2::new(960.0, 540.0),
+            &db,
+            &local,
+            "",
+            None,
+            None,
+        );
+
+        let row = &desired.roots[0].children[0];
+        let leaf = &row.children[0];
+
+        assert_eq!(row.transform.translation, Vec3::new(110.0, -80.0, 0.0));
+        assert_eq!(leaf.transform.translation, Vec3::new(-50.0, 10.0, 0.0));
+    }
+
+    #[test]
+    fn desired_state_places_observer_demo_visuals_inside_surface() {
+        let asset: ViewLayoutAsset = ron::from_str(include_str!(
+            "../../../../examples/assets/view/layout_observer_demo.view.ron"
+        ))
+        .expect("observer example asset should parse");
+        let db = LayeredFactDatabase::new();
+        let local = LocalState::new();
+
+        let desired =
+            compute_desired_state(&asset, Vec2::new(960.0, 540.0), &db, &local, "", None, None);
+
+        let surface = desired
+            .roots
+            .iter()
+            .find(|element| element.name == "ObserverSurface")
+            .expect("surface element");
+        let surface_bounds = visual_bounds(surface, Vec3::ZERO).expect("surface bounds");
+
+        for name in [
+            "ObserverHeader",
+            "ObserverBody",
+            "ObserverBadge",
+            "HeaderLeft",
+            "ObserverLineA",
+        ] {
+            let bounds =
+                find_descendant_bounds(surface, name, Vec3::ZERO).expect("descendant bounds");
+            assert!(
+                contains_bounds(surface_bounds, bounds),
+                "{name} bounds {:?} should be inside surface {:?}",
+                bounds,
+                surface_bounds
+            );
+        }
     }
 
     #[test]
@@ -1033,5 +1191,46 @@ mod tests {
         );
 
         assert_eq!(desired.roots[0].texts[0].content, "Alpha");
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    struct Bounds {
+        left: f32,
+        right: f32,
+        top: f32,
+        bottom: f32,
+    }
+
+    fn visual_bounds(element: &DesiredElement, parent_translation: Vec3) -> Option<Bounds> {
+        let center = parent_translation + element.transform.translation;
+        let rect = element.layout_rect?;
+        Some(Bounds {
+            left: center.x - rect.width * 0.5,
+            right: center.x + rect.width * 0.5,
+            top: center.y + rect.height * 0.5,
+            bottom: center.y - rect.height * 0.5,
+        })
+    }
+
+    fn contains_bounds(container: Bounds, child: Bounds) -> bool {
+        child.left >= container.left
+            && child.right <= container.right
+            && child.top <= container.top
+            && child.bottom >= container.bottom
+    }
+
+    fn find_descendant_bounds(
+        root: &DesiredElement,
+        name: &str,
+        parent_translation: Vec3,
+    ) -> Option<Bounds> {
+        let translation = parent_translation + root.transform.translation;
+        root.children.iter().find_map(|child| {
+            if child.name == name {
+                visual_bounds(child, translation)
+            } else {
+                find_descendant_bounds(child, name, translation)
+            }
+        })
     }
 }
