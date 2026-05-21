@@ -5,7 +5,7 @@
 use bevy::camera::RenderTarget;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
-use bevy::window::{Window, WindowClosed, WindowRef, WindowResolution};
+use bevy::window::{PrimaryWindow, Window, WindowClosed, WindowRef, WindowResolution};
 use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule};
 use bevy_inspector_egui::egui;
 
@@ -15,6 +15,7 @@ use super::state::{
     ViewLayoutObserverState,
 };
 use crate::extra::debug::DebugCamera;
+use crate::extra::debug::window_lifecycle as debug_window_lifecycle;
 
 #[derive(Component)]
 struct ViewLayoutObserverWindow;
@@ -81,13 +82,7 @@ pub(super) fn close_view_layout_observer_window(
     commands: &mut Commands,
     state: &mut ViewLayoutObserverState,
 ) {
-    if let Some(camera_entity) = state.camera_entity.take() {
-        commands.entity(camera_entity).despawn();
-    }
-    if let Some(window_entity) = state.window_entity.take() {
-        commands.entity(window_entity).despawn();
-    }
-    state.locked_entity = None;
+    debug_window_lifecycle::close_debug_window(commands, state);
     info!("View Observer window closed");
 }
 
@@ -96,22 +91,26 @@ pub(super) fn view_layout_observer_window_closed_system(
     mut window_events: MessageReader<WindowClosed>,
     mut state: ResMut<ViewLayoutObserverState>,
 ) {
-    let Some(window_entity) = state.window_entity else {
-        return;
-    };
-
-    for event in window_events.read() {
-        if event.window != window_entity {
-            continue;
-        }
-        state.window_entity = None;
-        if let Some(camera_entity) = state.camera_entity.take() {
-            commands.entity(camera_entity).despawn();
-        }
-        state.mode = ViewLayoutObserverMode::Off;
-        state.locked_entity = None;
+    if debug_window_lifecycle::close_debug_window_on_child_window_closed(
+        &mut commands,
+        &mut window_events,
+        &mut *state,
+    ) {
         info!("View Observer window closed");
-        break;
+    }
+}
+
+pub(super) fn view_layout_observer_primary_window_closed_system(
+    mut commands: Commands,
+    mut removed: RemovedComponents<PrimaryWindow>,
+    mut state: ResMut<ViewLayoutObserverState>,
+) {
+    if debug_window_lifecycle::close_debug_window_on_primary_window_removed(
+        &mut commands,
+        &mut removed,
+        &mut *state,
+    ) {
+        info!("View Observer window closed (primary window closed)");
     }
 }
 

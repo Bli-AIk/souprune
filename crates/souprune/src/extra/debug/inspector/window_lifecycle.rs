@@ -15,6 +15,7 @@ use super::{
     InspectorUiState, InspectorWindowContextPass, RefreshPhase, StandaloneInspectorCamera,
     StandaloneInspectorWindow,
 };
+use crate::extra::debug::window_lifecycle as debug_window_lifecycle;
 use crate::extra::debug::{DebugCamera, DebugToastEvent};
 use bevy::camera::RenderTarget;
 use bevy::ecs::message::MessageReader;
@@ -85,13 +86,7 @@ fn spawn_inspector_window(commands: &mut Commands, ui_state: &mut InspectorUiSta
 }
 
 fn close_inspector_window(commands: &mut Commands, ui_state: &mut InspectorUiState) {
-    if let Some(camera_entity) = ui_state.inspector_camera.take() {
-        commands.entity(camera_entity).despawn();
-    }
-    if let Some(window_entity) = ui_state.inspector_window.take() {
-        commands.entity(window_entity).despawn();
-    }
-    ui_state.window_focused = false;
+    debug_window_lifecycle::close_debug_window(commands, ui_state);
     info!("Standalone inspector window closed");
 }
 
@@ -100,21 +95,12 @@ pub(super) fn inspector_window_closed_system(
     mut window_events: MessageReader<WindowClosed>,
     mut ui_state: ResMut<InspectorUiState>,
 ) {
-    let Some(window_entity) = ui_state.inspector_window else {
-        return;
-    };
-
-    for event in window_events.read() {
-        if event.window != window_entity {
-            continue;
-        }
-        ui_state.inspector_window = None;
-        if let Some(camera_entity) = ui_state.inspector_camera.take() {
-            commands.entity(camera_entity).despawn();
-        }
-        ui_state.window_focused = false;
+    if debug_window_lifecycle::close_debug_window_on_child_window_closed(
+        &mut commands,
+        &mut window_events,
+        &mut *ui_state,
+    ) {
         info!("Standalone inspector window closed");
-        break;
     }
 }
 
@@ -124,8 +110,11 @@ pub(super) fn primary_window_closed_system(
     mut ui_state: ResMut<InspectorUiState>,
     mut removed: RemovedComponents<PrimaryWindow>,
 ) {
-    if removed.read().next().is_some() && ui_state.inspector_window.is_some() {
-        close_inspector_window(&mut commands, &mut ui_state);
+    if debug_window_lifecycle::close_debug_window_on_primary_window_removed(
+        &mut commands,
+        &mut removed,
+        &mut *ui_state,
+    ) {
         info!("Standalone inspector window closed (primary window closed)");
     }
 }

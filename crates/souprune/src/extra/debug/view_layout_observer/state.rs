@@ -8,6 +8,7 @@ use crate::core::view::layout::{
     ViewClipRect, ViewLayoutDebugMetadata, ViewLayoutRect, ViewScrollState, ViewWorld3dPlaneDef,
 };
 use crate::core::view::spatial::ViewSpatialHit;
+use crate::extra::debug::window_lifecycle::DebugWindowLifecycleState;
 
 pub(super) const MAX_PARENT_DEPTH: usize = 64;
 
@@ -80,4 +81,23 @@ pub(super) struct ViewLayoutObserverSnapshot {
     pub(super) hover_selection: Option<ViewLayoutObserverSelection>,
     pub(super) selected_selection: Option<ViewLayoutObserverSelection>,
     pub(super) all_selections: Vec<ViewLayoutObserverSelection>,
+}
+
+impl DebugWindowLifecycleState for ViewLayoutObserverState {
+    fn window_entity(&self) -> Option<Entity> {
+        self.window_entity
+    }
+
+    fn window_entity_mut(&mut self) -> &mut Option<Entity> {
+        &mut self.window_entity
+    }
+
+    fn camera_entity_mut(&mut self) -> &mut Option<Entity> {
+        &mut self.camera_entity
+    }
+
+    fn on_window_closed(&mut self) {
+        self.mode = ViewLayoutObserverMode::Off;
+        self.locked_entity = None;
+    }
 }

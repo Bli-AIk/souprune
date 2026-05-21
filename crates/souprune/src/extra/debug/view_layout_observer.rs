@@ -39,6 +39,7 @@ pub(super) fn setup_view_layout_observer_debug(app: &mut App) {
             (
                 handle_view_layout_observer_hotkeys_system,
                 window::view_layout_observer_window_closed_system,
+                window::view_layout_observer_primary_window_closed_system,
                 update_view_layout_observer_snapshot_system.after(crate::core::view::ViewUpdate),
                 gizmos::sync_view_layout_observer_gizmos_system
                     .after(update_view_layout_observer_snapshot_system),
@@ -159,7 +160,6 @@ fn handle_view_layout_observer_hotkeys_system(
 
     if state.window_entity.is_some() {
         window::close_view_layout_observer_window(&mut commands, &mut state);
-        state.mode = ViewLayoutObserverMode::Off;
         toast_events.write(DebugToastEvent {
             message: "View Layout Observer: OFF".into(),
         });

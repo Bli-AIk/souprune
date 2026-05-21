@@ -53,6 +53,8 @@ mod restart;
 mod state_overlay;
 #[cfg(feature = "debug")]
 mod view_layout_observer;
+#[cfg(feature = "debug")]
+mod window_lifecycle;
 
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
