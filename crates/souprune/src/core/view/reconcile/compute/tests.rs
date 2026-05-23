@@ -6,9 +6,10 @@ use super::*;
 use crate::core::sequencer::chapter_schema::Value;
 use crate::core::view::layout::{
     CoordinateSystem, RepeatDef, SerializableJustifyContent, SerializableTransform,
-    SerializableVal, StyleDef, UiFlexDirection, ViewBoxLogicDef, ViewCameraTargetDef, ViewSpaceDef,
-    ViewWorld3dPlaneDef,
+    SerializableVal, SpriteDef, StyleDef, UiFlexDirection, ViewBoxLogicDef, ViewCameraTargetDef,
+    ViewSpaceDef, ViewWorld3dPlaneDef,
 };
+use crate::core::visual::Visual;
 use bevy::prelude::Vec3;
 use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 
@@ -312,6 +313,59 @@ fn desired_state_treats_taffy_child_slots_as_parent_local() {
 
     assert_eq!(row.transform.translation, Vec3::new(110.0, -80.0, 0.0));
     assert_eq!(leaf.transform.translation, Vec3::new(-50.0, 10.0, 0.0));
+}
+
+#[test]
+fn desired_state_keeps_manual_sprite_child_transform_relative_to_view_box_center() {
+    let mut cursor = node("Cursor", StyleDef::default(), Vec::new());
+    cursor.sprite = Some(SpriteDef {
+        visual: Visual("common/view/heartsmall".to_string()),
+        initial_state: None,
+        color: None,
+        flip_x: false,
+        flip_y: false,
+        transform: Some(SerializableTransform {
+            translation: Some((
+                Value::Static(-76.0),
+                Value::Static(24.0),
+                Value::Static(6.0),
+            )),
+            rotation: None,
+            scale: None,
+        }),
+        pivot: None,
+        frame_duration: None,
+        visible_when: None,
+        material: None,
+    });
+
+    let mut parent = node("ParentBox", StyleDef::default(), vec![cursor]);
+    parent.view_box = Some(ViewBoxLogicDef {
+        width: 167.0,
+        height: 175.0,
+        border_width: 0.0,
+        offset: (Value::Static(0.0), Value::Static(0.0), Value::Static(0.0)),
+        fill_shader: None,
+        structure_file: None,
+        fill_color: None,
+    });
+    let db = LayeredFactDatabase::new();
+    let local = LocalState::new();
+
+    let desired = compute_desired_state(
+        &asset(parent),
+        Vec2::new(640.0, 480.0),
+        &db,
+        &local,
+        "",
+        None,
+        None,
+    );
+
+    assert_eq!(
+        desired.roots[0].children[0].transform.translation,
+        Vec3::new(-76.0, 24.0, 6.0)
+    );
 }
 
 #[test]

@@ -4,7 +4,8 @@
 
 use bevy::prelude::{Transform, Vec3};
 
-use super::ViewLayoutSlot;
+use super::{StyleDef, ViewLayoutSlot, ViewNodeDef};
+use crate::core::sequencer::chapter_schema::Value;
 use crate::core::view::spatial::valid_pixels_per_unit;
 
 /// Runtime origin used by a spawned View layout node.
@@ -90,6 +91,55 @@ pub(crate) fn combine_spatial_layout_transform(
         )),
         transform,
     )
+}
+
+pub(crate) fn node_uses_layout_slot_transform(node: &ViewNodeDef) -> bool {
+    style_uses_layout_placement(&node.style) || !node_has_authored_transform(node)
+}
+
+fn style_uses_layout_placement(style: &StyleDef) -> bool {
+    style.width.is_some()
+        || style.height.is_some()
+        || style.left.is_some()
+        || style.right.is_some()
+        || style.top.is_some()
+        || style.bottom.is_some()
+        || style.position_type.is_some()
+        || style.flex_direction.is_some()
+        || style.justify_content.is_some()
+        || style.align_items.is_some()
+        || style.align_self.is_some()
+        || style.margin.is_some()
+        || style.padding.is_some()
+        || style.border.is_some()
+        || style.gap.is_some()
+        || style.display.is_some()
+        || style.overflow.is_some()
+        || style.sizing.is_some()
+}
+
+fn node_has_authored_transform(node: &ViewNodeDef) -> bool {
+    node.transform.is_some()
+        || node
+            .sprite
+            .as_ref()
+            .is_some_and(|sprite| sprite.transform.is_some())
+        || node
+            .state_sprite
+            .as_ref()
+            .is_some_and(|state_sprite| state_sprite.transform.is_some())
+        || node
+            .view_box
+            .as_ref()
+            .is_some_and(|view_box| !vec3_tuple_is_zero(&view_box.offset))
+}
+
+fn vec3_tuple_is_zero(tuple: &crate::core::view::layout::serde_types::Vec3Tuple) -> bool {
+    let (Value::Static(x), Value::Static(y), Value::Static(z)) = (&tuple.0, &tuple.1, &tuple.2)
+    else {
+        return false;
+    };
+    *x == 0.0 && *y == 0.0 && *z == 0.0
 }
 
 fn combine_transforms(parent: Transform, child: Transform) -> Transform {

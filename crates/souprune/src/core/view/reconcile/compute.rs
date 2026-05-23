@@ -185,8 +185,13 @@ fn compute_element(
     let key = build_element_key(ctx, node_def, repeat_ctx);
 
     let layout_slot = layout_slots.and_then(|slots| slots.get(node_path));
+    let layout_transform_slot = if placement::node_uses_layout_slot_transform(node_def) {
+        layout_slot
+    } else {
+        None
+    };
     let transform = combine_layout_transform(
-        layout_slot,
+        layout_transform_slot,
         parent_slot,
         parent_origin,
         resolve_element_transform(&ctx.player_data, node_def, repeat_ctx),
@@ -291,8 +296,13 @@ fn expand_repeat(
 
         let repeat_node_path = layout_repeat_path(node_path, i);
         let layout_slot = layout_slots.and_then(|slots| slots.get(&repeat_node_path));
+        let layout_transform_slot = if placement::node_uses_layout_slot_transform(node_def) {
+            layout_slot
+        } else {
+            None
+        };
         let transform = combine_layout_transform(
-            layout_slot,
+            layout_transform_slot,
             parent_slot,
             parent_origin,
             resolve_element_transform(&ctx.player_data, node_def, Some(&repeat_ctx)),

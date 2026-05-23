@@ -20,7 +20,7 @@ mod sprite;
 mod transforms;
 
 use super::super::components::*;
-use super::super::layout::placement::ViewLayoutOrigin;
+use super::super::layout::placement::{self, ViewLayoutOrigin};
 use super::super::layout::*;
 use super::parsing::PlayerDataView;
 use super::resources::RonDrivenView;
@@ -182,6 +182,11 @@ fn spawn_view_node_with_repeat_context(
 
     let mut spawned_entity_id: Option<Entity> = None;
     let layout_slot = layout_slots.and_then(|slots| slots.get(node_path));
+    let layout_transform_slot = if placement::node_uses_layout_slot_transform(node_def) {
+        layout_slot
+    } else {
+        None
+    };
 
     commands.entity(parent_entity).with_children(|parent| {
         if is_state_sprite {
@@ -196,7 +201,7 @@ fn spawn_view_node_with_repeat_context(
                 repeat_ctx,
             );
             let transform = combine_layout_transform(
-                layout_slot,
+                layout_transform_slot,
                 parent_slot,
                 parent_origin,
                 transform,
@@ -252,7 +257,7 @@ fn spawn_view_node_with_repeat_context(
                 repeat_ctx,
             );
             let transform = combine_layout_transform(
-                layout_slot,
+                layout_transform_slot,
                 parent_slot,
                 parent_origin,
                 transform,
@@ -311,7 +316,7 @@ fn spawn_view_node_with_repeat_context(
                 })
                 .unwrap_or_else(|| Transform::from_translation(offset));
             let transform = combine_layout_transform(
-                layout_slot,
+                layout_transform_slot,
                 parent_slot,
                 parent_origin,
                 transform,
@@ -417,7 +422,7 @@ fn spawn_view_node_with_repeat_context(
             let mut container_entity = parent.spawn((
                 ViewContainer,
                 combine_layout_transform(
-                    layout_slot,
+                    layout_transform_slot,
                     parent_slot,
                     parent_origin,
                     node_def
