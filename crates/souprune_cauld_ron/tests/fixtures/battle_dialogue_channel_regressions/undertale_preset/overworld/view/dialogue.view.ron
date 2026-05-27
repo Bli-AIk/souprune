@@ -80,6 +80,5 @@
     facts: Some({
         "depth": 0,
     }),
-    world_space: false,
     coordinate_system: Standard,
 )

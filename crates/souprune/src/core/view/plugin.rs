@@ -2,17 +2,18 @@
 //!
 //! 注册 View 子系统，并把它的运行时部件接入游戏调度。
 //!
-//! Acts as the plugin front door for Souprune's RON-driven UI runtime. It
+//! Acts as the plugin front door for Souprune's RON-driven View runtime. It
 //! installs assets, messages, lifecycle tracking, reconciliation, material
 //! support, and the system sets that keep views spawning, evaluating, and
 //! updating while the game is running.
 //!
-//! Souprune 的 RON 驱动 UI 运行时的插件入口。它负责安装资源、
+//! Souprune 的 RON 驱动 View 运行时的插件入口。它负责安装资源、
 //! 消息、生命周期跟踪、对账流程、材质支持，以及一整套让 View 在游戏运行中
 //! 能够生成、求值和更新的系统。
 
 use bevy::prelude::*;
 use bevy::sprite_render::Material2dPlugin;
+use bevy::transform::TransformSystems;
 use bevy_tween::TweenSystemSet;
 
 #[cfg(feature = "debug")]
@@ -25,8 +26,9 @@ use super::fact_toggle_color::update_fact_toggle_sdf_colors_system;
 use super::layout::ViewLayoutAsset;
 use super::lifecycle::{
     StateTransitionTracker, StateViewTransitionSet, UIInteractiveStateTracker,
-    backpack_state_transition_system, cleanup_view_rules_system, process_pending_view_rules_system,
-    state_transition_sound_system,
+    backpack_state_transition_system, cleanup_removed_view_focus_system, cleanup_view_rules_system,
+    process_pending_view_rules_system, push_added_focus_scopes_system,
+    state_transition_sound_system, sync_active_view_system,
 };
 use super::messages::{
     DespawnViewRequest, SpawnViewRequest, handle_despawn_view_request_system,
@@ -99,6 +101,7 @@ impl Plugin for CoreViewPlugin {
             .add_plugins(ViewReconciliationPlugin)
             .init_resource::<UIInteractiveStateTracker>()
             .init_resource::<StateTransitionTracker>()
+            .init_resource::<super::components::ViewFocusStack>()
             .add_message::<SpawnViewRequest>()
             .add_message::<DespawnViewRequest>()
             .add_systems(
@@ -111,7 +114,21 @@ impl Plugin for CoreViewPlugin {
                     .after(backpack_state_transition_system)
                     .before(ron_view::spawn_dynamic_view_system),
             )
-            .add_systems(schedule, handle_despawn_view_request_system)
+            .add_systems(
+                schedule,
+                handle_despawn_view_request_system.before(cleanup_removed_view_focus_system),
+            )
+            .add_systems(
+                schedule,
+                (
+                    push_added_focus_scopes_system,
+                    cleanup_removed_view_focus_system,
+                    sync_active_view_system,
+                )
+                    .chain()
+                    .after(ron_view::spawn_dynamic_view_system)
+                    .before(super::input::dispatch_view_input_system),
+            )
             .configure_sets(schedule, StateViewTransitionSet)
             .add_systems(
                 schedule,
@@ -165,6 +182,12 @@ impl Plugin for CoreViewPlugin {
             )
             .add_systems(
                 schedule,
+                super::spatial::sync_spatial_view_roots_system
+                    .after(ron_view::spawn_dynamic_view_system)
+                    .in_set(ViewUpdate),
+            )
+            .add_systems(
+                schedule,
                 (
                     ui_animation_init_system,
                     cleanup_view_rules_system,
@@ -188,6 +211,11 @@ impl Plugin for CoreViewPlugin {
                     sync_view_box_child_visibility_system.after(evaluate_visible_when_system),
                 )
                     .in_set(ViewUpdate),
+            )
+            .add_systems(
+                PostUpdate,
+                super::spatial::input::update_spatial_view_hits_system
+                    .after(TransformSystems::Propagate),
             );
 
         #[cfg(feature = "debug")]

@@ -17,8 +17,10 @@
 mod postprocess;
 mod repeat;
 mod sprite;
+mod transforms;
 
 use super::super::components::*;
+use super::super::layout::placement::{self, ViewLayoutOrigin};
 use super::super::layout::*;
 use super::parsing::PlayerDataView;
 use super::resources::RonDrivenView;
@@ -29,6 +31,11 @@ use bevy::prelude::*;
 use postprocess::{apply_dynamic_element, apply_visible_when};
 use repeat::{build_transform, build_vec3, resolve_repeat_item};
 use sprite::spawn_standalone_sprite_node;
+use transforms::{
+    combine_layout_transform, combine_transforms, insert_layout_slot_components,
+    is_dynamic_transform, node_display_is_none, resolve_node_or_local_transform,
+    transform_depends_on_time,
+};
 
 /// Spawn a single view node and its children.
 ///
@@ -43,7 +50,16 @@ pub fn spawn_view_node(
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
     namespace: &str,
+    layout_slots: Option<&ViewLayoutSlots>,
+    node_path: &str,
+    parent_slot: Option<&ViewLayoutSlot>,
+    parent_origin: ViewLayoutOrigin,
+    spatial_plane: Option<&ViewWorld3dPlaneDef>,
 ) {
+    if node_display_is_none(node_def) {
+        return;
+    }
+
     if let Some(repeat) = &node_def.repeat {
         let array_len = if let Some(list) = player_data.get_fact_string_list(&repeat.source) {
             list.len()
@@ -60,17 +76,22 @@ pub fn spawn_view_node(
         let limit = repeat.limit.unwrap_or(usize::MAX);
         let count = array_len.min(limit);
 
-        info!(
+        debug!(
             "[spawn_view_node] Repeating node '{}' {} times (source: '{}', len: {}, limit: {:?})",
             node_def.name, count, repeat.source, array_len, repeat.limit
         );
 
         for i in 0..count {
             let mut ctx = super::parsing::RepeatContext::new(i);
-
-            if let Some(item_var) = &repeat.item_var
-                && let Some(value) = resolve_repeat_item(player_data, &repeat.source, i)
+            let repeat_node_path = layout_repeat_path(node_path, i);
+            if let Some(index_var) = repeat.index_var.as_deref()
+                && !matches!(index_var, "i" | "index")
             {
+                ctx = ctx.with_item(index_var, i.to_string());
+            }
+
+            if let Some(value) = resolve_repeat_item(player_data, &repeat.source, i) {
+                let item_var = repeat.item_var.as_deref().unwrap_or("item");
                 ctx = ctx.with_item(item_var, value);
             }
 
@@ -85,6 +106,11 @@ pub fn spawn_view_node(
                 player_data,
                 namespace,
                 Some(&ctx),
+                layout_slots,
+                &repeat_node_path,
+                parent_slot,
+                parent_origin,
+                spatial_plane,
             );
         }
         return;
@@ -101,6 +127,11 @@ pub fn spawn_view_node(
         player_data,
         namespace,
         None,
+        layout_slots,
+        node_path,
+        parent_slot,
+        parent_origin,
+        spatial_plane,
     );
 }
 
@@ -115,11 +146,16 @@ fn spawn_view_node_with_repeat_context(
     player_data: &PlayerDataView<'_>,
     namespace: &str,
     repeat_ctx: Option<&super::parsing::RepeatContext>,
+    layout_slots: Option<&ViewLayoutSlots>,
+    node_path: &str,
+    parent_slot: Option<&ViewLayoutSlot>,
+    parent_origin: ViewLayoutOrigin,
+    spatial_plane: Option<&ViewWorld3dPlaneDef>,
 ) {
-    let has_ui_box = node_def.view_box.is_some();
-    let is_standalone_sprite = !has_ui_box && node_def.sprite.is_some();
-    let is_state_sprite = !has_ui_box && node_def.state_sprite.is_some();
-    let is_pure_container = !has_ui_box
+    let has_view_box = node_def.view_box.is_some();
+    let is_standalone_sprite = !has_view_box && node_def.sprite.is_some();
+    let is_state_sprite = !has_view_box && node_def.state_sprite.is_some();
+    let is_pure_container = !has_view_box
         && !is_standalone_sprite
         && !is_state_sprite
         && (!node_def.texts.is_empty() || !node_def.children.is_empty());
@@ -145,6 +181,12 @@ fn spawn_view_node_with_repeat_context(
     };
 
     let mut spawned_entity_id: Option<Entity> = None;
+    let layout_slot = layout_slots.and_then(|slots| slots.get(node_path));
+    let layout_transform_slot = if placement::node_uses_layout_slot_transform(node_def) {
+        layout_slot
+    } else {
+        None
+    };
 
     commands.entity(parent_entity).with_children(|parent| {
         if is_state_sprite {
@@ -157,6 +199,13 @@ fn spawn_view_node_with_repeat_context(
                 state_sprite_config.transform.as_ref(),
                 player_data,
                 repeat_ctx,
+            );
+            let transform = combine_layout_transform(
+                layout_transform_slot,
+                parent_slot,
+                parent_origin,
+                transform,
+                spatial_plane,
             );
 
             info!(
@@ -207,9 +256,16 @@ fn spawn_view_node_with_repeat_context(
                 player_data,
                 repeat_ctx,
             );
+            let transform = combine_layout_transform(
+                layout_transform_slot,
+                parent_slot,
+                parent_origin,
+                transform,
+                spatial_plane,
+            );
 
             info!(
-                "[UI Sprite] Spawning standalone sprite '{}' at position: {:?}, scale: {:?}",
+                "[View Sprite] Spawning standalone sprite '{}' at position: {:?}, scale: {:?}",
                 node_name, transform.translation, transform.scale
             );
 
@@ -228,13 +284,13 @@ fn spawn_view_node_with_repeat_context(
             return;
         }
 
-        if has_ui_box {
+        if has_view_box {
             let view_box = node_def
                 .view_box
                 .as_ref()
-                .expect("view_box must exist when has_ui_box is true");
+                .expect("view_box must exist when has_view_box is true");
             info!(
-                "[UI Box] Creating ViewBox '{}' with dimensions: {}x{}, border: {}, offset: {:?}",
+                "[View Box] Creating ViewBox '{}' with dimensions: {}x{}, border: {}, offset: {:?}",
                 node_def.name,
                 view_box.width,
                 view_box.height,
@@ -259,6 +315,13 @@ fn spawn_view_node_with_repeat_context(
                     )
                 })
                 .unwrap_or_else(|| Transform::from_translation(offset));
+            let transform = combine_layout_transform(
+                layout_transform_slot,
+                parent_slot,
+                parent_origin,
+                transform,
+                spatial_plane,
+            );
             let is_dynamic_node_transform = node_def
                 .transform
                 .as_ref()
@@ -323,13 +386,13 @@ fn spawn_view_node_with_repeat_context(
             }
 
             info!(
-                "[UI Box] Spawned ViewBox '{}' at offset: {:?} with structure_file: {:?}",
+                "[View Box] Spawned ViewBox '{}' at offset: {:?} with structure_file: {:?}",
                 node_def.name, offset, view_box.structure_file
             );
 
             if let Some(sprite_def) = &node_def.sprite {
                 info!(
-                    "[UI Box] Adding child sprite to ViewBox '{}': {:?}",
+                    "[View Box] Adding child sprite to ViewBox '{}': {:?}",
                     node_def.name,
                     sprite_def.visual.path()
                 );
@@ -350,7 +413,7 @@ fn spawn_view_node_with_repeat_context(
 
         if is_pure_container {
             info!(
-                "[UI Container] Creating pure container '{}' with {} texts and {} children",
+                "[View Container] Creating pure container '{}' with {} texts and {} children",
                 node_def.name,
                 node_def.texts.len(),
                 node_def.children.len()
@@ -358,11 +421,17 @@ fn spawn_view_node_with_repeat_context(
 
             let mut container_entity = parent.spawn((
                 ViewContainer,
-                node_def
-                    .transform
-                    .as_ref()
-                    .map(|transform| build_transform(transform, player_data, repeat_ctx))
-                    .unwrap_or_default(),
+                combine_layout_transform(
+                    layout_transform_slot,
+                    parent_slot,
+                    parent_origin,
+                    node_def
+                        .transform
+                        .as_ref()
+                        .map(|transform| build_transform(transform, player_data, repeat_ctx))
+                        .unwrap_or_default(),
+                    spatial_plane,
+                ),
                 GlobalTransform::default(),
                 Visibility::default(),
                 InheritedVisibility::default(),
@@ -391,6 +460,8 @@ fn spawn_view_node_with_repeat_context(
         return;
     };
 
+    insert_layout_slot_components(commands, entity_id, layout_slots, node_path, layout_slot);
+
     if let Some(visible_when_expr) = &node_def.visible_when {
         apply_visible_when(
             commands,
@@ -406,7 +477,13 @@ fn spawn_view_node_with_repeat_context(
         apply_dynamic_element(commands, entity_id, node_def, repeat_ctx);
     }
 
-    for child_def in &node_def.children {
+    for (child_idx, child_def) in node_def.children.iter().enumerate() {
+        let child_path = layout_child_path(node_path, child_idx, child_def);
+        let child_parent_origin = if is_pure_container {
+            ViewLayoutOrigin::TopLeft
+        } else {
+            ViewLayoutOrigin::Center
+        };
         spawn_view_node(
             commands,
             asset_server,
@@ -417,56 +494,14 @@ fn spawn_view_node_with_repeat_context(
             mortar_strings,
             player_data,
             namespace,
+            layout_slots,
+            &child_path,
+            layout_slot,
+            child_parent_origin,
+            spatial_plane,
         );
     }
 }
 
-fn resolve_node_or_local_transform(
-    node_def: &ViewNodeDef,
-    local_transform: Option<&SerializableTransform>,
-    player_data: &PlayerDataView<'_>,
-    repeat_ctx: Option<&super::parsing::RepeatContext>,
-) -> Transform {
-    let local =
-        local_transform.map(|transform| build_transform(transform, player_data, repeat_ctx));
-    let Some(node_transform) = &node_def.transform else {
-        return local.unwrap_or_default();
-    };
-
-    let node = build_transform(node_transform, player_data, repeat_ctx);
-    local
-        .map(|local| combine_transforms(node, local))
-        .unwrap_or(node)
-}
-
-fn combine_transforms(parent: Transform, child: Transform) -> Transform {
-    Transform {
-        translation: parent.translation + child.translation,
-        rotation: parent.rotation * child.rotation,
-        scale: parent.scale * child.scale,
-    }
-}
-
-fn is_dynamic_transform(transform: &SerializableTransform) -> bool {
-    transform.translation.as_ref().is_some_and(is_dynamic_vec3)
-        || transform.scale.as_ref().is_some_and(is_dynamic_vec3)
-        || transform
-            .rotation
-            .as_ref()
-            .is_some_and(crate::core::sequencer::chapter_schema::Value::is_expr)
-}
-
-fn transform_depends_on_time(transform: &SerializableTransform) -> bool {
-    transform
-        .translation
-        .as_ref()
-        .is_some_and(super::parsing::vec3_tuple_depends_on_time)
-        || transform
-            .scale
-            .as_ref()
-            .is_some_and(super::parsing::vec3_tuple_depends_on_time)
-        || transform
-            .rotation
-            .as_ref()
-            .is_some_and(super::parsing::expression_depends_on_time)
-}
+#[cfg(test)]
+mod tests;

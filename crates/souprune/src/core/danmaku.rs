@@ -26,6 +26,7 @@ pub use target::*;
 use bevy::asset::AssetApp;
 use bevy::prelude::*;
 
+use crate::core::mod_system::{DanmakuRegistry, LoadedMods, SpawnPatternRegistry};
 use crate::core::ron_loader::RonAssetLoader;
 
 /// System set for danmaku updates.
@@ -70,6 +71,9 @@ impl Plugin for CoreDanmakuPlugin {
             ]))
             .init_resource::<PendingPerformanceLoads>()
             .init_resource::<DanmakuSpawnContext>()
+            .init_resource::<DanmakuRegistry>()
+            .init_resource::<SpawnPatternRegistry>()
+            .insert_non_send_resource(LoadedMods::default())
             .add_message::<PlayPerformanceEvent>()
             .add_message::<DanmakuTimelineCueEvent>()
             .add_systems(
@@ -86,5 +90,22 @@ impl Plugin for CoreDanmakuPlugin {
                     .chain()
                     .in_set(DanmakuUpdate),
             );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn core_danmaku_plugin_initializes_optional_mod_runtime_resources() {
+        let mut app = App::new();
+
+        app.add_plugins((MinimalPlugins, bevy::asset::AssetPlugin::default()));
+        app.add_plugins(CoreDanmakuPlugin);
+
+        assert!(app.world().contains_resource::<DanmakuRegistry>());
+        assert!(app.world().contains_resource::<SpawnPatternRegistry>());
+        assert!(app.world().get_non_send_resource::<LoadedMods>().is_some());
     }
 }

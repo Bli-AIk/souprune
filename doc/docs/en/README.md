@@ -79,16 +79,16 @@ Please take my hand, and let me introduce you to today's menu...
 
 ### [Part 3: The Soul Dessert](https://www.google.com/search?q=./docs/part3_visuals.md)
 
-> **Target Audience**: UI Designers / Stars chasing glamour
+> **Target Audience**: View designers / Stars chasing glamour
 
 ```dialogue
 <path:/images/faces/mettaton.png>
 * Oh, YES... Darlings, look at your game. It's so... *au naturel*.
 * The audience needs **glamour**! **Drama**! **Ratings**!
-* In this section, we'll put lipstick on your UI and filters on your screen. Let's turn those boring pixels into a grand performance!
+* In this section, we'll put lipstick on your Views and filters on your screen. Let's turn those boring pixels into a grand performance!
 ```
 
-* **3.1 Adding Sugar to the Interface** (UI Skinning & Fonts)
+* **3.1 Adding Sugar to the View** (View skinning & fonts)
 * **3.2 Auditory Seasoning** (Dynamic music & SFX management)
 * **3.3 Plating Effects** (Post-processing & Shader effects)
 

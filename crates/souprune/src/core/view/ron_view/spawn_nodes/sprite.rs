@@ -146,7 +146,7 @@ fn spawn_resolved_sprite(
             if let Some(view_element) = view_element {
                 entity_cmd.insert(view_element.clone());
             }
-            info!("[UI Sprite] Spawned animated sprite '{}'", node_name);
+            debug!("[View Sprite] Spawned animated sprite '{}'", node_name);
             entity_cmd.id()
         }
         crate::core::visual::ResolvedVisual::Sprite(_)
@@ -237,8 +237,8 @@ fn spawn_material_sprite(
     }
 
     let entity_id = entity_cmd.id();
-    info!(
-        "[UI Sprite] Spawned shader material sprite '{}' (Entity {:?})",
+    debug!(
+        "[View Sprite] Spawned shader material sprite '{}' (Entity {:?})",
         node_name, entity_id
     );
     entity_id

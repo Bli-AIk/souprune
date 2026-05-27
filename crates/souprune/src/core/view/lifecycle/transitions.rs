@@ -8,10 +8,10 @@
 //!
 //! Reacts to high-level state transitions that affect the View system. It decides when
 //! an interactive state should spawn or despawn a layout, and it also plays the configured enter
-//! and exit sounds so state changes stay consistent across UI and audio.
+//! and exit sounds so state changes stay consistent across View and audio.
 //!
 //! 处理会影响 View 系统的高层状态切换。它决定交互状态进入或退出时何时生成、
-//! 销毁布局，同时负责播放状态配置中的进入/退出音效，让 UI 与音频的切换保持一致。
+//! 销毁布局，同时负责播放状态配置中的进入/退出音效，让 View 与音频的切换保持一致。
 
 use crate::core::audio;
 use crate::core::mode::{SequenceMode, SequenceSubState};
@@ -67,7 +67,7 @@ pub(crate) fn backpack_state_transition_system(
             .map(|s| s.to_string())
         {
             info!(
-                "[lifecycle] Entering UI interactive state '{}' - emitting SpawnViewRequest: '{}'",
+                "[lifecycle] Entering View interactive state '{}' - emitting SpawnViewRequest: '{}'",
                 state_name, view_layout_path
             );
 
@@ -81,14 +81,14 @@ pub(crate) fn backpack_state_transition_system(
             tracker.current_view_path = Some(view_layout_path);
         } else {
             warn!(
-                "[lifecycle] UI interactive state '{}' has no view_layout configured",
+                "[lifecycle] View interactive state '{}' has no view_layout configured",
                 state_name
             );
         }
     }
 
     if !is_view_interactive && tracker.was_view_interactive {
-        info!("[lifecycle] Exiting UI interactive state - emitting DespawnViewRequest");
+        info!("[lifecycle] Exiting View interactive state - emitting DespawnViewRequest");
 
         despawn_writer.write(super::super::DespawnViewRequest {
             path: tracker.current_view_path.take(),

@@ -34,7 +34,7 @@ pub(super) fn apply_visible_when(
 
     let processed_expr = substitute_repeat_vars(expr, repeat_ctx);
 
-    info!(
+    debug!(
         "Adding VisibleWhen to entity {:?} ({}): '{}' (original: '{}')",
         entity_id, node_name, processed_expr, expr
     );
@@ -79,11 +79,11 @@ pub(super) fn apply_dynamic_element(
     let (has_dynamic, has_time_dependency) = check_sprite_dynamics(sprite_def, &node_def.name);
 
     if !has_dynamic {
-        info!("No dynamic properties found for {}", node_def.name);
+        debug!("No dynamic properties found for {}", node_def.name);
         return;
     }
 
-    info!(
+    debug!(
         "Adding DynamicViewElement to entity {:?} ({}) [time_dependent={}]",
         entity_id, node_def.name, has_time_dependency
     );
@@ -122,7 +122,7 @@ fn check_sprite_dynamics(
             let tx = translation.0.is_dynamic();
             let ty = translation.1.is_dynamic();
             let tz = translation.2.is_dynamic();
-            info!(
+            debug!(
                 "Checking dynamics for {}: x={}, y={}, z={}",
                 node_name, tx, ty, tz
             );

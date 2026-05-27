@@ -34,8 +34,8 @@ pub use super::evaluation::{
 pub use repeat_preprocess::preprocess_sprite_def_for_repeat;
 pub use text_templates::{resolve_data_path, resolve_text_content};
 
-/// Context for repeat variable substitution in UI elements.
-/// Used when spawning repeated UI elements like HP bars.
+/// Context for repeat variable substitution in View elements.
+/// Used when spawning repeated View elements like HP bars.
 #[derive(Clone, Debug, Default)]
 pub struct RepeatContext {
     /// Current iteration index.

@@ -19,6 +19,7 @@ mod window_lifecycle;
 use crate::core::input::Action;
 use crate::core::top_down::character::components::PlayerControlled;
 use crate::extra::debug::DebugToastEvent;
+use crate::extra::debug::window_lifecycle::DebugWindowLifecycleState;
 use bevy::app::App;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::ecs::system::SystemIdMarker;
@@ -63,6 +64,24 @@ pub(in crate::extra::debug) struct InspectorUiState {
     /// Search filter for entity names.
     /// 实体名称搜索过滤器。
     search_query: String,
+}
+
+impl DebugWindowLifecycleState for InspectorUiState {
+    fn window_entity(&self) -> Option<Entity> {
+        self.inspector_window
+    }
+
+    fn window_entity_mut(&mut self) -> &mut Option<Entity> {
+        &mut self.inspector_window
+    }
+
+    fn camera_entity_mut(&mut self) -> &mut Option<Entity> {
+        &mut self.inspector_camera
+    }
+
+    fn on_window_closed(&mut self) {
+        self.window_focused = false;
+    }
 }
 
 /// Custom entity filter that excludes BRP system entities by default.
@@ -139,13 +158,7 @@ pub(in crate::extra::debug) fn setup_debug_features(app: &mut App) {
     app.add_plugins(EguiPlugin::default());
     app.add_plugins(DefaultInspectorConfigPlugin);
 
-    app.add_plugins(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default());
-    app.add_plugins(bevy::diagnostic::EntityCountDiagnosticsPlugin::default());
-    app.add_plugins(bevy::diagnostic::SystemInformationDiagnosticsPlugin);
-
-    if !app.is_plugin_added::<bevy::render::diagnostic::RenderDiagnosticsPlugin>() {
-        app.add_plugins(bevy::render::diagnostic::RenderDiagnosticsPlugin);
-    }
+    setup_debug_diagnostics(app);
 
     app.add_plugins(PerfUiPlugin);
 
@@ -178,6 +191,21 @@ pub(in crate::extra::debug) fn setup_debug_features(app: &mut App) {
         PreUpdate,
         block_player_actions_when_inspector_focused_system.after(InputManagerSystem::ManualControl),
     );
+}
+
+fn setup_debug_diagnostics(app: &mut App) {
+    if !app.is_plugin_added::<bevy::diagnostic::FrameTimeDiagnosticsPlugin>() {
+        app.add_plugins(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default());
+    }
+    if !app.is_plugin_added::<bevy::diagnostic::EntityCountDiagnosticsPlugin>() {
+        app.add_plugins(bevy::diagnostic::EntityCountDiagnosticsPlugin::default());
+    }
+    if !app.is_plugin_added::<bevy::diagnostic::SystemInformationDiagnosticsPlugin>() {
+        app.add_plugins(bevy::diagnostic::SystemInformationDiagnosticsPlugin);
+    }
+    if !app.is_plugin_added::<bevy::render::diagnostic::RenderDiagnosticsPlugin>() {
+        app.add_plugins(bevy::render::diagnostic::RenderDiagnosticsPlugin);
+    }
 }
 
 fn toggle_perf_ui_system(

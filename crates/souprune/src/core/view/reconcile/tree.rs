@@ -11,6 +11,7 @@ use bevy::sprite::Anchor;
 use bevy_bitmap_text::{TextAlign, TextAnchor};
 use std::collections::HashMap;
 
+use crate::core::view::layout::ViewLayoutRect;
 use crate::core::view::layout::view_schema::EasingDef;
 
 /// Unique identifier for a view element.
@@ -215,6 +216,10 @@ pub struct DesiredElement {
     /// 变换（位置、旋转、缩放）
     pub transform: Transform,
 
+    /// Computed layout rectangle, if this element participates in layout.
+    /// 如果此元素参与布局，则为计算后的布局矩形。
+    pub layout_rect: Option<ViewLayoutRect>,
+
     /// Visibility state
     /// 可见性状态
     pub visibility: Visibility,
@@ -253,6 +258,7 @@ impl DesiredElement {
             name: name.into(),
             tags: Vec::new(),
             transform: Transform::IDENTITY,
+            layout_rect: None,
             visibility: Visibility::Inherited,
             sprite: None,
             texts: Vec::new(),
@@ -336,6 +342,10 @@ pub struct CurrentElement {
     /// Current transform
     /// 当前变换
     pub transform: Transform,
+
+    /// Current computed layout rectangle, if present on the entity.
+    /// 当前实体上的计算布局矩形（如果存在）。
+    pub layout_rect: Option<ViewLayoutRect>,
 
     /// Current visibility
     /// 当前可见性

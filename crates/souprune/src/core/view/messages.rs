@@ -103,6 +103,7 @@ pub(super) fn handle_spawn_view_request_system(
 pub(super) fn handle_despawn_view_request_system(
     mut events: MessageReader<DespawnViewRequest>,
     mut commands: Commands,
+    mut focus_stack: Option<ResMut<components::ViewFocusStack>>,
     query: Query<(Entity, &components::ViewRoot), With<RonDrivenView>>,
 ) {
     for request in events.read() {
@@ -119,6 +120,9 @@ pub(super) fn handle_despawn_view_request_system(
                 "Despawning view: {} (entity {:?})",
                 view_root.layout_path, entity
             );
+            if let Some(focus_stack) = focus_stack.as_deref_mut() {
+                focus_stack.remove(entity);
+            }
             commands.entity(entity).despawn();
         }
 

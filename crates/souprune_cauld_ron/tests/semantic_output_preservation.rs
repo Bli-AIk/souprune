@@ -54,7 +54,6 @@ owned_paths = ["battle/view/sparse.view.ron"]
     ],
     requires: [],
     facts: None,
-    world_space: false,
     coordinate_system: Standard,
 )
 "#,
@@ -95,7 +94,6 @@ owned_paths = ["battle/view/sparse.view.ron"]
     ],
     requires: [],
     facts: None,
-    world_space: false,
     coordinate_system: Standard,
 )
 "#

@@ -7,6 +7,7 @@
 //! 定义 ViewDelta 枚举和 apply_deltas 函数。
 
 use super::tree::{DesiredElement, DesiredHealthBar, DesiredMaterial, DesiredSprite, DesiredText};
+use crate::core::view::layout::ViewLayoutRect;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 
@@ -40,6 +41,13 @@ pub enum ViewDelta {
     UpdateTransform {
         entity: Entity,
         new_value: Transform,
+    },
+
+    /// Update stored layout rectangle of an existing element.
+    /// 更新现有元素存储的布局矩形。
+    UpdateLayout {
+        entity: Entity,
+        new_value: ViewLayoutRect,
     },
 
     /// Update visibility of an existing element.
@@ -101,6 +109,9 @@ pub fn apply_deltas(commands: &mut Commands, deltas: &[ViewDelta]) {
                 commands.entity(*entity).despawn();
             }
             ViewDelta::UpdateTransform { entity, new_value } => {
+                commands.entity(*entity).try_insert(*new_value);
+            }
+            ViewDelta::UpdateLayout { entity, new_value } => {
                 commands.entity(*entity).try_insert(*new_value);
             }
             ViewDelta::UpdateVisibility { entity, new_value } => {
@@ -186,7 +197,11 @@ fn queue_update_sprite(
 
 /// Apply a spawn delta by creating a new entity with all components.
 /// 通过创建带有所有组件的新实体来应用生成差异。
-fn apply_spawn_delta(commands: &mut Commands, parent: Option<Entity>, spec: &DesiredElement) {
+fn apply_spawn_delta(
+    commands: &mut Commands,
+    parent: Option<Entity>,
+    spec: &DesiredElement,
+) -> Entity {
     // Extract namespace from full_name
     let (namespace, local_name) = if let Some(idx) = spec.key.full_name.rfind("::") {
         (
@@ -197,54 +212,68 @@ fn apply_spawn_delta(commands: &mut Commands, parent: Option<Entity>, spec: &Des
         (String::new(), spec.key.full_name.clone())
     };
 
-    // Create base entity bundle
-    let mut entity_commands = commands.spawn((
-        spec.transform,
-        spec.visibility,
-        crate::core::view::components::ViewElement {
-            full_name: spec.key.full_name.clone(),
-            local_name,
-            namespace,
-            tags: spec.tags.clone(),
-        },
-    ));
+    let entity_id = {
+        let mut entity_commands = commands.spawn((
+            spec.transform,
+            GlobalTransform::default(),
+            spec.visibility,
+            InheritedVisibility::default(),
+            ViewVisibility::default(),
+            crate::core::view::ron_view::resources::RonDrivenView,
+            crate::core::view::components::ViewElement {
+                full_name: spec.key.full_name.clone(),
+                local_name,
+                namespace,
+                tags: spec.tags.clone(),
+            },
+        ));
 
-    // Add VisibleWhen component if expression exists
-    if let Some(ref expr) = spec.visible_when_expr {
-        entity_commands.insert(crate::core::view::components::VisibleWhen {
-            expression: expr.clone(),
-        });
+        if spec.sprite.is_none() && (!spec.texts.is_empty() || !spec.children.is_empty()) {
+            entity_commands.insert(crate::core::view::components::ViewContainer);
+        }
+
+        if let Some(layout_rect) = spec.layout_rect {
+            entity_commands.insert(layout_rect);
+        }
+
+        if let Some(ref expr) = spec.visible_when_expr {
+            entity_commands.insert(crate::core::view::components::VisibleWhen {
+                expression: expr.clone(),
+            });
+        }
+
+        if let Some(ref sprite_spec) = spec.sprite {
+            entity_commands.insert(Sprite {
+                color: sprite_spec.color,
+                flip_x: sprite_spec.flip_x,
+                flip_y: sprite_spec.flip_y,
+                ..default()
+            });
+            entity_commands.insert(sprite_spec.anchor);
+        }
+
+        if !spec.texts.is_empty() {
+            let content = spec
+                .texts
+                .iter()
+                .map(|text| text.content.as_str())
+                .collect::<Vec<_>>()
+                .join("\n");
+            entity_commands.insert(Text2d::new(content));
+        }
+
+        if let Some(parent_entity) = parent {
+            entity_commands.insert(ChildOf(parent_entity));
+        }
+
+        entity_commands.id()
+    };
+
+    for child in &spec.children {
+        apply_spawn_delta(commands, Some(entity_id), child);
     }
 
-    // Add tags
-    // Tags are stored in ViewElement, already added above
-
-    // Add sprite if present
-    if let Some(ref sprite_spec) = spec.sprite {
-        entity_commands.insert(Sprite {
-            color: sprite_spec.color,
-            flip_x: sprite_spec.flip_x,
-            flip_y: sprite_spec.flip_y,
-            ..default()
-        });
-        // Add anchor as separate component
-        entity_commands.insert(sprite_spec.anchor);
-        // Note: Texture loading would need AssetServer which isn't available here
-        // This is handled by a separate setup system
-    }
-
-    // Add parent relationship
-    if let Some(parent_entity) = parent {
-        entity_commands.insert(ChildOf(parent_entity));
-    }
-
-    // Recursively spawn children
-    // Note: In the actual implementation, we'd need to get the spawned entity ID
-    // and pass it as parent to children. This requires a different approach using
-    // commands.spawn().id() or deferred commands.
-
-    // For now, child spawning would be handled in a follow-up system
-    // or by restructuring to use nested spawning patterns
+    entity_id
 }
 
 /// Statistics about applied deltas for debugging.
@@ -254,6 +283,7 @@ pub struct DeltaStats {
     pub spawns: usize,
     pub despawns: usize,
     pub transform_updates: usize,
+    pub layout_updates: usize,
     pub visibility_updates: usize,
     pub sprite_updates: usize,
     pub text_updates: usize,
@@ -272,6 +302,7 @@ impl DeltaStats {
                 ViewDelta::Spawn { .. } => stats.spawns += 1,
                 ViewDelta::Despawn { .. } => stats.despawns += 1,
                 ViewDelta::UpdateTransform { .. } => stats.transform_updates += 1,
+                ViewDelta::UpdateLayout { .. } => stats.layout_updates += 1,
                 ViewDelta::UpdateVisibility { .. } => stats.visibility_updates += 1,
                 ViewDelta::UpdateSprite { .. } => stats.sprite_updates += 1,
                 ViewDelta::UpdateText { .. } => stats.text_updates += 1,
@@ -289,6 +320,7 @@ impl DeltaStats {
         self.spawns > 0
             || self.despawns > 0
             || self.transform_updates > 0
+            || self.layout_updates > 0
             || self.visibility_updates > 0
             || self.sprite_updates > 0
             || self.text_updates > 0
@@ -324,5 +356,128 @@ mod tests {
         app.add_systems(Update, update_stale_transform);
 
         app.update();
+    }
+
+    #[derive(Resource)]
+    struct LayoutEntity(Entity);
+
+    fn update_layout_rect(mut commands: Commands, target: Res<LayoutEntity>) {
+        apply_deltas(
+            &mut commands,
+            &[ViewDelta::UpdateLayout {
+                entity: target.0,
+                new_value: ViewLayoutRect {
+                    x: 12.0,
+                    y: 8.0,
+                    width: 96.0,
+                    height: 32.0,
+                },
+            }],
+        );
+    }
+
+    #[test]
+    fn layout_update_writes_layout_rect_component() {
+        let mut app = App::new();
+        let entity = app.world_mut().spawn_empty().id();
+        app.insert_resource(LayoutEntity(entity));
+        app.add_systems(Update, update_layout_rect);
+
+        app.update();
+
+        let rect = app
+            .world()
+            .entity(entity)
+            .get::<ViewLayoutRect>()
+            .expect("layout rect should be inserted");
+        assert_eq!(rect.x, 12.0);
+        assert_eq!(rect.y, 8.0);
+        assert_eq!(rect.width, 96.0);
+        assert_eq!(rect.height, 32.0);
+    }
+
+    fn spawn_parent_with_child(mut commands: Commands) {
+        let mut parent = DesiredElement::new(
+            super::super::tree::ViewElementKey::new("test::Parent"),
+            "Parent",
+        );
+        parent.children.push(DesiredElement::new(
+            super::super::tree::ViewElementKey::new("test::Child"),
+            "Child",
+        ));
+        apply_deltas(
+            &mut commands,
+            &[ViewDelta::Spawn {
+                parent: None,
+                spec: parent,
+            }],
+        );
+    }
+
+    #[test]
+    fn spawn_delta_recursively_spawns_children() {
+        let mut app = App::new();
+        app.add_systems(Update, spawn_parent_with_child);
+
+        app.update();
+
+        let mut parent_entity = None;
+        let mut child_entity = None;
+        let mut query = app
+            .world_mut()
+            .query::<(Entity, &crate::core::view::components::ViewElement)>();
+        for (entity, view_element) in query.iter(app.world()) {
+            match view_element.full_name.as_str() {
+                "test::Parent" => parent_entity = Some(entity),
+                "test::Child" => child_entity = Some(entity),
+                _ => {}
+            }
+        }
+
+        let parent_entity = parent_entity.expect("parent should spawn");
+        let child_entity = child_entity.expect("child should spawn");
+        let child_of = app
+            .world()
+            .entity(child_entity)
+            .get::<ChildOf>()
+            .expect("child should be parented");
+        assert_eq!(child_of.parent(), parent_entity);
+    }
+
+    fn spawn_text_element(mut commands: Commands) {
+        let mut label = DesiredElement::new(
+            super::super::tree::ViewElementKey::new("test::Label"),
+            "Label",
+        );
+        label.texts.push(super::super::tree::DesiredText {
+            content: "Hello".to_string(),
+            ..Default::default()
+        });
+        apply_deltas(
+            &mut commands,
+            &[ViewDelta::Spawn {
+                parent: None,
+                spec: label,
+            }],
+        );
+    }
+
+    #[test]
+    fn spawn_delta_inserts_text_for_desired_text_element() {
+        let mut app = App::new();
+        app.add_systems(Update, spawn_text_element);
+
+        app.update();
+
+        let mut query = app
+            .world_mut()
+            .query::<(&crate::core::view::components::ViewElement, &Text2d)>();
+        let text = query
+            .iter(app.world())
+            .find_map(|(view_element, text)| {
+                (view_element.full_name == "test::Label").then_some(text)
+            })
+            .expect("spawned label should carry text");
+        assert_eq!(text.0, "Hello");
     }
 }

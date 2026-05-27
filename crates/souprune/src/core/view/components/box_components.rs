@@ -1,6 +1,6 @@
-//! UI Box and Container components.
+//! ViewBox and container components.
 //!
-//! UI 框和容器组件。
+//! ViewBox 和容器组件。
 
 use bevy::prelude::*;
 
@@ -207,16 +207,16 @@ pub(crate) fn correct_anchored_viewbox_positions(
     }
 }
 
-/// Marker placed on the filler entity that contains UI text and indicator sprites.
+/// Marker placed on the filler entity that contains View text and indicator sprites.
 ///
-/// 标记承载 UI 文本与指示器精灵的填充实体。
+/// 标记承载 View 文本与指示器精灵的填充实体。
 #[derive(Component)]
 pub(crate) struct ViewBoxFiller;
 
-/// Marker component for a UI container node that can hold texts and children
+/// Marker component for a View container node that can hold texts and children
 /// without requiring a visual ViewBox (background box).
 ///
-/// 用于标记 UI 容器节点的组件，该节点可以承载文本和子节点，
+/// 用于标记 View 容器节点的组件，该节点可以承载文本和子节点，
 /// 而无需视觉上的 ViewBox（背景框）。
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]

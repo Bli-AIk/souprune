@@ -1,0 +1,300 @@
+(
+    roots: [
+        (
+            name: "ObserverSurface",
+            tags: ["observer_surface"],
+            style: (
+                width: Some(Px(360.0)),
+                height: Some(Px(220.0)),
+                position_type: Some(Relative),
+                flex_direction: Some(Column),
+                justify_content: Some(Center),
+                align_items: Some(Center),
+                padding: Some((
+                    left: Px(24.0),
+                    right: Px(24.0),
+                    top: Px(24.0),
+                    bottom: Px(24.0),
+                )),
+                gap: Some((
+                    row: Px(16.0),
+                    column: Px(16.0),
+                )),
+                sizing: Some(Fixed(
+                    width: Px(360.0),
+                    height: Px(220.0),
+                )),
+                display: Some(Flex),
+            ),
+            transform: Some((
+                translation: Some((-360.0, 110.0, 0.0)),
+            )),
+            view_box: Some((
+                width: 360.0,
+                height: 220.0,
+                border_width: 0.0,
+                offset: (180.0, -110.0, -0.02),
+                fill_shader: None,
+                structure_file: None,
+                fill_color: Some((0.05, 0.07, 0.10, 0.96)),
+            )),
+            children: [
+                (
+                    name: "ObserverHeader",
+                    tags: ["observer_header"],
+                    style: (
+                        width: Some(Px(312.0)),
+                        height: Some(Px(44.0)),
+                        position_type: Some(Relative),
+                        flex_direction: Some(Row),
+                        justify_content: Some(SpaceBetween),
+                        align_items: Some(Center),
+                        gap: Some((
+                            row: Px(0.0),
+                            column: Px(12.0),
+                        )),
+                        sizing: Some(Fixed(
+                            width: Px(312.0),
+                            height: Px(44.0),
+                        )),
+                        display: Some(Flex),
+                    ),
+                    view_box: Some((
+                        width: 312.0,
+                        height: 44.0,
+                        border_width: 0.0,
+                        offset: (156.0, -22.0, 0.02),
+                        fill_shader: None,
+                        structure_file: None,
+                        fill_color: Some((0.14, 0.25, 0.44, 0.96)),
+                    )),
+                    children: [
+                        (
+                            name: "HeaderLeft",
+                            tags: ["observer_chip"],
+                            style: (
+                                width: Some(Px(120.0)),
+                                height: Some(Px(32.0)),
+                                position_type: Some(Relative),
+                                display: Some(Flex),
+                                sizing: Some(Fixed(
+                                    width: Px(120.0),
+                                    height: Px(32.0),
+                                )),
+                            ),
+                            sprite: Some((
+                                visual: "procedural://white_pixel",
+                                color: Some((0.95, 0.68, 0.22, 0.96)),
+                                transform: Some((
+                                    translation: Some((60.0, -16.0, 0.03)),
+                                    scale: Some((120.0, 32.0, 1.0)),
+                                )),
+                                pivot: Some((0.5, 0.5)),
+                            )),
+                            children: [],
+                            repeat: None,
+                        ),
+                        (
+                            name: "HeaderRight",
+                            tags: ["observer_chip"],
+                            style: (
+                                width: Some(Px(96.0)),
+                                height: Some(Px(32.0)),
+                                position_type: Some(Relative),
+                                display: Some(Flex),
+                                sizing: Some(Fixed(
+                                    width: Px(96.0),
+                                    height: Px(32.0),
+                                )),
+                            ),
+                            sprite: Some((
+                                visual: "procedural://white_pixel",
+                                color: Some((0.23, 0.67, 1.0, 0.96)),
+                                transform: Some((
+                                    translation: Some((48.0, -16.0, 0.03)),
+                                    scale: Some((96.0, 32.0, 1.0)),
+                                )),
+                                pivot: Some((0.5, 0.5)),
+                            )),
+                            children: [],
+                            repeat: None,
+                        ),
+                    ],
+                    repeat: None,
+                ),
+                (
+                    name: "ObserverBody",
+                    tags: ["observer_content"],
+                    style: (
+                        width: Some(Px(312.0)),
+                        height: Some(Px(112.0)),
+                        position_type: Some(Relative),
+                        flex_direction: Some(Column),
+                        justify_content: Some(Start),
+                        align_items: Some(Stretch),
+                        padding: Some((
+                            left: Px(12.0),
+                            right: Px(12.0),
+                            top: Px(12.0),
+                            bottom: Px(12.0),
+                        )),
+                        gap: Some((
+                            row: Px(10.0),
+                            column: Px(10.0),
+                        )),
+                        overflow: Some(Axes(
+                            horizontal: Hidden,
+                            vertical: Scroll,
+                        )),
+                        sizing: Some(Fixed(
+                            width: Px(312.0),
+                            height: Px(112.0),
+                        )),
+                        display: Some(Flex),
+                    ),
+                    view_box: Some((
+                        width: 312.0,
+                        height: 112.0,
+                        border_width: 0.0,
+                        offset: (156.0, -56.0, 0.02),
+                        fill_shader: None,
+                        structure_file: None,
+                        fill_color: Some((0.08, 0.12, 0.18, 0.96)),
+                    )),
+                    children: [
+                        (
+                            name: "ObserverLineA",
+                            tags: ["observer_line"],
+                            style: (
+                                width: Some(Px(288.0)),
+                                height: Some(Px(24.0)),
+                                position_type: Some(Relative),
+                                display: Some(Flex),
+                                sizing: Some(Fixed(
+                                    width: Px(288.0),
+                                    height: Px(24.0),
+                                )),
+                            ),
+                            sprite: Some((
+                                visual: "procedural://white_pixel",
+                                color: Some((0.36, 0.84, 0.45, 0.96)),
+                                transform: Some((
+                                    translation: Some((144.0, -12.0, 0.03)),
+                                    scale: Some((288.0, 24.0, 1.0)),
+                                )),
+                                pivot: Some((0.5, 0.5)),
+                            )),
+                            children: [],
+                            repeat: None,
+                        ),
+                        (
+                            name: "ObserverLineB",
+                            tags: ["observer_line"],
+                            style: (
+                                width: Some(Px(288.0)),
+                                height: Some(Px(24.0)),
+                                position_type: Some(Relative),
+                                display: Some(Flex),
+                                sizing: Some(Fixed(
+                                    width: Px(288.0),
+                                    height: Px(24.0),
+                                )),
+                            ),
+                            sprite: Some((
+                                visual: "procedural://white_pixel",
+                                color: Some((0.95, 0.18, 0.34, 0.96)),
+                                transform: Some((
+                                    translation: Some((144.0, -12.0, 0.03)),
+                                    scale: Some((288.0, 24.0, 1.0)),
+                                )),
+                                pivot: Some((0.5, 0.5)),
+                            )),
+                            children: [],
+                            repeat: None,
+                        ),
+                        (
+                            name: "ObserverLineC",
+                            tags: ["observer_line"],
+                            style: (
+                                width: Some(Px(288.0)),
+                                height: Some(Px(24.0)),
+                                position_type: Some(Relative),
+                                display: Some(Flex),
+                                sizing: Some(Fixed(
+                                    width: Px(288.0),
+                                    height: Px(24.0),
+                                )),
+                            ),
+                            sprite: Some((
+                                visual: "procedural://white_pixel",
+                                color: Some((0.78, 0.52, 0.96, 0.96)),
+                                transform: Some((
+                                    translation: Some((144.0, -12.0, 0.03)),
+                                    scale: Some((288.0, 24.0, 1.0)),
+                                )),
+                                pivot: Some((0.5, 0.5)),
+                            )),
+                            children: [],
+                            repeat: None,
+                        ),
+                        (
+                            name: "ObserverHiddenLine",
+                            tags: ["observer_hidden_line"],
+                            style: (
+                                width: Some(Px(288.0)),
+                                height: Some(Px(24.0)),
+                                position_type: Some(Relative),
+                                display: Some(Flex),
+                                sizing: Some(Fixed(
+                                    width: Px(288.0),
+                                    height: Px(24.0),
+                                )),
+                            ),
+                            visible_when: Some("false"),
+                            sprite: Some((
+                                visual: "procedural://white_pixel",
+                                color: Some((0.80, 0.84, 0.90, 0.96)),
+                                transform: Some((
+                                    translation: Some((144.0, -12.0, 0.03)),
+                                    scale: Some((288.0, 24.0, 1.0)),
+                                )),
+                                pivot: Some((0.5, 0.5)),
+                            )),
+                            children: [],
+                            repeat: None,
+                        ),
+                    ],
+                    repeat: None,
+                ),
+                (
+                    name: "ObserverBadge",
+                    tags: ["observer_badge"],
+                    style: (
+                        width: Some(Px(38.0)),
+                        height: Some(Px(38.0)),
+                        left: Some(Px(298.0)),
+                        top: Some(Px(154.0)),
+                        position_type: Some(Absolute),
+                        display: Some(Flex),
+                        sizing: Some(Fixed(
+                            width: Px(38.0),
+                            height: Px(38.0),
+                        )),
+                    ),
+                    sprite: Some((
+                        visual: "procedural://white_pixel",
+                        color: Some((0.98, 0.22, 0.32, 0.96)),
+                        transform: Some((
+                            translation: Some((19.0, -19.0, 0.04)),
+                            scale: Some((38.0, 38.0, 1.0)),
+                        )),
+                        pivot: Some((0.5, 0.5)),
+                    )),
+                    children: [],
+                    repeat: None,
+                ),
+            ],
+        ),
+    ],
+    space: Some(World2d),
+)

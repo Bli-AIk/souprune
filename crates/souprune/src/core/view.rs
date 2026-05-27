@@ -1,4 +1,4 @@
-//! # ui.rs
+//! # view.rs
 //!
 //! RON-driven view runtime.
 
@@ -18,6 +18,7 @@ pub mod reconcile;
 pub mod ron_view;
 pub mod sdf_shape;
 pub mod sdf_view_shape;
+pub mod spatial;
 pub mod text;
 pub mod visible_when;
 
@@ -35,8 +36,8 @@ pub use messages::{DespawnViewRequest, SpawnViewRequest};
 pub use plugin::CoreViewPlugin;
 pub use ron_view::RonDrivenView;
 
-/// Universal UI update system set
+/// Universal View update system set
 ///
-/// 通用 UI 更新系统集
+/// 通用 View 更新系统集
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ViewUpdate;

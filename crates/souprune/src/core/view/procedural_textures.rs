@@ -1,6 +1,6 @@
 //! # procedural_textures.rs
 //!
-//! Procedurally generated textures for UI elements.
+//! Procedurally generated textures for View elements.
 //! 程序生成的UI元素纹理。
 
 use bevy::prelude::*;

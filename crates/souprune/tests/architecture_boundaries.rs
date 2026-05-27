@@ -43,6 +43,48 @@ fn forbidden_rust_source_hits(
     hits
 }
 
+fn forbidden_text_hits(
+    roots: &[PathBuf],
+    display_root: &Path,
+    extensions: &[&str],
+    forbidden: &[&str],
+) -> Vec<String> {
+    let mut hits = Vec::new();
+    for root in roots {
+        if !root.exists() {
+            continue;
+        }
+
+        for entry in walkdir::WalkDir::new(root)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|entry| {
+                entry.path().extension().is_some_and(|ext| {
+                    extensions
+                        .iter()
+                        .any(|expected| ext.eq_ignore_ascii_case(expected))
+                })
+            })
+        {
+            let path = entry.path();
+            let text = fs::read_to_string(path).expect("read text file");
+            hits.extend(
+                forbidden
+                    .iter()
+                    .filter(|token| text.contains(**token))
+                    .map(|token| {
+                        format!(
+                            "{} contains `{}`",
+                            path.strip_prefix(display_root).unwrap_or(path).display(),
+                            token
+                        )
+                    }),
+            );
+        }
+    }
+    hits
+}
+
 #[test]
 fn framework_no_longer_has_preset_layer_entrypoints() {
     let workspace = workspace_root();
@@ -80,6 +122,197 @@ fn framework_no_longer_has_preset_layer_entrypoints() {
         hits.is_empty(),
         "preset layer entrypoints must be removed from framework source:\n{}",
         hits.join("\n")
+    );
+}
+
+#[test]
+fn view_authoring_surface_uses_space_not_legacy_boolean() {
+    let workspace = workspace_root();
+    let legacy_token = concat!("world", "_space");
+    let roots = [
+        workspace.join("crates/souprune/src/core/view"),
+        workspace.join("crates/souprune/examples"),
+        workspace.join("crates/souprune_schema/src"),
+        workspace.join("crates/souprune_cauld_ron/tests"),
+        workspace.join("projects"),
+    ];
+    let hits = forbidden_text_hits(&roots, &workspace, &["rs", "ron"], &[legacy_token]);
+
+    assert!(
+        hits.is_empty(),
+        "View placement must use `space`, not the legacy world-space boolean:\n{}",
+        hits.join("\n")
+    );
+}
+
+#[test]
+fn public_authoring_surface_does_not_add_ui_modules() {
+    let workspace = workspace_root();
+    let forbidden_paths = [
+        workspace.join("crates/souprune/src/ui.rs"),
+        workspace.join("crates/souprune/src/ui"),
+        workspace.join("crates/souprune_schema/src/ui.rs"),
+        workspace.join("crates/souprune_schema/src/ui"),
+        workspace.join("crates/souprune_api/src/ui.rs"),
+        workspace.join("crates/souprune_api/src/ui"),
+        workspace.join("crates/souprune_sdk/src/ui.rs"),
+        workspace.join("crates/souprune_sdk/src/ui"),
+    ];
+    let existing: Vec<String> = forbidden_paths
+        .iter()
+        .filter(|path| path.exists())
+        .map(|path| path.display().to_string())
+        .collect();
+
+    assert!(
+        existing.is_empty(),
+        "author-facing public surfaces must use View naming, not new ui modules:\n{}",
+        existing.join("\n")
+    );
+
+    let roots = [
+        workspace.join("crates/souprune/src"),
+        workspace.join("crates/souprune_schema/src"),
+        workspace.join("crates/souprune_api/src"),
+        workspace.join("crates/souprune_sdk/src"),
+    ];
+    let forbidden = [
+        "pub mod ui",
+        "pub use ui::",
+        "pub use crate::ui::",
+        "souprune::ui::",
+    ];
+    let hits = forbidden_rust_source_hits(&roots, &workspace, &forbidden);
+
+    assert!(
+        hits.is_empty(),
+        "public authoring/API modules must expose View, not a second ui surface:\n{}",
+        hits.join("\n")
+    );
+}
+
+#[test]
+fn public_docs_use_view_terminology_for_authoring_surface() {
+    let workspace = workspace_root();
+    let docs_roots = [
+        workspace.join("doc/docs/en"),
+        workspace.join("doc/docs/zh-hans"),
+    ];
+    let hits = forbidden_text_hits(
+        &docs_roots,
+        &workspace,
+        &["md"],
+        &["UI", "ui.md", "UI 设计", "UI 定制"],
+    );
+
+    assert!(
+        hits.is_empty(),
+        "author-facing docs must describe this surface as View:\n{}",
+        hits.join("\n")
+    );
+}
+
+#[test]
+fn direct_view_acceptance_examples_do_not_double_register_core_view_plugin() {
+    let workspace = workspace_root();
+    let example_paths = [
+        workspace.join("crates/souprune/examples/view_taffy_layout.rs"),
+        workspace.join("crates/souprune/examples/view_spatial_3d.rs"),
+    ];
+    let mut hits = Vec::new();
+
+    for path in example_paths {
+        let text = fs::read_to_string(&path).expect("read direct View acceptance example");
+        if text.contains("CoreViewPlugin") {
+            hits.push(format!(
+                "{} explicitly adds `CoreViewPlugin`",
+                path.strip_prefix(&workspace).unwrap_or(&path).display()
+            ));
+        }
+    }
+
+    assert!(
+        hits.is_empty(),
+        "direct View acceptance examples add `CorePlugin`, whose TopDownPlugin already registers CoreViewPlugin:\n{}",
+        hits.join("\n")
+    );
+}
+
+#[test]
+fn direct_view_acceptance_examples_insert_core_runtime_resources() {
+    let workspace = workspace_root();
+    let example_paths = [
+        workspace.join("crates/souprune/examples/view_taffy_layout.rs"),
+        workspace.join("crates/souprune/examples/view_spatial_3d.rs"),
+    ];
+    let mut hits = Vec::new();
+
+    for path in example_paths {
+        let text = fs::read_to_string(&path).expect("read direct View acceptance example");
+        if !text.contains("insert_resource(souprune::config::load_config())") {
+            hits.push(format!(
+                "{} does not insert SoupruneConfig",
+                path.strip_prefix(&workspace).unwrap_or(&path).display()
+            ));
+        }
+        if !text.contains("souprune::insert_input_resources(&mut app)") {
+            hits.push(format!(
+                "{} does not insert input runtime resources",
+                path.strip_prefix(&workspace).unwrap_or(&path).display()
+            ));
+        }
+    }
+
+    assert!(
+        hits.is_empty(),
+        "direct View acceptance examples must bootstrap core runtime resources:\n{}",
+        hits.join("\n")
+    );
+}
+
+#[test]
+fn direct_spatial_view_acceptance_example_uses_supported_tonemapping() {
+    let workspace = workspace_root();
+    let path = workspace.join("crates/souprune/examples/view_spatial_3d.rs");
+    let text = fs::read_to_string(&path).expect("read spatial View acceptance example");
+
+    assert!(
+        text.contains("Tonemapping::None"),
+        "view_spatial_3d must avoid Camera3d default tonemapping without Bevy LUT support"
+    );
+}
+
+#[test]
+fn direct_spatial_view_acceptance_example_uses_3d_native_preview() {
+    let workspace = workspace_root();
+    let example_path = workspace.join("crates/souprune/examples/view_spatial_3d.rs");
+    let manifest_path = workspace.join("crates/souprune/Cargo.toml");
+    let example = fs::read_to_string(&example_path).expect("read spatial View acceptance example");
+    let manifest = fs::read_to_string(&manifest_path).expect("read souprune manifest");
+
+    assert!(
+        manifest.contains("\"bevy_pbr\""),
+        "spatial View acceptance needs Bevy's 3D material pipeline enabled"
+    );
+    assert!(
+        example.contains("Mesh3d") && example.contains("StandardMaterial"),
+        "view_spatial_3d must render a 3D-native acceptance preview, not only 2D sprites or gizmos"
+    );
+}
+
+#[test]
+fn direct_spatial_view_acceptance_example_supports_right_mouse_orbit_camera() {
+    let workspace = workspace_root();
+    let path = workspace.join("crates/souprune/examples/view_spatial_3d.rs");
+    let text = fs::read_to_string(&path).expect("read spatial View acceptance example");
+
+    assert!(
+        text.contains("MouseButton::Right") && text.contains("MouseMotion"),
+        "view_spatial_3d should let the reviewer orbit the camera with right mouse drag"
+    );
+    assert!(
+        text.contains("orbit_spatial_camera_system"),
+        "view_spatial_3d should separate orbit control into a dedicated system"
     );
 }
 

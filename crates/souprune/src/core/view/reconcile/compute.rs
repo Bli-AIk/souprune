@@ -8,14 +8,21 @@
 
 use super::resolve::{
     process_visible_when_for_repeat, resolve_material, resolve_node_transform, resolve_sprite,
-    resolve_texts, resolve_viewbox_transform, resolve_visibility,
+    resolve_texts, resolve_transform, resolve_viewbox_transform, resolve_visibility,
 };
 use super::tree::{DesiredElement, DesiredViewTree, ViewElementKey};
 use crate::core::view::LocalState;
-use crate::core::view::layout::{ViewLayoutAsset, ViewNodeDef};
-use crate::core::view::ron_view::parsing::{
-    DataPathResolvers, ExprFunctionResolvers, PlayerDataView, RepeatContext,
+use crate::core::view::layout::placement::{self, ViewLayoutOrigin};
+use crate::core::view::layout::{
+    SerializableDisplay, ViewLayoutAsset, ViewLayoutContext, ViewLayoutRect,
+    ViewLayoutRepeatContext, ViewLayoutSlot, ViewLayoutSlots, ViewNodeDef, ViewSpaceDef,
+    ViewWorld3dPlaneDef, apply_layout_repeat_context_to_text, compute_taffy_layout_with_context,
+    layout_child_path, layout_repeat_path, layout_root_path,
 };
+use crate::core::view::ron_view::parsing::{
+    DataPathResolvers, ExprFunctionResolvers, PlayerDataView, RepeatContext, resolve_text_content,
+};
+use bevy::prelude::{Transform, Vec2};
 use bevy_fact_rule_event::LayeredFactDatabase;
 
 /// Context for resolving expressions during desired state computation.
@@ -86,6 +93,7 @@ impl<'a> ResolveContext<'a> {
 /// The desired view tree representing what the view should look like.
 pub fn compute_desired_state(
     asset: &ViewLayoutAsset,
+    layout_viewport_size: Vec2,
     global_facts: &LayeredFactDatabase,
     local_state: &LocalState,
     namespace: &str,
@@ -95,11 +103,46 @@ pub fn compute_desired_state(
     let ctx = ResolveContext::with_local_state(global_facts, local_state, namespace)
         .with_data_resolvers(data_resolvers)
         .with_expr_functions(expr_func_resolvers);
+    let mortar_strings = crate::extra::mortar::MortarStringTable::default();
+    let repeat_count = |repeat: &crate::core::view::layout::RepeatDef| {
+        Some(resolve_repeat_count(&ctx.player_data, repeat))
+    };
+    let repeat_item = |repeat: &crate::core::view::layout::RepeatDef, index: usize| {
+        resolve_repeat_item(&ctx.player_data, &repeat.source, index)
+    };
+    let text_content = |content: &str, repeat_ctx: Option<&ViewLayoutRepeatContext>| {
+        let content = apply_layout_repeat_context_to_text(content, repeat_ctx);
+        resolve_text_content(&content, &mortar_strings, &ctx.player_data)
+    };
+    let layout_slots = compute_taffy_layout_with_context(
+        asset,
+        layout_viewport_size,
+        ViewLayoutContext {
+            repeat_count: &repeat_count,
+            repeat_item: &repeat_item,
+            text_content: &text_content,
+        },
+    )
+    .ok();
 
+    let spatial_plane = spatial_plane_for_asset(asset);
     let roots = asset
         .roots
         .iter()
-        .flat_map(|node_def| compute_element(&ctx, node_def, None))
+        .enumerate()
+        .flat_map(|(root_idx, node_def)| {
+            let node_path = layout_root_path(root_idx, node_def);
+            compute_element(
+                &ctx,
+                node_def,
+                None,
+                layout_slots.as_ref(),
+                &node_path,
+                None,
+                ViewLayoutOrigin::TopLeft,
+                spatial_plane,
+            )
+        })
         .collect();
 
     DesiredViewTree { roots }
@@ -114,23 +157,46 @@ fn compute_element(
     ctx: &ResolveContext,
     node_def: &ViewNodeDef,
     repeat_ctx: Option<&RepeatContext>,
+    layout_slots: Option<&ViewLayoutSlots>,
+    node_path: &str,
+    parent_slot: Option<&ViewLayoutSlot>,
+    parent_origin: ViewLayoutOrigin,
+    spatial_plane: Option<&ViewWorld3dPlaneDef>,
 ) -> Vec<DesiredElement> {
+    if node_display_is_none(node_def) {
+        return Vec::new();
+    }
+
     // Handle repeat expansion
     if let Some(repeat_spec) = &node_def.repeat {
-        return expand_repeat(ctx, node_def, repeat_spec);
+        return expand_repeat(
+            ctx,
+            node_def,
+            repeat_spec,
+            layout_slots,
+            node_path,
+            parent_slot,
+            parent_origin,
+            spatial_plane,
+        );
     }
 
     // Build element key
     let key = build_element_key(ctx, node_def, repeat_ctx);
 
-    // Resolve transform: node transform wins, ViewBox uses offset, sprites use sprite.transform.
-    let transform = if node_def.transform.is_some() {
-        resolve_node_transform(&ctx.player_data, node_def, repeat_ctx)
-    } else if let Some(ref vb) = node_def.view_box {
-        resolve_viewbox_transform(vb, &ctx.player_data)
+    let layout_slot = layout_slots.and_then(|slots| slots.get(node_path));
+    let layout_transform_slot = if placement::node_uses_layout_slot_transform(node_def) {
+        layout_slot
     } else {
-        resolve_node_transform(&ctx.player_data, node_def, repeat_ctx)
+        None
     };
+    let transform = combine_layout_transform(
+        layout_transform_slot,
+        parent_slot,
+        parent_origin,
+        resolve_element_transform(&ctx.player_data, node_def, repeat_ctx),
+        spatial_plane,
+    );
 
     let visibility = resolve_visibility(
         &ctx.player_data,
@@ -152,12 +218,26 @@ fn compute_element(
     let children = node_def
         .children
         .iter()
-        .flat_map(|child| compute_element(ctx, child, repeat_ctx))
+        .enumerate()
+        .flat_map(|(child_idx, child)| {
+            let child_path = layout_child_path(node_path, child_idx, child);
+            compute_element(
+                ctx,
+                child,
+                repeat_ctx,
+                layout_slots,
+                &child_path,
+                layout_slot,
+                child_parent_origin(node_def),
+                spatial_plane,
+            )
+        })
         .collect();
 
     let mut element = DesiredElement::new(key, &node_def.name);
     element.tags = node_def.tags.clone();
     element.transform = transform;
+    element.layout_rect = layout_slot.map(ViewLayoutRect::from);
     element.visibility = visibility;
     element.sprite = sprite;
     element.texts = texts;
@@ -174,12 +254,13 @@ fn expand_repeat(
     ctx: &ResolveContext,
     node_def: &ViewNodeDef,
     repeat_spec: &crate::core::view::layout::RepeatDef,
+    layout_slots: Option<&ViewLayoutSlots>,
+    node_path: &str,
+    parent_slot: Option<&ViewLayoutSlot>,
+    parent_origin: ViewLayoutOrigin,
+    spatial_plane: Option<&ViewWorld3dPlaneDef>,
 ) -> Vec<DesiredElement> {
-    // Get the source array length
-    let count = ctx
-        .player_data
-        .get_array_length(&format!("${}", repeat_spec.source))
-        .unwrap_or(0);
+    let count = resolve_repeat_count(&ctx.player_data, repeat_spec);
 
     if count == 0 {
         return Vec::new();
@@ -193,20 +274,40 @@ fn expand_repeat(
     let mut elements = Vec::with_capacity(count);
 
     for i in 0..count {
-        let repeat_ctx = RepeatContext::new(i);
+        let mut repeat_ctx = RepeatContext::new(i);
+        if let Some(index_var) = repeat_spec.index_var.as_deref()
+            && !matches!(index_var, "i" | "index")
+        {
+            repeat_ctx = repeat_ctx.with_item(index_var, i.to_string());
+        }
+
+        if let Some(value) = resolve_repeat_item(&ctx.player_data, &repeat_spec.source, i) {
+            let item_var = repeat_spec.item_var.as_deref().unwrap_or("item");
+            repeat_ctx = repeat_ctx.with_item(item_var, value);
+        }
 
         // Build key for this repeat instance
-        let full_name = format!("{}::{}_{}", ctx.namespace, node_def.name, i);
+        let full_name = if ctx.namespace.is_empty() {
+            format!("{}_{}", node_def.name, i)
+        } else {
+            format!("{}::{}_{}", ctx.namespace, node_def.name, i)
+        };
         let key = ViewElementKey::with_repeat_index(full_name, i);
 
-        // Resolve transform: node transform wins, ViewBox uses offset, sprites use sprite.transform.
-        let transform = if node_def.transform.is_some() {
-            resolve_node_transform(&ctx.player_data, node_def, Some(&repeat_ctx))
-        } else if let Some(ref vb) = node_def.view_box {
-            resolve_viewbox_transform(vb, &ctx.player_data)
+        let repeat_node_path = layout_repeat_path(node_path, i);
+        let layout_slot = layout_slots.and_then(|slots| slots.get(&repeat_node_path));
+        let layout_transform_slot = if placement::node_uses_layout_slot_transform(node_def) {
+            layout_slot
         } else {
-            resolve_node_transform(&ctx.player_data, node_def, Some(&repeat_ctx))
+            None
         };
+        let transform = combine_layout_transform(
+            layout_transform_slot,
+            parent_slot,
+            parent_origin,
+            resolve_element_transform(&ctx.player_data, node_def, Some(&repeat_ctx)),
+            spatial_plane,
+        );
 
         let visibility = resolve_visibility(
             &ctx.player_data,
@@ -227,12 +328,26 @@ fn expand_repeat(
         let children = node_def
             .children
             .iter()
-            .flat_map(|child| compute_element(ctx, child, Some(&repeat_ctx)))
+            .enumerate()
+            .flat_map(|(child_idx, child)| {
+                let child_path = layout_child_path(&repeat_node_path, child_idx, child);
+                compute_element(
+                    ctx,
+                    child,
+                    Some(&repeat_ctx),
+                    layout_slots,
+                    &child_path,
+                    layout_slot,
+                    child_parent_origin(node_def),
+                    spatial_plane,
+                )
+            })
             .collect();
 
         let mut element = DesiredElement::new(key, &node_def.name);
         element.tags = node_def.tags.clone();
         element.transform = transform;
+        element.layout_rect = layout_slot.map(ViewLayoutRect::from);
         element.visibility = visibility;
         element.sprite = sprite;
         element.texts = texts;
@@ -244,6 +359,105 @@ fn expand_repeat(
     }
 
     elements
+}
+
+fn resolve_repeat_count(
+    player_data: &PlayerDataView,
+    repeat_spec: &crate::core::view::layout::RepeatDef,
+) -> usize {
+    let array_len = if let Some(list) = player_data.get_fact_string_list(&repeat_spec.source) {
+        list.len()
+    } else if let Some(list) = player_data.get_fact_int_list(&repeat_spec.source) {
+        list.len()
+    } else {
+        0
+    };
+
+    array_len.min(repeat_spec.limit.unwrap_or(usize::MAX))
+}
+
+fn resolve_repeat_item(player_data: &PlayerDataView, source: &str, index: usize) -> Option<String> {
+    if let Some(list) = player_data.get_fact_string_list(source) {
+        list.into_iter().nth(index)
+    } else if let Some(list) = player_data.get_fact_int_list(source) {
+        list.into_iter().nth(index).map(|value| value.to_string())
+    } else {
+        None
+    }
+}
+
+fn resolve_element_transform(
+    player_data: &PlayerDataView,
+    node_def: &ViewNodeDef,
+    repeat_ctx: Option<&RepeatContext>,
+) -> Transform {
+    let local = if let Some(view_box) = &node_def.view_box {
+        resolve_viewbox_transform(view_box, player_data)
+    } else {
+        resolve_transform(player_data, node_def.sprite.as_ref(), repeat_ctx)
+    };
+
+    if node_def.transform.is_some() {
+        combine_transforms(
+            resolve_node_transform(player_data, node_def, repeat_ctx),
+            local,
+        )
+    } else {
+        local
+    }
+}
+
+fn combine_layout_transform(
+    slot: Option<&ViewLayoutSlot>,
+    parent_slot: Option<&ViewLayoutSlot>,
+    parent_origin: ViewLayoutOrigin,
+    transform: Transform,
+    spatial_plane: Option<&ViewWorld3dPlaneDef>,
+) -> Transform {
+    if let Some(plane) = spatial_plane {
+        return placement::combine_spatial_layout_transform(
+            slot,
+            parent_slot,
+            parent_origin,
+            plane.pixels_per_unit,
+            transform,
+        );
+    }
+    placement::combine_layout_transform(slot, parent_slot, parent_origin, transform)
+}
+
+fn child_parent_origin(node_def: &ViewNodeDef) -> ViewLayoutOrigin {
+    if node_is_pure_container(node_def) {
+        ViewLayoutOrigin::TopLeft
+    } else {
+        ViewLayoutOrigin::Center
+    }
+}
+
+fn node_is_pure_container(node_def: &ViewNodeDef) -> bool {
+    node_def.view_box.is_none()
+        && node_def.sprite.is_none()
+        && node_def.state_sprite.is_none()
+        && (!node_def.texts.is_empty() || !node_def.children.is_empty())
+}
+
+fn spatial_plane_for_asset(asset: &ViewLayoutAsset) -> Option<&ViewWorld3dPlaneDef> {
+    let Some(ViewSpaceDef::World3dPlane(plane)) = asset.space.as_ref() else {
+        return None;
+    };
+    Some(plane)
+}
+
+fn combine_transforms(parent: Transform, child: Transform) -> Transform {
+    Transform {
+        translation: parent.translation + child.translation,
+        rotation: parent.rotation * child.rotation,
+        scale: parent.scale * child.scale,
+    }
+}
+
+fn node_display_is_none(node_def: &ViewNodeDef) -> bool {
+    matches!(node_def.style.display, Some(SerializableDisplay::None))
 }
 
 /// Build the element key from context and node definition.
@@ -266,3 +480,6 @@ fn build_element_key(
         ViewElementKey::new(full_name)
     }
 }
+
+#[cfg(test)]
+mod tests;

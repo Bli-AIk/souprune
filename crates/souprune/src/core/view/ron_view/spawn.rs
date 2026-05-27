@@ -15,11 +15,10 @@ mod pre_spawn_events;
 
 use super::super::components::*;
 use super::super::layout::*;
-use super::parsing::{DataPathResolvers, ExprFunctionResolvers, PlayerDataView};
-use super::resources::{HotReloadableViewRoot, RonDrivenView, ViewGenerated};
+use super::parsing::{PlayerDataView, resolve_text_content};
+use super::resources::HotReloadableViewRoot;
 use super::spawn_helpers::resolve_simple_localization;
 use crate::core::sprite::params::SpriteParams;
-use crate::extra::debug::DebugCamera;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy_fact_rule_event::{LayeredFactDatabase, RuleScope};
@@ -38,6 +37,17 @@ use crate::core::game_action::{GameFreAsset, GameRuleRegistry};
 pub struct FreSystemParams<'w> {
     pub rule_registry: ResMut<'w, GameRuleRegistry>,
     pub enum_registry: ResMut<'w, bevy_fact_rule_event::EnumRegistry>,
+}
+
+fn layout_requests_focus_scope(view_layout: &ViewLayoutAsset) -> bool {
+    view_layout.roots.iter().any(node_requests_focus_scope)
+}
+
+fn node_requests_focus_scope(node: &ViewNodeDef) -> bool {
+    matches!(
+        node.focus_policy,
+        Some(ViewFocusPolicyDef::Focusable | ViewFocusPolicyDef::Scope)
+    ) || node.children.iter().any(node_requests_focus_scope)
 }
 
 /// Register view-scoped FRE rules from a loaded FreAsset.
@@ -193,6 +203,7 @@ pub fn spawn_ron_view_for_entity(
     layered_db: &LayeredFactDatabase,
     rule_registry: &mut GameRuleRegistry,
     enum_registry: &mut bevy_fact_rule_event::EnumRegistry,
+    layout_viewport_size: Vec2,
 ) {
     // Generate namespace from layout path
     // 从布局路径生成命名空间
@@ -305,12 +316,48 @@ pub fn spawn_ron_view_for_entity(
     // Spawn view nodes BEFORE attaching ViewRoot, using player_data with LocalState.
     // 在附加 ViewRoot 之前生成视图节点，使用带有 LocalState 的 player_data。
     {
+        let spatial_plane = match &view_layout.space {
+            Some(ViewSpaceDef::World3dPlane(plane)) => Some(plane.as_ref()),
+            _ => None,
+        };
         // Create player_data with LocalState for spawning children.
         // 使用 LocalState 创建 player_data 以生成子节点。
         let player_data_with_locals =
             PlayerDataView::with_local_state(player_data.db(), view_root.local_state());
+        let repeat_count = |repeat: &RepeatDef| {
+            Some(resolve_layout_repeat_count(
+                &player_data_with_locals,
+                repeat,
+            ))
+        };
+        let repeat_item = |repeat: &RepeatDef, index: usize| {
+            resolve_layout_repeat_item(&player_data_with_locals, &repeat.source, index)
+        };
+        let text_content = |content: &str, repeat_ctx: Option<&ViewLayoutRepeatContext>| {
+            let content = apply_layout_repeat_context_to_text(content, repeat_ctx);
+            resolve_text_content(&content, mortar_strings, &player_data_with_locals)
+        };
+        let layout_slots = match compute_taffy_layout_with_context(
+            view_layout,
+            layout_viewport_size,
+            ViewLayoutContext {
+                repeat_count: &repeat_count,
+                repeat_item: &repeat_item,
+                text_content: &text_content,
+            },
+        ) {
+            Ok(slots) => Some(slots),
+            Err(error) => {
+                warn!(
+                    "[ViewRoot] Failed to compute Taffy layout for '{}': {}",
+                    layout_path, error
+                );
+                None
+            }
+        };
 
-        for root in &view_layout.roots {
+        for (root_idx, root) in view_layout.roots.iter().enumerate() {
+            let root_path = layout_root_path(root_idx, root);
             spawn_view_node(
                 commands,
                 asset_server,
@@ -321,6 +368,11 @@ pub fn spawn_ron_view_for_entity(
                 mortar_strings,
                 &player_data_with_locals,
                 &namespace,
+                layout_slots.as_ref(),
+                &root_path,
+                None,
+                crate::core::view::layout::placement::ViewLayoutOrigin::TopLeft,
+                spatial_plane,
             );
         }
     }
@@ -340,6 +392,32 @@ pub fn spawn_ron_view_for_entity(
         commands.entity(view_entity).insert(PendingViewRules {
             pending_handles: pending_fre_handles,
         });
+    }
+}
+
+fn resolve_layout_repeat_count(player_data: &PlayerDataView, repeat: &RepeatDef) -> usize {
+    let array_len = if let Some(list) = player_data.get_fact_string_list(&repeat.source) {
+        list.len()
+    } else if let Some(list) = player_data.get_fact_int_list(&repeat.source) {
+        list.len()
+    } else {
+        0
+    };
+
+    array_len.min(repeat.limit.unwrap_or(usize::MAX))
+}
+
+fn resolve_layout_repeat_item(
+    player_data: &PlayerDataView,
+    source: &str,
+    index: usize,
+) -> Option<String> {
+    if let Some(list) = player_data.get_fact_string_list(source) {
+        list.into_iter().nth(index)
+    } else if let Some(list) = player_data.get_fact_int_list(source) {
+        list.into_iter().nth(index).map(|value| value.to_string())
+    } else {
+        None
     }
 }
 
@@ -376,18 +454,31 @@ fn required_pre_spawn_fre_files_loaded(
         .all(|handle| fre_assets.get(handle).is_some())
 }
 
-fn camera_visible_size(projection: &Projection) -> Option<Vec2> {
-    let Projection::Orthographic(orthographic) = projection else {
-        return None;
-    };
-    let size = Vec2::new(
-        orthographic.area.width().abs(),
-        orthographic.area.height().abs(),
-    );
-    if size.x > 0.0 && size.y > 0.0 {
-        Some(size)
-    } else {
-        None
+fn layout_viewport_size(view_layout: &ViewLayoutAsset, camera_visible_size: Option<Vec2>) -> Vec2 {
+    if let Some(CoordinateSpaceDef {
+        extent: CoordinateExtentDef::Explicit((width, height)),
+        ..
+    }) = view_layout.coordinate_space.as_ref()
+        && *width > 0.0
+        && *height > 0.0
+    {
+        return Vec2::new(*width, *height);
+    }
+
+    camera_visible_size.unwrap_or(Vec2::new(640.0, 480.0))
+}
+
+fn layout_uses_3d_plane_space(view_layout: &ViewLayoutAsset) -> bool {
+    matches!(view_layout.space, Some(ViewSpaceDef::World3dPlane(_)))
+}
+
+fn camera_relative_parent_for_view(
+    view_layout: &ViewLayoutAsset,
+    target_parent: Option<Entity>,
+) -> Option<Entity> {
+    match view_layout.space {
+        None | Some(ViewSpaceDef::Camera2dRelative) => target_parent,
+        Some(ViewSpaceDef::World2d | ViewSpaceDef::World3dPlane(_)) => None,
     }
 }
 
@@ -395,7 +486,10 @@ fn camera_relative_view_offset(
     view_layout: &ViewLayoutAsset,
     camera_visible_size: Option<Vec2>,
 ) -> Vec2 {
-    if view_layout.world_space {
+    if matches!(
+        view_layout.space,
+        Some(ViewSpaceDef::World2d | ViewSpaceDef::World3dPlane(_))
+    ) {
         return Vec2::ZERO;
     }
 
@@ -435,193 +529,8 @@ fn camera_relative_view_offset(
     )
 }
 
-/// Unified system to spawn all Views (backpack, battle, chase, dialogue).
-/// All View spawning goes through SpawnViewRequest → this system.
-///
-/// 统一的 View 生成系统（背包、战斗、追逐、对话）。
-/// 所有 View 生成都通过 SpawnViewRequest → 此系统。
-pub fn spawn_dynamic_view_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    view_layouts: Res<Assets<ViewLayoutAsset>>,
-    animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
-    fre_assets: Res<Assets<GameFreAsset>>,
-    // Query for views with HotReloadableViewRoot + RonDrivenView but not yet generated
-    // 查询有 HotReloadableViewRoot + RonDrivenView 但尚未生成的 View
-    mut dynamic_view_query: Query<
-        (
-            Entity,
-            &mut HotReloadableViewRoot,
-            &ViewRoot,
-            Option<&PendingViewData>,
-        ),
-        (
-            With<RonDrivenView>,
-            Without<ViewGenerated>,
-            Without<ViewBox>,
-        ),
-    >,
-    camera_query: Query<
-        (Entity, &Transform, &Camera, &Projection),
-        (
-            With<Camera2d>,
-            With<crate::core::camera::MainGameCamera>,
-            Without<DebugCamera>,
-        ),
-    >,
-    mut sprite_params: SpriteParams,
-    mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
-    layered_db: Res<LayeredFactDatabase>,
-    mut fre_params: FreSystemParams,
-    data_resolvers: Option<Res<DataPathResolvers>>,
-    expr_func_resolvers: Option<Res<ExprFunctionResolvers>>,
-) {
-    let player_data = PlayerDataView::new(&layered_db)
-        .with_resolvers(data_resolvers.as_deref(), None)
-        .with_expr_functions(expr_func_resolvers.as_deref());
-
-    for (view_entity, mut hot_reload_root, _view_root, pending_view_data) in
-        dynamic_view_query.iter_mut()
-    {
-        // Check if asset is loaded
-        let Some(view_layout) = view_layouts.get(&hot_reload_root.layout_handle) else {
-            trace!(
-                "[spawn_dynamic_view] Waiting for asset to load: {}",
-                hot_reload_root.layout_path
-            );
-            continue;
-        };
-
-        // If there are pending bindings, wait for all FRE assets to load
-        if let Some(pvd) = pending_view_data {
-            let all_loaded = pvd.fre_handles.iter().all(|h| fre_assets.get(h).is_some());
-            if !all_loaded {
-                trace!(
-                    "[spawn_dynamic_view] Waiting for FRE binding assets: {}",
-                    hot_reload_root.layout_path
-                );
-                continue;
-            }
-        }
-
-        if !required_pre_spawn_fre_files_loaded(
-            view_layout,
-            &asset_server,
-            &fre_assets,
-            &mut hot_reload_root,
-        ) {
-            trace!(
-                "[spawn_dynamic_view] Waiting for required FRE assets: {}",
-                hot_reload_root.layout_path
-            );
-            continue;
-        }
-
-        let Some((camera_entity, _, _, projection)) =
-            camera_query.iter().find(|(_, _, c, _)| c.is_active)
-        else {
-            warn!("[spawn_dynamic_view] No Camera2d found for view spawning!");
-            continue;
-        };
-
-        info!(
-            "[spawn_dynamic_view] Spawning view: {}, entity={:?}",
-            hot_reload_root.layout_path, view_entity
-        );
-
-        // Get bindings from PendingViewData if present
-        let bindings = pending_view_data.map(|pvd| &pvd.bindings);
-
-        spawn_ron_view_for_entity(
-            &mut commands,
-            &asset_server,
-            view_entity,
-            view_layout,
-            &mut sprite_params,
-            &animation_assets,
-            &fre_assets,
-            &mortar_strings,
-            &player_data,
-            &hot_reload_root.layout_path,
-            &hot_reload_root.pre_spawn_events,
-            bindings,
-            &layered_db,
-            &mut fre_params.rule_registry,
-            &mut fre_params.enum_registry,
-        );
-
-        // Camera-relative views: parent the view entity to the camera so child
-        // transforms are automatically relative to the camera position.
-        // World-space views (battle): keep the view entity as a standalone world entity.
-        if !view_layout.world_space {
-            commands.entity(view_entity).insert((
-                Transform::from_translation(
-                    camera_relative_view_offset(view_layout, camera_visible_size(projection))
-                        .extend(0.0),
-                ),
-                ChildOf(camera_entity),
-            ));
-        }
-
-        // 自动推断 ActiveView：有 requires（FRE 规则声明）或 bindings（外部数据绑定）
-        // → 标记为 ActiveView，接收 FRE 规则和交互
-        // TODO: 未来扩展：如果需要多个 同时交互 的 View，可以引入 `PrimaryView` / `SecondaryView` 概念
-        if !view_layout.requires.is_empty() || pending_view_data.is_some() {
-            commands.entity(view_entity).insert(ActiveView);
-        }
-
-        // Add ViewGenerated and ReconciliationEnabled; remove PendingViewData
-        commands.entity(view_entity).insert((
-            ViewGenerated,
-            crate::core::view::reconcile::ReconciliationEnabled,
-        ));
-        commands.entity(view_entity).remove::<PendingViewData>();
-
-        info!(
-            "[spawn_dynamic_view] Added ViewGenerated to entity {:?}",
-            view_entity
-        );
-    }
-}
+mod dynamic;
+pub use dynamic::spawn_dynamic_view_system;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn explicit_screen_layout(world_space: bool) -> ViewLayoutAsset {
-        ViewLayoutAsset {
-            roots: Vec::new(),
-            requires: Vec::new(),
-            facts: None,
-            world_space,
-            coordinate_system: CoordinateSystem::Standard,
-            coordinate_space: Some(CoordinateSpaceDef {
-                axis_origin: (
-                    crate::core::sequencer::chapter_schema::Value::Static(0.0),
-                    crate::core::sequencer::chapter_schema::Value::Static(0.0),
-                ),
-                y_axis: YAxisDirectionDef::Down,
-                rotation: RotationDirectionDef::CounterClockwise,
-                extent: CoordinateExtentDef::Explicit((640.0, 480.0)),
-            }),
-        }
-    }
-
-    #[test]
-    fn camera_relative_view_offsets_explicit_coordinate_space_to_camera_viewport() {
-        let layout = explicit_screen_layout(false);
-
-        let offset = camera_relative_view_offset(&layout, Some(Vec2::new(320.0, 240.0)));
-
-        assert_eq!(offset, Vec2::new(160.0, -120.0));
-    }
-
-    #[test]
-    fn world_space_view_does_not_offset_explicit_coordinate_space() {
-        let layout = explicit_screen_layout(true);
-
-        let offset = camera_relative_view_offset(&layout, Some(Vec2::new(320.0, 240.0)));
-
-        assert_eq!(offset, Vec2::ZERO);
-    }
-}
+mod tests;

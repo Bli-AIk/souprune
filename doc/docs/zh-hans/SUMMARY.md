@@ -19,7 +19,7 @@
 - [邀请客人](part2_plating_the_world/2.3_npc.md)
 
 ## 灵魂甜点
-- [给界面加点糖](part3_soul_dessert/3.1_ui.md)
+- [给 View 加点糖](part3_soul_dessert/3.1_view.md)
 - [听觉调味](part3_soul_dessert/3.2_audio.md)
 - [摆盘特效](part3_soul_dessert/3.3_vfx.md)
 

@@ -134,8 +134,8 @@ pub(crate) fn spawn_container_texts(
     for text_def in texts {
         let text_config = build_text_config(text_def, mortar_strings, player_data);
 
-        info!(
-            "[UI Container] Spawning text '{}' for container",
+        debug!(
+            "[View Container] Spawning text '{}' for container",
             text_config.name
         );
 
@@ -423,8 +423,8 @@ pub(super) fn spawn_standalone_static_sprite(
     let entity_id = entity_cmd.id();
     *spawned_entity_id = Some(entity_id);
 
-    info!(
-        "[UI Sprite] Spawned static sprite '{}' (Entity {:?}) with image: {:?}",
+    debug!(
+        "[View Sprite] Spawned static sprite '{}' (Entity {:?}) with image: {:?}",
         node_name, entity_id, debug_path
     );
 }

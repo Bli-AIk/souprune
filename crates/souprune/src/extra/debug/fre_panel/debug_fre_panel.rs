@@ -21,6 +21,8 @@ mod wasm_ui;
 
 use crate::core::input::Action;
 use crate::core::top_down::character::components::PlayerControlled;
+use crate::extra::debug::window_lifecycle as debug_window_lifecycle;
+use crate::extra::debug::window_lifecycle::DebugWindowLifecycleState;
 use bevy::camera::RenderTarget;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
@@ -78,6 +80,24 @@ struct FREPanelState {
     new_fact_layer: FactLayerSelection,
     /// Search filter.
     search_filter: String,
+}
+
+impl DebugWindowLifecycleState for FREPanelState {
+    fn window_entity(&self) -> Option<Entity> {
+        self.window_entity
+    }
+
+    fn window_entity_mut(&mut self) -> &mut Option<Entity> {
+        &mut self.window_entity
+    }
+
+    fn camera_entity_mut(&mut self) -> &mut Option<Entity> {
+        &mut self.camera_entity
+    }
+
+    fn on_window_closed(&mut self) {
+        self.window_focused = false;
+    }
 }
 
 /// Tabs in the FRE debug panel.
@@ -212,13 +232,7 @@ fn spawn_fre_panel(commands: &mut Commands, state: &mut FREPanelState) {
 
 /// Close the FRE debug panel window.
 fn close_fre_panel(commands: &mut Commands, state: &mut FREPanelState) {
-    if let Some(camera_entity) = state.camera_entity.take() {
-        commands.entity(camera_entity).despawn();
-    }
-    if let Some(window_entity) = state.window_entity.take() {
-        commands.entity(window_entity).despawn();
-    }
-    state.window_focused = false;
+    debug_window_lifecycle::close_debug_window(commands, state);
     info!("FRE Debug Panel closed");
 }
 
@@ -228,21 +242,12 @@ fn fre_panel_window_closed_system(
     mut window_events: MessageReader<WindowClosed>,
     mut state: ResMut<FREPanelState>,
 ) {
-    let Some(window_entity) = state.window_entity else {
-        return;
-    };
-
-    for event in window_events.read() {
-        if event.window != window_entity {
-            continue;
-        }
-        state.window_entity = None;
-        if let Some(camera_entity) = state.camera_entity.take() {
-            commands.entity(camera_entity).despawn();
-        }
-        state.window_focused = false;
+    if debug_window_lifecycle::close_debug_window_on_child_window_closed(
+        &mut commands,
+        &mut window_events,
+        &mut *state,
+    ) {
         info!("FRE Debug Panel closed");
-        break;
     }
 }
 
@@ -253,8 +258,11 @@ fn primary_window_closed_system(
     mut state: ResMut<FREPanelState>,
     mut removed: RemovedComponents<PrimaryWindow>,
 ) {
-    if removed.read().next().is_some() && state.window_entity.is_some() {
-        close_fre_panel(&mut commands, &mut state);
+    if debug_window_lifecycle::close_debug_window_on_primary_window_removed(
+        &mut commands,
+        &mut removed,
+        &mut *state,
+    ) {
         info!("FRE Debug Panel closed (primary window closed)");
     }
 }

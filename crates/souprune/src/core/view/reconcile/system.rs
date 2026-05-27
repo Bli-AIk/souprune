@@ -10,8 +10,13 @@ use super::compute::compute_desired_state;
 use super::delta::{DeltaStats, apply_deltas};
 use super::diff::reconcile;
 use super::tree::CurrentViewTree;
+use crate::core::view::camera::select_view_camera_target;
 use crate::core::view::components::{ViewElement, ViewRoot};
-use crate::core::view::layout::ViewLayoutAsset;
+use crate::core::view::layout::{
+    CoordinateExtentDef, CoordinateSpaceDef, ViewLayoutAsset, ViewLayoutRect, ViewSpaceDef,
+};
+use crate::core::view::spatial::ViewSpatialRoot;
+use crate::extra::debug::DebugCamera;
 use bevy::asset::AssetEvent;
 use bevy::ecs::prelude::MessageReader;
 use bevy::prelude::*;
@@ -68,31 +73,84 @@ pub fn detect_asset_changes_system(
 }
 
 /// System to detect fact changes and mark views for reconciliation.
-/// Only marks views with `ActiveView` — non-interactive views (e.g., pure animation)
-/// don't reference facts and shouldn't be re-evaluated on fact changes.
+/// Marks generated RON-driven views because facts can drive layout measurement,
+/// repeat expansion, visibility, and authored transforms.
 ///
 /// 检测事实变化并标记视图需要协调的系统。
-/// 仅标记有 `ActiveView` 的视图——纯动画等非交互视图不引用事实，
-/// 不应在事实变化时被重新求值。
+/// 标记已生成的 RON 驱动 View，因为事实可能驱动布局测量、repeat 展开、
+/// 可见性和作者定义的变换。
 pub fn detect_fact_changes_system(
     layered_db: Res<LayeredFactDatabase>,
     mut pending: ResMut<PendingReconciliations>,
-    active_views: Query<
+    view_roots: Query<
         &crate::core::view::ron_view::HotReloadableViewRoot,
-        (
-            With<ReconciliationEnabled>,
-            With<crate::core::view::components::ActiveView>,
-        ),
+        With<ReconciliationEnabled>,
     >,
 ) {
     if layered_db.is_changed() {
-        for hot_reload_root in active_views.iter() {
+        for hot_reload_root in view_roots.iter() {
             pending.mark_asset(hot_reload_root.layout_handle.id());
         }
         debug!(
-            "[Reconciliation] LayeredFactDatabase changed, marking {} active views for reconciliation",
-            active_views.iter().count()
+            "[Reconciliation] LayeredFactDatabase changed, marking {} views for reconciliation",
+            view_roots.iter().count()
         );
+    }
+}
+
+/// System to detect local ViewRoot state changes and mark their layout assets for reconciliation.
+///
+/// 检测 ViewRoot 局部状态变化并标记其布局资源需要协调的系统。
+pub fn detect_view_root_local_state_changes_system(
+    mut pending: ResMut<PendingReconciliations>,
+    changed_view_roots: Query<
+        &crate::core::view::ron_view::HotReloadableViewRoot,
+        (With<ReconciliationEnabled>, Changed<ViewRoot>),
+    >,
+) {
+    for hot_reload_root in changed_view_roots.iter() {
+        pending.mark_asset(hot_reload_root.layout_handle.id());
+    }
+}
+
+/// System to detect main View camera changes and force all reconciliation.
+///
+/// 检测主 View 摄像机变化并强制所有协调的系统。
+pub fn detect_main_camera_view_changes_system(
+    changed_2d_cameras: Query<
+        (),
+        (
+            With<Camera2d>,
+            With<crate::core::camera::MainGameCamera>,
+            Without<DebugCamera>,
+            Changed<Camera>,
+        ),
+    >,
+    changed_projections: Query<
+        (),
+        (
+            With<Camera2d>,
+            With<crate::core::camera::MainGameCamera>,
+            Without<DebugCamera>,
+            Changed<Projection>,
+        ),
+    >,
+    changed_3d_cameras: Query<
+        (),
+        (
+            With<Camera3d>,
+            With<crate::core::camera::MainGameCamera>,
+            Without<DebugCamera>,
+            Changed<Camera>,
+        ),
+    >,
+    mut pending: ResMut<PendingReconciliations>,
+) {
+    if !changed_2d_cameras.is_empty()
+        || !changed_projections.is_empty()
+        || !changed_3d_cameras.is_empty()
+    {
+        pending.force_reconcile_all();
     }
 }
 
@@ -118,6 +176,7 @@ pub fn view_reconciliation_system(
         Entity,
         &ViewElement,
         &Transform,
+        Option<&ViewLayoutRect>,
         &Visibility,
         Option<&ChildOf>,
         Option<&Sprite>,
@@ -126,6 +185,22 @@ pub fn view_reconciliation_system(
         Option<&crate::core::view::components::ViewBoxAnchor>,
     )>,
     children_query: Query<&Children>,
+    main_2d_camera_query: Query<
+        (Entity, &Camera, &Projection),
+        (
+            With<Camera2d>,
+            With<crate::core::camera::MainGameCamera>,
+            Without<DebugCamera>,
+        ),
+    >,
+    main_3d_camera_query: Query<
+        (Entity, &Camera),
+        (
+            With<Camera3d>,
+            With<crate::core::camera::MainGameCamera>,
+            Without<DebugCamera>,
+        ),
+    >,
     data_resolvers: Option<Res<crate::core::view::ron_view::parsing::DataPathResolvers>>,
     expr_func_resolvers: Option<Res<crate::core::view::ron_view::parsing::ExprFunctionResolvers>>,
 ) {
@@ -150,10 +225,19 @@ pub fn view_reconciliation_system(
             continue;
         };
 
+        refresh_spatial_view_root_definition(&mut commands, root_entity, asset);
+
         // Compute desired state
         let namespace = &view_root.namespace;
+        let visible_size = select_view_camera_target(
+            asset,
+            main_2d_camera_query.iter(),
+            main_3d_camera_query.iter(),
+        )
+        .and_then(|target| target.visible_size);
         let desired = compute_desired_state(
             asset,
+            layout_viewport_size(asset, visible_size),
             &layered_db,
             view_root.local_state(),
             namespace,
@@ -189,6 +273,20 @@ pub fn view_reconciliation_system(
     pending.clear();
 }
 
+fn refresh_spatial_view_root_definition(
+    commands: &mut Commands,
+    root_entity: Entity,
+    asset: &ViewLayoutAsset,
+) {
+    let Some(ViewSpaceDef::World3dPlane(plane)) = asset.space.as_ref() else {
+        return;
+    };
+
+    commands.entity(root_entity).insert(ViewSpatialRoot {
+        plane: plane.as_ref().clone(),
+    });
+}
+
 /// Build current view tree from ECS queries for a specific root entity.
 /// 从特定根实体的 ECS 查询构建当前视图树。
 fn build_current_tree_from_query(
@@ -197,6 +295,7 @@ fn build_current_tree_from_query(
         Entity,
         &ViewElement,
         &Transform,
+        Option<&ViewLayoutRect>,
         &Visibility,
         Option<&ChildOf>,
         Option<&Sprite>,
@@ -219,12 +318,27 @@ fn build_current_tree_from_query(
     build_current_tree_with_components(root_entity, &elements)
 }
 
+fn layout_viewport_size(view_layout: &ViewLayoutAsset, camera_visible_size: Option<Vec2>) -> Vec2 {
+    if let Some(CoordinateSpaceDef {
+        extent: CoordinateExtentDef::Explicit((width, height)),
+        ..
+    }) = view_layout.coordinate_space.as_ref()
+        && *width > 0.0
+        && *height > 0.0
+    {
+        return Vec2::new(*width, *height);
+    }
+
+    camera_visible_size.unwrap_or(Vec2::new(640.0, 480.0))
+}
+
 /// Element data collected from ECS queries.
 /// 从 ECS 查询收集的元素数据。
 struct CollectedElement {
     entity: Entity,
     full_name: String,
     transform: Transform,
+    layout_rect: Option<ViewLayoutRect>,
     visibility: Visibility,
     parent: Option<Entity>,
     sprite: Option<super::tree::CurrentSprite>,
@@ -240,6 +354,7 @@ fn collect_descendants(
         Entity,
         &ViewElement,
         &Transform,
+        Option<&ViewLayoutRect>,
         &Visibility,
         Option<&ChildOf>,
         Option<&Sprite>,
@@ -255,6 +370,7 @@ fn collect_descendants(
         e,
         view_element,
         transform,
+        layout_rect,
         visibility,
         child_of,
         sprite_opt,
@@ -291,6 +407,7 @@ fn collect_descendants(
             entity: e,
             full_name: view_element.full_name.clone(),
             transform: logical_transform,
+            layout_rect: layout_rect.copied(),
             visibility: *visibility,
             parent,
             sprite,
@@ -332,6 +449,7 @@ fn build_current_tree_with_components(
             entity: elem.entity,
             key,
             transform: elem.transform,
+            layout_rect: elem.layout_rect,
             visibility: elem.visibility,
             parent: elem.parent,
             sprite: elem.sprite.clone(),
@@ -368,9 +486,14 @@ impl Plugin for ViewReconciliationPlugin {
             (
                 detect_asset_changes_system,
                 detect_fact_changes_system,
+                detect_view_root_local_state_changes_system,
+                detect_main_camera_view_changes_system,
                 view_reconciliation_system,
             )
                 .chain(),
         );
     }
 }
+
+#[cfg(test)]
+mod tests;
