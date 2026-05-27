@@ -1,5 +1,13 @@
 # SoupRune
 
+> **⚠️ 归档状态**
+>
+> SoupRune 因个人原因暂时归档。它可能会在未来恢复归档，继续开发；也可能会像它的前身 [UNDERTALE-CHANGER-TEMPLATE](https://github.com/Bli-AIk/Undertale-Changer-Template) 一样，再次死去，被新的框架顶替。我也可能会为它写一段悼词。
+>
+> 以上事项是否执行，不做任何保证。
+>
+> ---
+
 [![license](https://img.shields.io/github/license/Bli-AIk/souprune)](LICENSE.md) <img src="https://img.shields.io/github/repo-size/Bli-AIk/souprune.svg"/> <img src="https://img.shields.io/github/last-commit/Bli-AIk/souprune.svg"/> <br>
 <img src="https://img.shields.io/badge/Deltarune-Undertale-black?style=for-the-badge&labelColor=001225&logo=undertale&logoColor=ff0000" /> <img src="https://img.shields.io/badge/Bevy-232326?style=for-the-badge&logo=bevy&logoColor=white" /> <br>
 <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" />
