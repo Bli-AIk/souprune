@@ -9181,7 +9181,7 @@ dependencies = [
 
 [[package]]
 name = "souprune"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -9241,11 +9241,11 @@ dependencies = [
 
 [[package]]
 name = "souprune_api"
-version = "0.2.0"
+version = "0.3.0"
 
 [[package]]
 name = "souprune_cauld_ron"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "cauld-ron",
@@ -9269,7 +9269,7 @@ dependencies = [
 
 [[package]]
 name = "souprune_schema"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "indexmap",
  "ron",
@@ -9278,7 +9278,7 @@ dependencies = [
 
 [[package]]
 name = "souprune_sdk"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "wit-bindgen 0.57.1",
 ]
